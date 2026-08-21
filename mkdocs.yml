@@ -1,0 +1,61 @@
+site_name: CDS v2
+site_description: Scientific computing platform on the NumPy/SciPy/pandas/matplotlib stack.
+site_author: Furox88
+site_url: https://furox88.github.io/cognitive-discovery-system-v2/
+repo_url: https://github.com/Furox88/cognitive-discovery-system-v2
+repo_name: Furox88/cognitive-discovery-system-v2
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Modules overview: modules.md
+  - API Reference:
+      - cds2.linalg: api/linalg.md
+      - cds2.stats: api/stats.md
+      - cds2.optimize: api/optimize.md
+      - cds2.integrate: api/integrate.md
+      - cds2.interpolate: api/interpolate.md
+      - cds2.signals: api/signals.md
+      - cds2.montecarlo: api/montecarlo.md
+      - cds2.graph: api/graph.md
+      - cds2.ml: api/ml.md
+      - cds2.timeseries: api/timeseries.md
+      - cds2.viz: api/viz.md
+      - cds2.io: api/io.md
+      - cds2.cli: api/cli.md
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            show_source: true
+            members_order: source
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - tables
