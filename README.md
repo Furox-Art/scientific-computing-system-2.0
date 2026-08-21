@@ -86,6 +86,19 @@ The original zero-dependency pure-Python line lives at
 and remains available. v2 is an independent project that trades that
 constraint for the speed and breadth of the scientific Python ecosystem.
 
+## Benchmarks
+
+cds2 races the scientific stack head-to-head. Wrapper APIs hold **parity with
+raw NumPy/SciPy** (0.96-1.09x), beat scikit-learn's `LinearRegression` fit
+(0.76x), and lose honestly where compiled specialists win (sklearn KMeans,
+NetworkX PageRank). Full methodology and numbers:
+[docs/benchmarks.md](docs/benchmarks.md).
+
+```bash
+python benchmarks/run_benchmarks.py            # full run
+python benchmarks/run_benchmarks.py --quick    # smoke run
+```
+
 ## Development
 
 ```bash
