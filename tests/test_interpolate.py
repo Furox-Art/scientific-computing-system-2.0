@@ -52,3 +52,29 @@ class TestMultidimensional:
         values = [[0.0, 1.0], [1.0, 2.0]]
         result = interpolate.regular_grid_interp([axes_x, axes_y], values, [(0.25, 0.75)])
         assert result[0] == pytest.approx(1.0)
+
+
+class TestRbf:
+    def test_recovers_smooth_function(self) -> None:
+        rng_values = np.random.default_rng(0).uniform(-1.0, 1.0, size=(40, 1))
+        known_values = np.sin(3.0 * rng_values[:, 0])
+        grid = np.linspace(-1.0, 1.0, 50).reshape(-1, 1)
+        result = interpolate.rbf_interp(rng_values, known_values, grid)
+        assert np.max(np.abs(result - np.sin(3.0 * grid[:, 0]))) < 0.02
+
+    def test_smoothing_deviates_from_data(self) -> None:
+        rng_values = np.random.default_rng(0)
+        points = np.linspace(-2.0, 2.0, 30).reshape(-1, 1)
+        noisy = np.sin(2.0 * points[:, 0]) + rng_values.normal(scale=0.15, size=30)
+        grid = np.linspace(-2.0, 2.0, 61).reshape(-1, 1)
+        exact = interpolate.rbf_interp(points, noisy, grid)
+        smoothed = interpolate.rbf_interp(points, noisy, grid, smoothing=5.0)
+        assert np.max(np.abs(smoothed - exact)) > 0.01
+
+    def test_neighbors_mode_runs(self) -> None:
+        rng_values = np.random.default_rng(1).uniform(-2.0, 2.0, size=(300, 2))
+        known_values = rng_values[:, 0] ** 2 + rng_values[:, 1]
+        query = np.array([[0.5, 0.5]])
+        result = interpolate.rbf_interp(rng_values, known_values, query, neighbors=30)
+        expected = 0.25 + 0.5
+        assert abs(result[0] - expected) < 0.5

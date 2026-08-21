@@ -69,3 +69,53 @@ class TestOdeSolvers:
         result = integrate.solve_ivp(lambda t, y: y, (0.0, 1.0), [1.0], t_eval=grid)
         expected = np.exp(grid)
         assert np.allclose(result.y[0], expected, rtol=1e-4)
+
+
+class TestOdeEvents:
+    def test_terminal_event_at_exact_time(self) -> None:
+        def hit_one(_t: float, state: np.ndarray) -> float:
+            return state[0] - 1.0
+
+        hit_one.terminal = True
+        result = integrate.solve_ivp(lambda t, y: y, (0.0, 5.0), [0.1], events=[hit_one])
+        assert result.t_events is not None and result.y_events is not None
+        assert len(result.t_events[0]) == 1
+        assert result.t_events[0][0] == pytest.approx(np.log(10.0), rel=1e-4)
+        assert result.y_events[0][0][0] == pytest.approx(1.0, rel=1e-8)
+
+    def test_nonterminal_event_records_all_crossings(self) -> None:
+        def cross_zero(_t: float, state: np.ndarray) -> float:
+            return state[1]
+
+        rhs = lambda _t, state: [state[1], -state[0]]  # noqa: E731
+        result = integrate.solve_ivp(
+            rhs,
+            (0.0, 4 * np.pi),
+            [1.0, 0.0],
+            events=[cross_zero],
+            max_step=0.01,
+        )
+        crossings = len(result.t_events[0])
+        assert crossings >= 3
+
+    def test_no_events_keeps_fields_none(self) -> None:
+        result = integrate.solve_ivp(lambda t, y: y, (0.0, 1.0), [1.0])
+        assert result.t_events is None
+        assert result.y_events is None
+
+
+class TestStiffSolvers:
+    def test_bdf_solves_stiff_decay_system(self) -> None:
+        def stiff(t: float, y: np.ndarray) -> list[float]:
+            return [-1000.0 * (y[0] - np.exp(-t)) - np.exp(-t)]
+
+        result = integrate.solve_ivp(
+            lambda t, y: stiff(t, y),
+            (0.0, 1.0),
+            [1.0],
+            method="BDF",
+            rtol=1e-6,
+        )
+        assert result.success
+        # u = y - exp(-t) satisfies u' = -1000u with u(0) = 0, so y = exp(-t)
+        assert result.y[0][-1] == pytest.approx(np.exp(-1.0), rel=1e-4)

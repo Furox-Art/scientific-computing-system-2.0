@@ -14,6 +14,7 @@ __all__ = [
     "lagrange_poly",
     "grid_interp",
     "regular_grid_interp",
+    "rbf_interp",
 ]
 
 
@@ -70,3 +71,27 @@ def regular_grid_interp(
         np.asarray(values, dtype=float),
     )
     return np.asarray(interpolator(np.atleast_2d(query_points)))
+
+
+def rbf_interp(
+    points: Sequence[Sequence[float]],
+    values: Sequence[float],
+    query_points: Sequence[Sequence[float]],
+    kernel: str = "thin_plate_spline",
+    smoothing: float = 0.0,
+    neighbors: int | None = None,
+) -> np.ndarray:
+    """Radial-basis-function interpolation for scattered N-D data.
+
+    ``neighbors`` (kNN subset per query) keeps large problems tractable at a
+    small accuracy cost; ``smoothing > 0`` fits an approximating surface
+    instead of passing through the data.
+    """
+    interpolator = spi.RBFInterpolator(
+        np.asarray(points, dtype=float),
+        np.asarray(values, dtype=float),
+        kernel=kernel,
+        smoothing=smoothing,
+        neighbors=neighbors,
+    )
+    return np.asarray(interpolator(np.asarray(query_points, dtype=float)))

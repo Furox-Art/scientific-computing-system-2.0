@@ -12,6 +12,7 @@ __all__ = [
     "OptimizationResult",
     "LinprogResult",
     "FitResult",
+    "GlobalResult",
     "minimize",
     "minimize_scalar",
     "root",
@@ -20,6 +21,7 @@ __all__ = [
     "linprog",
     "least_squares",
     "curve_fit",
+    "differential_evolution",
 ]
 
 
@@ -159,6 +161,18 @@ def least_squares(
     )
 
 
+@dataclass(frozen=True)
+class GlobalResult:
+    """Outcome of a stochastic global optimization run."""
+
+    x: np.ndarray
+    fun: float
+    success: bool
+    message: str
+    n_iterations: int
+    n_evaluations: int
+
+
 def curve_fit(
     f: Callable[..., object],
     xdata: Sequence[float],
@@ -168,3 +182,31 @@ def curve_fit(
     """Fit model parameters by non-linear least squares."""
     params, covariance = spo.curve_fit(f, np.asarray(xdata), np.asarray(ydata), p0=p0)
     return FitResult(params=np.asarray(params, dtype=float), covariance=covariance)
+
+
+def differential_evolution(
+    fun: Callable[..., float],
+    bounds: Sequence[Sequence[float]],
+    maxiter: int = 1000,
+    popsize: int = 15,
+    seed: int | None = None,
+    **kwargs: object,
+) -> GlobalResult:
+    """Stochastic global minimization over a box via differential evolution."""
+    box = [tuple(bound) for bound in bounds]
+    res = spo.differential_evolution(
+        fun,
+        box,
+        maxiter=maxiter,
+        popsize=popsize,
+        seed=seed,
+        **kwargs,
+    )
+    return GlobalResult(
+        x=np.asarray(res.x, dtype=float),
+        fun=float(res.fun),
+        success=bool(res.success),
+        message=str(res.message),
+        n_iterations=int(res.nit),
+        n_evaluations=int(res.nfev),
+    )

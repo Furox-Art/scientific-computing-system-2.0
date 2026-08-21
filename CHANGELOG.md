@@ -4,6 +4,25 @@ All notable changes to **cognitive-discovery-system-v2** will be documented in
 this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.4.0] - 2026-08-22
+
+Scientific-computing depth release: scattered-data RBF interpolation, ODE
+event detection, stiff solvers and global optimization.
+
+### Added
+
+- **`cds2.interpolate.rbf_interp`** — radial-basis-function interpolation
+  for scattered N-D data (thin-plate-spline default), with `smoothing` for
+  approximating fits and `neighbors` kNN mode for large problems.
+- **ODE events** — `cds2.integrate.solve_ivp` now accepts `events`
+  (zero-crossing callables, `terminal = True` honored) and returns
+  `t_events` / `y_events` on the result.
+- **Stiff-solver documentation path** — `method="Radau" | "BDF" | "LSODA"`
+  documented and tested with a stiff decay system.
+- **`cds2.optimize.differential_evolution`** — stochastic global minimizer
+  over box constraints returning `GlobalResult` (x, fun, nit, nfev).
+- 9 new tests (236 total).
+
 ## [v2.3.0] - 2026-08-22
 
 Scientific-surface expansion: two new modules and modern resampling-based

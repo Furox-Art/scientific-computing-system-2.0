@@ -37,6 +37,8 @@ class OdeResult:
     y: np.ndarray
     success: bool
     message: str
+    t_events: tuple[np.ndarray, ...] | None = None
+    y_events: tuple[np.ndarray, ...] | None = None
 
 
 def quad(func: Callable[[float], float], a: float, b: float) -> QuadResult:
@@ -77,11 +79,16 @@ def solve_ivp(
     y0: Sequence[float],
     t_eval: Sequence[float] | None = None,
     method: str = "RK45",
+    events: Sequence[Callable[[float, np.ndarray], float]] | None = None,
     **kwargs: object,
 ) -> OdeResult:
     """Integrate an initial-value problem dy/dt = func(t, y).
 
     Backward integration works naturally when ``t_span[1] < t_span[0]``.
+    Pass ``events`` (callables ``g(t, y) -> float``; zero crossings trigger
+    them, set ``terminal = True`` on a callable to stop integration) to
+    receive ``t_events`` / ``y_events`` on the result. For stiff problems
+    use ``method="Radau"``, ``"BDF"`` or ``"LSODA"``.
     """
     res = spi.solve_ivp(
         func,
@@ -89,13 +96,21 @@ def solve_ivp(
         np.asarray(y0, dtype=float),
         t_eval=None if t_eval is None else np.asarray(t_eval, dtype=float),
         method=method,
+        events=events,
         **kwargs,
     )
+    t_events = None
+    y_events = None
+    if events is not None:
+        t_events = tuple(np.asarray(block) for block in res.t_events)
+        y_events = tuple(np.asarray(block) for block in res.y_events)
     return OdeResult(
         t=np.asarray(res.t),
         y=np.asarray(res.y),
         success=bool(res.success),
         message=str(res.message),
+        t_events=t_events,
+        y_events=y_events,
     )
 
 

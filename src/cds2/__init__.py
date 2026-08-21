@@ -62,6 +62,7 @@ from .interpolate import (
     lagrange_poly,
     linear_interp,
     pchip_interpolator,
+    rbf_interp,
     regular_grid_interp,
 )
 from .linalg import (
@@ -89,9 +90,11 @@ from .linalg import (
 from .montecarlo import hit_or_miss, mc_expectation, mc_integrate, pi_estimate
 from .optimize import (
     FitResult,
+    GlobalResult,
     LinprogResult,
     OptimizationResult,
     curve_fit,
+    differential_evolution,
     find_root_scalar,
     least_squares,
     linprog,
@@ -213,6 +216,7 @@ __all__ = [
     "lagrange_poly",
     "linear_interp",
     "pchip_interpolator",
+    "rbf_interp",
     "regular_grid_interp",
     # linalg
     "EigenResult",
@@ -242,9 +246,11 @@ __all__ = [
     "pi_estimate",
     # optimize
     "FitResult",
+    "GlobalResult",
     "LinprogResult",
     "OptimizationResult",
     "curve_fit",
+    "differential_evolution",
     "find_root_scalar",
     "least_squares",
     "linprog",

@@ -76,3 +76,31 @@ class TestLeastSquaresAndFit:
         fit = optimize.curve_fit(model, x, y, p0=[1.0, 1.0])
         assert fit.params[0] == pytest.approx(3.0, rel=1e-4)
         assert fit.params[1] == pytest.approx(1.7, rel=1e-3)
+
+
+class TestDifferentialEvolution:
+    def test_finds_global_minimum_of_bowl(self) -> None:
+        result = optimize.differential_evolution(
+            lambda v: (v[0] - 3.0) ** 2 + (v[1] + 2.0) ** 2 + 7.0,
+            bounds=[(-10.0, 10.0), (-10.0, 10.0)],
+            seed=1,
+            maxiter=200,
+        )
+        assert np.allclose(result.x, [3.0, -2.0], atol=1e-4)
+        assert result.fun == pytest.approx(7.0, abs=1e-8)
+        assert result.success
+        assert result.n_evaluations > 0
+
+    def test_beats_local_minimum_in_multimodal(self) -> None:
+        def bumpy(v):
+            return np.sin(3.0 * v[0]) + 0.1 * v[0] ** 2
+
+        result = optimize.differential_evolution(
+            bumpy,
+            bounds=[(-5.0, 5.0)],
+            seed=2,
+            maxiter=300,
+        )
+        grid = np.linspace(-5.0, 5.0, 4001)
+        reference = float(np.min(bumpy(grid.reshape(-1, 1))))
+        assert result.fun <= reference + 1e-3
