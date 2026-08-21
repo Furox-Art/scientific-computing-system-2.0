@@ -14,17 +14,27 @@
 #include <string.h>
 
 static int
-require_buffer(PyObject *obj, Py_buffer *view, const char *expected_format,
+require_buffer(PyObject *obj, Py_buffer *view, int want_double,
                const char *name)
 {
     if (PyObject_GetBuffer(obj, view, PyBUF_CONTIG_RO | PyBUF_FORMAT) < 0) {
         return 0;
     }
-    if (view->format == NULL || strcmp(view->format, expected_format) != 0) {
+    /* int64 exposes format "l" on LP64 platforms and "q" on Windows;
+     * accept both so compiled wheels behave identically everywhere. */
+    int format_ok;
+    if (want_double) {
+        format_ok = view->format != NULL &&
+                    strcmp(view->format, "d") == 0;
+    } else {
+        format_ok = view->format != NULL &&
+                    (strcmp(view->format, "q") == 0 ||
+                     strcmp(view->format, "l") == 0);
+    }
+    if (!format_ok) {
         PyErr_Format(PyExc_ValueError,
                      "%s must be a contiguous %s array", name,
-                     strcmp(expected_format, "d") == 0 ? "float64"
-                                                       : "int64");
+                     want_double ? "float64" : "int64");
         PyBuffer_Release(view);
         return 0;
     }
@@ -54,19 +64,19 @@ iterate(PyObject *self, PyObject *args)
     Py_buffer data_view;
     Py_buffer dangling_view;
 
-    if (!require_buffer(indptr_obj, &indptr_view, "q", "indptr")) {
+    if (!require_buffer(indptr_obj, &indptr_view, 0, "indptr")) {
         return NULL;
     }
-    if (!require_buffer(indices_obj, &indices_view, "q", "indices")) {
+    if (!require_buffer(indices_obj, &indices_view, 0, "indices")) {
         PyBuffer_Release(&indptr_view);
         return NULL;
     }
-    if (!require_buffer(data_obj, &data_view, "d", "data")) {
+    if (!require_buffer(data_obj, &data_view, 1, "data")) {
         PyBuffer_Release(&indptr_view);
         PyBuffer_Release(&indices_view);
         return NULL;
     }
-    if (!require_buffer(dangling_obj, &dangling_view, "q", "dangling")) {
+    if (!require_buffer(dangling_obj, &dangling_view, 0, "dangling")) {
         PyBuffer_Release(&indptr_view);
         PyBuffer_Release(&indices_view);
         PyBuffer_Release(&data_view);
