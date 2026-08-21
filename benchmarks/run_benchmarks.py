@@ -233,12 +233,13 @@ def bench_networkx_pagerank(nodes: int = 400, edges: int = 2400) -> BenchResult 
     graph = nx.DiGraph()
     graph.add_nodes_from(range(nodes))
     graph.add_edges_from(edge_list)
+    adj = cds2.graph.from_edges(nodes, edge_list, directed=True)
 
     def baseline():
         nx.pagerank(graph, alpha=0.85)
 
     def contender():
-        cds2.graph.pagerank(cds2.graph.from_edges(nodes, edge_list, directed=True))
+        cds2.graph.pagerank(adj)
 
     return _race(f"pagerank {nodes}n/{edges}e", "networkx", baseline, contender, 2, 3)
 

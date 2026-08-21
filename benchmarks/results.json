@@ -1,12 +1,12 @@
 {
   "environment": {
-    "timestamp_utc": "2026-08-21T21:17:25.606377+00:00",
-    "git_commit": "737c15e",
+    "timestamp_utc": "2026-08-21T22:11:17.565075+00:00",
+    "git_commit": "53d5436",
     "python": "3.12.10",
     "platform": "Windows-11-10.0.26200-SP0",
     "processor": "Intel64 Family 6 Model 170 Stepping 4, GenuineIntel",
     "versions": {
-      "cds2": "2.0.0",
+      "cds2": "2.1.0",
       "numpy": "2.4.0",
       "pandas": "3.0.3",
       "scipy": "1.17.0",
@@ -18,93 +18,93 @@
     {
       "name": "solve 8x8 x300",
       "baseline_library": "numpy",
-      "baseline_seconds": 0.001052,
-      "cds2_seconds": 0.001156,
-      "ratio_cds2_over_baseline": 1.099
+      "baseline_seconds": 0.001178,
+      "cds2_seconds": 0.001362,
+      "ratio_cds2_over_baseline": 1.157
     },
     {
       "name": "solve 800x800",
       "baseline_library": "numpy",
-      "baseline_seconds": 0.009089,
-      "cds2_seconds": 0.0094,
-      "ratio_cds2_over_baseline": 1.034
+      "baseline_seconds": 0.011218,
+      "cds2_seconds": 0.011424,
+      "ratio_cds2_over_baseline": 1.018
     },
     {
       "name": "eigh 400x400",
       "baseline_library": "numpy",
-      "baseline_seconds": 0.036676,
-      "cds2_seconds": 0.034196,
-      "ratio_cds2_over_baseline": 0.932
+      "baseline_seconds": 0.056564,
+      "cds2_seconds": 0.049928,
+      "ratio_cds2_over_baseline": 0.883
     },
     {
       "name": "rfft n=262144",
       "baseline_library": "numpy",
-      "baseline_seconds": 0.002735,
-      "cds2_seconds": 0.002757,
-      "ratio_cds2_over_baseline": 1.008
+      "baseline_seconds": 0.003756,
+      "cds2_seconds": 0.003672,
+      "ratio_cds2_over_baseline": 0.978
     },
     {
       "name": "welch n=131072",
       "baseline_library": "scipy",
-      "baseline_seconds": 0.015816,
-      "cds2_seconds": 0.016343,
-      "ratio_cds2_over_baseline": 1.033
+      "baseline_seconds": 0.018225,
+      "cds2_seconds": 0.022608,
+      "ratio_cds2_over_baseline": 1.241
     },
     {
       "name": "t-test n=100000",
       "baseline_library": "scipy",
-      "baseline_seconds": 0.000795,
-      "cds2_seconds": 0.000772,
-      "ratio_cds2_over_baseline": 0.971
+      "baseline_seconds": 0.001126,
+      "cds2_seconds": 0.000933,
+      "ratio_cds2_over_baseline": 0.829
     },
     {
       "name": "describe n=500000",
       "baseline_library": "scipy",
-      "baseline_seconds": 0.019523,
-      "cds2_seconds": 0.023777,
-      "ratio_cds2_over_baseline": 1.218
+      "baseline_seconds": 0.028418,
+      "cds2_seconds": 0.031367,
+      "ratio_cds2_over_baseline": 1.104
     },
     {
       "name": "minimize rosenbrock",
       "baseline_library": "scipy",
-      "baseline_seconds": 0.002373,
-      "cds2_seconds": 0.002363,
-      "ratio_cds2_over_baseline": 0.996
+      "baseline_seconds": 0.003342,
+      "cds2_seconds": 0.002702,
+      "ratio_cds2_over_baseline": 0.809
     },
     {
       "name": "mc-pi n=2000000",
       "baseline_library": "numpy",
-      "baseline_seconds": 0.03358,
-      "cds2_seconds": 0.024685,
-      "ratio_cds2_over_baseline": 0.735
+      "baseline_seconds": 0.052788,
+      "cds2_seconds": 0.040811,
+      "ratio_cds2_over_baseline": 0.773
     },
     {
       "name": "dataframe summary 200000x5",
       "baseline_library": "pandas",
-      "baseline_seconds": 0.031858,
-      "cds2_seconds": 0.048311,
-      "ratio_cds2_over_baseline": 1.516
+      "baseline_seconds": 0.052711,
+      "cds2_seconds": 0.07633,
+      "ratio_cds2_over_baseline": 1.448
     },
     {
       "name": "pagerank 400n/2400e",
       "baseline_library": "networkx",
-      "baseline_seconds": 0.001391,
-      "cds2_seconds": 0.001883,
-      "ratio_cds2_over_baseline": 1.354
+      "baseline_seconds": 0.002356,
+      "cds2_seconds": 0.000417,
+      "ratio_cds2_over_baseline": 0.177
     },
     {
       "name": "kmeans 4000x2 k=8",
       "baseline_library": "sklearn",
-      "baseline_seconds": 0.010454,
-      "cds2_seconds": 0.008268,
-      "ratio_cds2_over_baseline": 0.791
+      "baseline_seconds": 0.011428,
+      "cds2_seconds": 0.008232,
+      "ratio_cds2_over_baseline": 0.72
     },
     {
       "name": "linreg 20000x10",
       "baseline_library": "sklearn",
-      "baseline_seconds": 0.003005,
-      "cds2_seconds": 0.002098,
-      "ratio_cds2_over_baseline": 0.698
+      "baseline_seconds": 0.005542,
+      "cds2_seconds": 0.004084,
+      "ratio_cds2_over_baseline": 0.737
     }
   ]
 }

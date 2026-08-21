@@ -14,5 +14,11 @@ if os.environ.get("CDS_PURE") != "1":
             sources=["src/cds2/src/_fast_kmeans.c"],
         )
     )
+    extensions.append(
+        Extension(
+            "cds2._fast_pagerank",
+            sources=["src/cds2/src/_fast_pagerank.c"],
+        )
+    )
 
 setup(ext_modules=extensions)

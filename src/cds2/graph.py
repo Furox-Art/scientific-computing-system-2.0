@@ -42,6 +42,14 @@ __all__ = [
 IntArray = NDArray[np.int64]
 FloatArray = NDArray[np.float64]
 
+try:
+    from cds2 import _fast_pagerank as _pr_kernel
+
+    _HAS_PR_KERNEL = True
+except ImportError:  # pragma: no cover - exercised on pure-Python builds
+    _pr_kernel = None
+    _HAS_PR_KERNEL = False
+
 
 class ShortestPaths(NamedTuple):
     method: str
@@ -171,21 +179,44 @@ def pagerank(
     adj: object, damping: float = 0.85, max_iter: int = 100, tol: float = 1e-10
 ) -> FloatArray:
     """PageRank scores via power iteration on the random-surfer distribution."""
-    matrix = sparse.csr_matrix(adj)
-    n = matrix.shape[0]
+    coo = sparse.coo_matrix(adj)
+    n = coo.shape[0]
     if n == 0:
         return np.zeros(0)
     if not (0.0 < damping < 1.0):
         msg = "damping must be strictly between 0 and 1"
         raise ValueError(msg)
-    binary = matrix.copy()
-    binary.data = np.ones_like(binary.data)
-    out_degree = np.asarray(binary.sum(axis=1)).ravel().astype(float)
-    dangling_indices = np.flatnonzero(out_degree == 0)
-    inverse_degree = np.where(out_degree == 0.0, 1.0, out_degree)
-    weights = matrix.multiply(1.0 / inverse_degree[:, None]).tocsr()
-    follow_matrix = weights.T.tocsr()
+    source_nodes = coo.row.astype(np.int64, copy=False)
+    weights = coo.data.astype(np.float64, copy=False)
+    out_degree = np.bincount(source_nodes, minlength=n).astype(float)
+
+    # Transposed normalized CSR built with plain numpy: row j lists the
+    # incoming links of node j (sources), so one sweep per iteration runs
+    # the whole follow step - no scipy transpose/copy round-trips.
+    normalized = weights / np.where(out_degree == 0.0, 1.0, out_degree)[source_nodes]
+    order = np.argsort(coo.col, kind="stable")
+    sorted_targets = coo.col[order]
+    follow_indices = source_nodes[order]
+    follow_data = np.ascontiguousarray(normalized[order])
+    follow_indptr = np.searchsorted(sorted_targets, np.arange(n + 1)).astype(np.int64)
+    dangling_indices = np.flatnonzero(out_degree == 0).astype(np.int64)
+
+    if _HAS_PR_KERNEL and _pr_kernel is not None:
+        rank_buffer, _iterations = _pr_kernel.iterate(
+            follow_indptr,
+            follow_indices,
+            follow_data,
+            n,
+            damping,
+            dangling_indices,
+            max_iter,
+            tol,
+        )
+        rank_vec = np.frombuffer(rank_buffer, dtype=np.float64).copy()
+        return rank_vec / rank_vec.sum()
+
     rank_vec = np.full(n, 1.0 / n)
+    follow_matrix = sparse.csr_matrix((follow_data, follow_indices, follow_indptr), shape=(n, n))
     teleport = (1.0 - damping) / n
     for _ in range(max_iter):
         dangling_mass = float(rank_vec.take(dangling_indices).sum())

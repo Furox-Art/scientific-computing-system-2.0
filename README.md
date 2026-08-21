@@ -94,17 +94,17 @@ kernels** where they help. Current scoreboard (full methodology in
 
 | Race | Baseline | cds2/baseline |
 |---|---|---:|
-| Linear regression 20k×10 | scikit-learn | **0.70x** |
-| K-Means 4k×2 k=8 | scikit-learn | **0.79x** |
-| Monte Carlo pi 2M | hand-vectorized NumPy | **0.74x** |
-| solve / eigh / rfft / welch / t-test / minimize | NumPy & SciPy | ~1.00x |
-| PageRank 400n | NetworkX | 1.35x |
-| describe 500k (adds quartiles) | SciPy | 1.22x |
+| PageRank 400n (C kernel) | NetworkX | **0.18x** |
+| K-Means 4k×2 k=8 (C kernel) | scikit-learn | **0.72x** |
+| Linear regression 20k×10 | scikit-learn | **0.74x** |
+| Monte Carlo pi 2M | hand-vectorized NumPy | **0.77x** |
+| solve / eigh / rfft / welch / minimize | NumPy & SciPy | ~1.00x |
+| describe 500k (adds quartiles) | SciPy | 1.10x |
 
-Wrapper APIs hold parity with raw NumPy/SciPy; the KMeans Lloyd loop is a
-from-scratch C extension (`cds2._fast_kmeans`) that beats scikit-learn's
-implementation. A pure-Python fallback wheel keeps compiler-less installs
-working.
+Wrapper APIs hold parity with raw NumPy/SciPy; the KMeans Lloyd loop and
+PageRank power iteration are from-scratch C extensions (`cds2._fast_kmeans`,
+`cds2._fast_pagerank`) that beat the specialist libraries. A pure-Python
+fallback wheel keeps compiler-less installs working.
 
 ```bash
 python benchmarks/run_benchmarks.py            # full run

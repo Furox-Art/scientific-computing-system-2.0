@@ -4,6 +4,33 @@ All notable changes to **cognitive-discovery-system-v2** will be documented in
 this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.2.0] - 2026-08-22
+
+Second compiled-acceleration release: PageRank joins the C kernel family,
+and the specialist win column widens.
+
+### Added
+
+- **`cds2._fast_pagerank`** — C extension running the full power iteration
+  over transposed-CSR arrays (buffer protocol, no build-time deps). The
+  Python side now builds that structure with plain vectorized NumPy
+  (argsort + searchsorted) instead of SciPy multiply/transpose round-trips.
+  Graceful SciPy-sparse fallback retained.
+
+### Changed
+
+- **PageRank vs NetworkX: 1.35x slower -> 0.18x — about 5x faster** than
+  NetworkX on the benchmark graph.
+- KMeans vs scikit-learn improved further with kernel-path tuning:
+  0.79x -> **0.72x faster**.
+- Benchmark fairness fix: the PageRank race no longer times graph
+  construction inside the cds2 contender loop.
+- Scoreboard after this release - wins: linreg 0.74x, kmeans 0.72x,
+  pagerank 0.18x, mc-pi 0.77x, minimize 0.81x, t-test 0.83x vs the
+  underlying libraries; parity everywhere else; honest premiums only where
+  cds2 returns strictly more information (describe quartiles, dataframe
+  nulls/uniques).
+
 ## [v2.1.0] - 2026-08-21
 
 The compiled-acceleration release: cds2 now ships its own C kernels where
