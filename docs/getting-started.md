@@ -26,11 +26,11 @@ import numpy as np
 from cds2 import linalg
 
 a = [[4.0, 7.0], [2.0, 6.0]]
-print(linalg.det(a))                 # 10.0
-print(linalg.solve(a, [18.0, 16.0])) # [2.5, 1.0]
+print(linalg.det(a))  # 10.0
+print(linalg.solve(a, [18.0, 16.0]))  # [2.5, 1.0]
 
 svd = linalg.svd(np.random.default_rng(0).normal(size=(5, 3)))
-print(svd.s)                         # descending singular values
+print(svd.s)  # descending singular values
 ```
 
 ### Statistics
@@ -39,7 +39,7 @@ print(svd.s)                         # descending singular values
 from cds2 import stats
 
 treatment = [12.9, 13.5, 12.8, 15.6, 17.2, 19.2]
-control   = [12.7, 13.6, 12.0, 15.2, 16.8, 20.0]
+control = [12.7, 13.6, 12.0, 15.2, 16.8, 20.0]
 
 result = stats.independent_t_test(treatment, control)
 print(result.statistic, result.p_value)
@@ -55,10 +55,10 @@ from cds2 import optimize
 
 rosen = lambda v: (1 - v[0]) ** 2 + 100 * (v[1] - v[0] ** 2) ** 2
 res = optimize.minimize(rosen, x0=[0.0, 0.0])
-print(res.x)                          # ~ [1.0, 1.0]
+print(res.x)  # ~ [1.0, 1.0]
 
 root = optimize.find_root_scalar(lambda x: x * x - 4, 0.0, 10.0)
-print(root)                           # 2.0
+print(root)  # 2.0
 ```
 
 ### ODEs and integration
@@ -68,10 +68,10 @@ import numpy as np
 from cds2 import integrate
 
 growth = integrate.solve_ivp(lambda t, y: 0.5 * y, (0.0, 10.0), [1.0])
-print(growth.y[0][-1])                # ~ e^5
+print(growth.y[0][-1])  # ~ e^5
 
 area = integrate.quad(np.sin, 0.0, np.pi)
-print(area.value)                     # 2.0
+print(area.value)  # 2.0
 ```
 
 ### Signals
@@ -86,7 +86,7 @@ tone = np.sin(2 * np.pi * 50.0 * t)
 
 freqs, psd = signals.power_spectrum(tone, fs=fs)
 peak = freqs[np.argmax(psd)]
-print(peak)                           # ~ 50 Hz
+print(peak)  # ~ 50 Hz
 ```
 
 ### Graphs
@@ -111,7 +111,7 @@ x, y = ml.make_regression_data(n=300, n_features=3, noise=5.0, seed=1)
 x_train, x_test, y_train, y_test = ml.train_test_split(x, y, seed=2)
 
 model = ml.LinearRegression().fit(x_train, y_train)
-print(model.score(x_test, y_test))    # close to 1.0
+print(model.score(x_test, y_test))  # close to 1.0
 ```
 
 ### Time series
