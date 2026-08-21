@@ -68,6 +68,8 @@ scores = cds2.graph.pagerank(adj)
 | `cds2.timeseries` | pandas | moving average, EWM, differencing, seasonal decomposition, ACF/PACF, Ljung-Box |
 | `cds2.viz` | matplotlib | series/histogram/scatter/heatmap/spectrum/regression/confusion plots |
 | `cds2.io` | pandas | CSV/JSON read-write, optional Excel/Parquet bridges, DataFrame summaries |
+| `cds2.calculus` | NumPy | derivative, complex-step gradient, jacobian, hessian |
+| `cds2.special` | scipy.special | gamma, erf family, beta, Bessels, zeta |
 
 ## CLI
 

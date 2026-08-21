@@ -4,6 +4,32 @@ All notable changes to **cognitive-discovery-system-v2** will be documented in
 this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.3.0] - 2026-08-22
+
+Scientific-surface expansion: two new modules and modern resampling-based
+inference.
+
+### Added
+
+- **`cds2.calculus`** — numerical differentiation: `derivative` (central /
+  forward / backward with adaptive steps), `complex_step_gradient`
+  (machine-precision gradients via the complex-step trick), `jacobian`
+  (finite-difference, R^n -> R^m) and `hessian` (central differences with
+  exact-symmetric mixed partials).
+- **`cds2.special`** — special functions: gamma/gammaln, erf/erfc/erfinv,
+  beta/betaln, Bessel j0/j1/y0, Riemann-Hurwitz zeta.
+- **`cds2.stats.bootstrap_ci`** — percentile bootstrap confidence intervals
+  for arbitrary statistics, seeded and vectorized.
+- **`cds2.stats.permutation_test`** — two-sided permutation test on mean
+  differences with the +1 corrected p-value.
+- **`cds2.linalg.expm/logm/sqrtm`** — matrix exponential, logarithm and
+  principal square root.
+- 40+ new tests (227 total); docs pages for both new modules.
+
+### Changed
+
+- Flat exports grew to ~150 symbols; module count now 14 plus the CLI.
+
 ## [v2.2.0] - 2026-08-22
 
 Second compiled-acceleration release: PageRank joins the C kernel family,

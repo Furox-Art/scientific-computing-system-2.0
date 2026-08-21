@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -34,6 +35,9 @@ __all__ = [
     "norm_pdf",
     "norm_cdf",
     "norm_ppf",
+    "BootstrapResult",
+    "bootstrap_ci",
+    "permutation_test",
 ]
 
 
@@ -255,3 +259,66 @@ def norm_cdf(x: float, mu: float = 0.0, sigma: float = 1.0) -> float:
 def norm_ppf(q: float, mu: float = 0.0, sigma: float = 1.0) -> float:
     """Inverse normal CDF (quantile function)."""
     return float(sps.norm.ppf(q, loc=mu, scale=sigma))
+
+
+@dataclass(frozen=True)
+class BootstrapResult:
+    """Bootstrap estimate with standard error and percentile interval."""
+
+    estimate: float
+    standard_error: float
+    ci_low: float
+    ci_high: float
+
+
+def bootstrap_ci(
+    data: object,
+    statistic: Callable[[np.ndarray], float] | None = None,
+    n_resamples: int = 10_000,
+    confidence: float = 0.95,
+    seed: int | None = None,
+) -> BootstrapResult:
+    """Percentile bootstrap confidence interval for an arbitrary statistic."""
+    values = _as_1d(data)
+    if not 0.0 < confidence < 1.0:
+        msg = "confidence must be in (0, 1)"
+        raise ValueError(msg)
+    stat_fn = statistic if statistic is not None else np.mean
+    n = values.size
+    rng = np.random.default_rng(seed)
+    resample_indices = rng.integers(0, n, size=(n_resamples, n))
+    samples = values[resample_indices]
+    try:
+        estimates = np.asarray(stat_fn(samples, axis=1), dtype=float)
+    except TypeError:
+        estimates = np.array([float(stat_fn(sample)) for sample in samples])
+    point_estimate = float(stat_fn(values))
+    alpha = (1.0 - confidence) / 2.0
+    low, high = np.quantile(estimates, [alpha, 1.0 - alpha])
+    return BootstrapResult(
+        estimate=point_estimate,
+        standard_error=float(np.std(estimates, ddof=1)),
+        ci_low=float(low),
+        ci_high=float(high),
+    )
+
+
+def permutation_test(
+    a: object,
+    b: object,
+    n_permutations: int = 10_000,
+    seed: int | None = None,
+) -> TestResult:
+    """Two-sided permutation test on the difference of means."""
+    group_a = _as_1d(a)
+    group_b = _as_1d(b)
+    pooled = np.concatenate([group_a, group_b])
+    nx = group_a.size
+    observed = float(group_a.mean() - group_b.mean())
+    rng = np.random.default_rng(seed)
+    order = np.argsort(rng.random((n_permutations, pooled.size)), axis=1)
+    shuffled = pooled[order]
+    permuted_diffs = shuffled[:, :nx].mean(axis=1) - shuffled[:, nx:].mean(axis=1)
+    extreme_count = int(np.count_nonzero(np.abs(permuted_diffs) >= abs(observed)))
+    p_value = (extreme_count + 1) / (n_permutations + 1)
+    return TestResult(statistic=observed, p_value=float(p_value))

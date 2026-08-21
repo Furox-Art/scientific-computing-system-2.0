@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+import scipy.linalg as sla
 
 __all__ = [
     "EigenResult",
@@ -24,6 +25,9 @@ __all__ = [
     "cond",
     "cholesky",
     "lstsq",
+    "expm",
+    "logm",
+    "sqrtm",
 ]
 
 
@@ -154,3 +158,19 @@ def lstsq(a: object, b: object, rcond: float | None = None) -> LeastSquaresResul
         rank=int(rank_value),
         singular_values=singular,
     )
+
+
+def expm(a: object) -> np.ndarray:
+    """Matrix exponential via Pade approximation with scaling and squaring."""
+    return np.asarray(sla.expm(_as_matrix(a, "a")))
+
+
+def logm(a: object) -> np.ndarray:
+    """Principal matrix logarithm."""
+    return np.asarray(sla.logm(_as_matrix(a, "a")))
+
+
+def sqrtm(a: object) -> np.ndarray:
+    """Principal matrix square root."""
+    root = sla.sqrtm(np.asarray(a, dtype=float))
+    return np.asarray(root.real)

@@ -7,6 +7,7 @@ rebuilding its proven algorithms for speed and adding new domain modules.
 from __future__ import annotations
 
 from . import (
+    calculus,
     cli,
     graph,
     integrate,
@@ -17,11 +18,18 @@ from . import (
     montecarlo,
     optimize,
     signals,
+    special,
     stats,
     timeseries,
     viz,
 )
 from ._version import __version__
+from .calculus import (
+    complex_step_gradient,
+    derivative,
+    hessian,
+    jacobian,
+)
 from .graph import (
     ComponentResult,
     DegreeResult,
@@ -65,13 +73,16 @@ from .linalg import (
     det,
     eig,
     eigh,
+    expm,
     inv,
+    logm,
     lstsq,
     matrix_power,
     norm,
     pinv,
     rank,
     solve,
+    sqrtm,
     svd,
     trace,
 )
@@ -115,10 +126,12 @@ from .signals import (
     moving_average as moving_average_signal,
 )
 from .stats import (
+    BootstrapResult,
     CorrelationResult,
     DescribeResult,
     TestResult,
     anova,
+    bootstrap_ci,
     chi_square_independence,
     cohens_d,
     cramers_v,
@@ -136,6 +149,7 @@ from .stats import (
     paired_t_test,
     pearson_correlation,
     percentile,
+    permutation_test,
     spearman_correlation,
     t_test,
     wilcoxon_signed_rank,
@@ -154,6 +168,7 @@ from .timeseries import (
 
 __all__ = [
     "__version__",
+    "calculus",
     "cli",
     "graph",
     "integrate",
@@ -164,6 +179,7 @@ __all__ = [
     "montecarlo",
     "optimize",
     "signals",
+    "special",
     "stats",
     "timeseries",
     "viz",
@@ -207,13 +223,16 @@ __all__ = [
     "det",
     "eig",
     "eigh",
+    "expm",
     "inv",
+    "logm",
     "lstsq",
     "matrix_power",
     "norm",
     "pinv",
     "rank",
     "solve",
+    "sqrtm",
     "svd",
     "trace",
     # montecarlo
@@ -256,6 +275,7 @@ __all__ = [
     "spectrogram",
     "welch_spectrum",
     # stats
+    "BootstrapResult",
     "CorrelationResult",
     "DescribeResult",
     "TestResult",
@@ -277,10 +297,17 @@ __all__ = [
     "paired_t_test",
     "pearson_correlation",
     "percentile",
+    "permutation_test",
     "spearman_correlation",
     "t_test",
     "wilcoxon_signed_rank",
     "z_scores",
+    # calculus
+    "complex_step_gradient",
+    "derivative",
+    "hessian",
+    "jacobian",
+    "bootstrap_ci",
     # timeseries
     "DecompositionResult",
     "acf",
