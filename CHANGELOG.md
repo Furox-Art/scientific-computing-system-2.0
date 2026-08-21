@@ -4,6 +4,35 @@ All notable changes to **cognitive-discovery-system-v2** will be documented in
 this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.1.0] - 2026-08-21
+
+The compiled-acceleration release: cds2 now ships its own C kernels where
+they beat the wrapped libraries, with graceful NumPy fallback everywhere.
+
+### Added
+
+- **`cds2._fast_kmeans`** — a from-scratch C extension (buffer-protocol API,
+  no build-time NumPy headers) implementing the Lloyd iteration loop:
+  fused assignment/update, empty-cluster relocation, convergence tracking.
+- **Compiled-wheel release pipeline** — cibuildwheel builds wheels for
+  Linux/Windows/macOS x Python 3.10-3.13; a pure-Python fallback wheel and
+  sdist are published alongside so compiler-less installs keep working.
+- `KMeans._run_c_lloyd` / `_run_numpy_lloyd` split: identical results either
+  way, chosen automatically by kernel availability.
+- Benchmarks page note distinguishing wrapper-parity rows from
+  more-information rows.
+
+### Changed
+
+- Build backend hatchling -> setuptools to declare the optional extension;
+  `CDS_PURE=1` skips compilation entirely.
+- KMeans vs scikit-learn: **1.91x slower -> 0.79x faster** (C kernel).
+- PageRank: transposed-CSR matvec prepared once, dangling mass via `take`,
+  per-iteration renormalization removed. 2.29x -> ~1.35x vs NetworkX on the
+  benchmark graph.
+- `io.summarize`: vectorized aggregation, single notna pass.
+- `stats.describe`: single-pass manual moments matching scipy exactly.
+
 ## [v2.0.0] - 2026-08-21
 
 The first release of the v2 generation: a full rewrite on top of the scientific

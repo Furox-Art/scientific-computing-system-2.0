@@ -2,11 +2,24 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 from numpy.typing import NDArray
 from scipy import sparse as sp_sparse
 from scipy.spatial import cKDTree
 from scipy.spatial.distance import cdist
+
+if TYPE_CHECKING:
+    pass
+
+try:
+    from cds2 import _fast_kmeans as _c_kernel
+
+    _HAS_C_KERNEL = True
+except ImportError:
+    _c_kernel = None
+    _HAS_C_KERNEL = False
 
 __all__ = [
     "StandardScaler",
@@ -207,6 +220,39 @@ class KMeans:
             raise ValueError(msg)
         rng = np.random.default_rng(self.seed)
         centers = self._kmeans_pp_init(points, self.n_clusters, rng)
+        if _HAS_C_KERNEL and _c_kernel is not None:
+            labels, centers = self._run_c_lloyd(points, centers)
+        else:
+            labels, centers = self._run_numpy_lloyd(points, centers)
+        inertia = float(((points - centers[labels]) ** 2).sum())
+        self.cluster_centers_ = centers
+        self.labels_ = labels
+        self.inertia_ = inertia
+        return self
+
+    def _run_c_lloyd(
+        self, points: FloatArray, centers: FloatArray
+    ) -> tuple[NDArray[np.int64], FloatArray]:
+        points_contiguous = np.ascontiguousarray(points, dtype=np.float64)
+        centers_contiguous = np.ascontiguousarray(centers, dtype=np.float64)
+        labels_buffer, centers_buffer, _iterations = _c_kernel.lloyd(
+            points_contiguous,
+            centers_contiguous,
+            self.max_iter,
+            self.tol,
+        )
+        labels = np.frombuffer(labels_buffer, dtype=np.int64).copy()
+        fitted_centers = (
+            np.frombuffer(centers_buffer, dtype=np.float64)
+            .copy()
+            .reshape(self.n_clusters, points.shape[1])
+        )
+        return labels, fitted_centers
+
+    def _run_numpy_lloyd(
+        self, points: FloatArray, centers: FloatArray
+    ) -> tuple[NDArray[np.int64], FloatArray]:
+        n_samples = points.shape[0]
         labels = np.zeros(n_samples, dtype=np.int64)
         sample_indices = np.arange(n_samples)
         for _ in range(self.max_iter):
@@ -231,11 +277,7 @@ class KMeans:
             labels = new_labels
             if shift < self.tol:
                 break
-        inertia = float(((points - centers[labels]) ** 2).sum())
-        self.cluster_centers_ = centers
-        self.labels_ = labels
-        self.inertia_ = inertia
-        return self
+        return labels, centers
 
     def predict(self, x: object) -> NDArray[np.int64]:
         if self.cluster_centers_ is None:

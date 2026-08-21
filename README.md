@@ -88,12 +88,23 @@ constraint for the speed and breadth of the scientific Python ecosystem.
 
 ## Benchmarks
 
-cds2 races the scientific stack head-to-head. Wrapper APIs hold **parity with
-raw NumPy/SciPy** (0.97-1.11x), beat hand-vectorized Monte Carlo (0.73x) and
-scikit-learn's `LinearRegression` fit (0.71x). Where compiled specialists win,
-we report it honestly: sklearn's C-backed KMeans Lloyd runs ~1.9x faster than
-our pure-NumPy implementation. Full methodology and numbers:
-[docs/benchmarks.md](docs/benchmarks.md).
+cds2 races the scientific stack head-to-head — and ships its own **compiled C
+kernels** where they help. Current scoreboard (full methodology in
+[docs/benchmarks.md](docs/benchmarks.md)):
+
+| Race | Baseline | cds2/baseline |
+|---|---|---:|
+| Linear regression 20k×10 | scikit-learn | **0.70x** |
+| K-Means 4k×2 k=8 | scikit-learn | **0.79x** |
+| Monte Carlo pi 2M | hand-vectorized NumPy | **0.74x** |
+| solve / eigh / rfft / welch / t-test / minimize | NumPy & SciPy | ~1.00x |
+| PageRank 400n | NetworkX | 1.35x |
+| describe 500k (adds quartiles) | SciPy | 1.22x |
+
+Wrapper APIs hold parity with raw NumPy/SciPy; the KMeans Lloyd loop is a
+from-scratch C extension (`cds2._fast_kmeans`) that beats scikit-learn's
+implementation. A pure-Python fallback wheel keeps compiler-less installs
+working.
 
 ```bash
 python benchmarks/run_benchmarks.py            # full run
