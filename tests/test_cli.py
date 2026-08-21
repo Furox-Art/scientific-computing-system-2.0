@@ -1,0 +1,77 @@
+"""Tests for the cds2 command-line interface."""
+
+import pytest
+
+from cds2.cli import build_parser, main
+
+
+class TestInfo:
+    def test_info_exits_zero(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["info"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "cds2" in out
+        assert "numpy" in out
+
+
+class TestStatsCommand:
+    def test_descriptive_output(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["stats", "1,2,3,4,5"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "mean" in out
+        assert "median" in out
+
+    def test_too_few_numbers_fails(self) -> None:
+        assert main(["stats", "42"]) == 1
+
+
+class TestIntegrateCommand:
+    def test_sin_integral(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["integrate", "sin", "--a", "0", "--b", "3.14159265"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "value" in out
+
+    def test_unknown_function(self) -> None:
+        assert main(["integrate", "tan", "--a", "0", "--b", "1"]) == 1
+
+
+class TestLinsolveCommand:
+    def test_small_system(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["linsolve", "--a", "3,1;1,2", "--b", "9,8"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "solution" in out
+
+    def test_non_square_rejected(self) -> None:
+        assert main(["linsolve", "--a", "1,2,3;4,5,6", "--b", "1,2"]) == 1
+
+
+class TestPlotCommand:
+    def test_ascii_output(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["plot", "1,5,3"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "|" in out
+
+    def test_png_output(self, tmp_path, capsys: pytest.CaptureFixture[str]) -> None:  # type: ignore[no-untyped-def]
+        import matplotlib
+
+        matplotlib.use("Agg")
+        target = tmp_path / "cli.png"
+        code = main(["plot", "1,2,3", "--file", str(target)])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "saved" in out
+        assert target.exists()
+
+
+class TestParser:
+    def test_requires_subcommand(self) -> None:
+        with pytest.raises(SystemExit):
+            build_parser().parse_args([])
+
+    def test_unknown_subcommand_exits(self) -> None:
+        with pytest.raises(SystemExit):
+            build_parser().parse_args(["frobnicate"])

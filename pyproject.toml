@@ -1,0 +1,102 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "cognitive-discovery-system-v2"
+version = "2.0.0"
+description = "A NumPy/SciPy/Pandas/Matplotlib-powered scientific computing platform: accelerated linear algebra, statistics, optimization, integration, interpolation, signal processing, Monte Carlo, graphs (with PageRank), machine learning, time series, visualization and I/O."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [
+    {name = "Furox88", email = "furkanarkn1451@gmail.com"},
+]
+keywords = [
+    "scientific-computing",
+    "numpy",
+    "scipy",
+    "pandas",
+    "matplotlib",
+    "machine-learning",
+    "signal-processing",
+    "statistics",
+    "optimization",
+    "monte-carlo",
+    "graph-theory",
+    "pagerank",
+    "time-series",
+    "numerical-methods",
+    "data-analysis",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Mathematics",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pandas>=2.2",
+    "matplotlib>=3.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+all = [
+    "pytest>=8.0",
+    "pytest-cov",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[project.scripts]
+cds2 = "cds2.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Furox88/cognitive-discovery-system-v2"
+Repository = "https://github.com/Furox88/cognitive-discovery-system-v2"
+Issues = "https://github.com/Furox88/cognitive-discovery-system-v2/issues"
+Changelog = "https://github.com/Furox88/cognitive-discovery-system-v2/releases"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cds2"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+pythonpath = ["src"]
+addopts = ["--strict-markers", "--strict-config"]
+
+[tool.coverage.run]
+source = ["src/cds2"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
