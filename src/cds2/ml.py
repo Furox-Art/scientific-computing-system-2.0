@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 from numpy.typing import NDArray
+from scipy import sparse as sp_sparse
 from scipy.spatial import cKDTree
+from scipy.spatial.distance import cdist
 
 __all__ = [
     "StandardScaler",
@@ -199,24 +201,32 @@ class KMeans:
         points = np.asarray(x, dtype=float)
         if points.ndim == 1:
             points = points.reshape(-1, 1)
-        if not 1 <= self.n_clusters <= points.shape[0]:
+        n_samples = points.shape[0]
+        if not 1 <= self.n_clusters <= n_samples:
             msg = "n_clusters must be between 1 and number of samples"
             raise ValueError(msg)
         rng = np.random.default_rng(self.seed)
         centers = self._kmeans_pp_init(points, self.n_clusters, rng)
-        labels = np.zeros(points.shape[0], dtype=np.int64)
+        labels = np.zeros(n_samples, dtype=np.int64)
+        sample_indices = np.arange(n_samples)
         for _ in range(self.max_iter):
-            distances = ((points[:, None, :] - centers[None, :, :]) ** 2).sum(axis=2)
-            new_labels = distances.argmin(axis=1)
-            new_centers = centers.copy()
-            for k in range(self.n_clusters):
-                members = points[new_labels == k]
-                if members.size:
-                    new_centers[k] = members.mean(axis=0)
-                else:
-                    farthest = distances.min(axis=1).argmax()
-                    new_centers[k] = points[farthest]
-            shift = np.abs(new_centers - centers).max()
+            distances = cdist(points, centers, "sqeuclidean")
+            new_labels = distances.argmin(axis=1).astype(np.int64)
+            counts = np.bincount(new_labels, minlength=self.n_clusters).astype(float)
+            assignment = sp_sparse.csr_matrix(
+                (np.ones(n_samples), (new_labels, sample_indices)),
+                shape=(self.n_clusters, n_samples),
+            )
+            sums = np.asarray(assignment @ points)
+            if (counts == 0).any():
+                min_distances = distances.min(axis=1)
+                for cluster_index in np.flatnonzero(counts == 0):
+                    farthest = int(min_distances.argmax())
+                    sums[cluster_index] = points[farthest]
+                    counts[cluster_index] = 1.0
+                    min_distances[farthest] = -1.0
+            new_centers = sums / counts[:, None]
+            shift = float(np.abs(new_centers - centers).max())
             centers = new_centers
             labels = new_labels
             if shift < self.tol:
@@ -234,7 +244,7 @@ class KMeans:
         points = np.asarray(x, dtype=float)
         if points.ndim == 1:
             points = points.reshape(1, -1)
-        distances = ((points[:, None, :] - self.cluster_centers_[None, :, :]) ** 2).sum(axis=2)
+        distances = cdist(points, self.cluster_centers_, "sqeuclidean")
         return distances.argmin(axis=1)
 
     @staticmethod
@@ -243,18 +253,19 @@ class KMeans:
     ) -> FloatArray:
         n_samples = points.shape[0]
         chosen = [int(rng.integers(n_samples))]
+        closest = cdist(points, points[chosen], "sqeuclidean").ravel()
         while len(chosen) < n_clusters:
-            center_stack = points[np.asarray(chosen)]
-            distances = (
-                ((points[:, None, :] - center_stack[None, :, :]) ** 2).sum(axis=2).min(axis=1)
-            )
-            total = float(distances.sum())
+            total = float(closest.sum())
             if total == 0.0:
-                candidates = [i for i in range(n_samples) if i not in chosen]
+                taken = set(chosen)
+                candidates = [i for i in range(n_samples) if i not in taken]
                 next_index = int(rng.choice(candidates)) if candidates else 0
             else:
-                next_index = int(rng.choice(n_samples, p=distances / total))
+                next_index = int(rng.choice(n_samples, p=closest / total))
             chosen.append(next_index)
+            closest = np.minimum(
+                closest, cdist(points, points[next_index : next_index + 1], "sqeuclidean").ravel()
+            )
         return np.asarray(points[chosen], dtype=float)
 
 

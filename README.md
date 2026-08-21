@@ -89,9 +89,10 @@ constraint for the speed and breadth of the scientific Python ecosystem.
 ## Benchmarks
 
 cds2 races the scientific stack head-to-head. Wrapper APIs hold **parity with
-raw NumPy/SciPy** (0.96-1.09x), beat scikit-learn's `LinearRegression` fit
-(0.76x), and lose honestly where compiled specialists win (sklearn KMeans,
-NetworkX PageRank). Full methodology and numbers:
+raw NumPy/SciPy** (0.97-1.11x), beat hand-vectorized Monte Carlo (0.73x) and
+scikit-learn's `LinearRegression` fit (0.71x). Where compiled specialists win,
+we report it honestly: sklearn's C-backed KMeans Lloyd runs ~1.9x faster than
+our pure-NumPy implementation. Full methodology and numbers:
 [docs/benchmarks.md](docs/benchmarks.md).
 
 ```bash

@@ -171,27 +171,32 @@ def pagerank(
     adj: object, damping: float = 0.85, max_iter: int = 100, tol: float = 1e-10
 ) -> FloatArray:
     """PageRank scores via power iteration on the random-surfer distribution."""
-    matrix = sparse.coo_matrix(adj).tocsr()
+    matrix = sparse.csr_matrix(adj)
     n = matrix.shape[0]
     if n == 0:
         return np.zeros(0)
     if not (0.0 < damping < 1.0):
         msg = "damping must be strictly between 0 and 1"
         raise ValueError(msg)
-    out_degree = np.asarray((matrix != 0).sum(axis=1)).ravel().astype(float)
-    dangling = out_degree == 0
-    weights = matrix.multiply(1.0 / np.where(dangling, 1.0, out_degree)[:, None]).tocsr()
+    binary = matrix.copy()
+    binary.data = np.ones_like(binary.data)
+    out_degree = np.asarray(binary.sum(axis=1)).ravel().astype(float)
+    dangling_indices = np.flatnonzero(out_degree == 0)
+    inverse_degree = np.where(out_degree == 0.0, 1.0, out_degree)
+    weights = matrix.multiply(1.0 / inverse_degree[:, None]).tocsr()
+    follow_matrix = weights.T.tocsr()
     rank_vec = np.full(n, 1.0 / n)
     teleport = (1.0 - damping) / n
     for _ in range(max_iter):
-        follow = damping * (weights.T @ rank_vec)
-        dangling_mass = float(rank_vec[dangling].sum())
-        new_rank = follow + damping * dangling_mass / n + teleport
-        delta = np.abs(new_rank - rank_vec).max()
-        rank_vec = new_rank / new_rank.sum()
+        dangling_mass = float(rank_vec.take(dangling_indices).sum())
+        new_rank = damping * (follow_matrix @ rank_vec)
+        new_rank += damping * dangling_mass / n
+        new_rank += teleport
+        delta = float(np.abs(new_rank - rank_vec).max())
+        rank_vec = new_rank
         if delta < tol:
             break
-    return rank_vec
+    return rank_vec / rank_vec.sum()
 
 
 def topological_order(n: int, edges: list[tuple[int, int]]) -> list[int]:

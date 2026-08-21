@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -79,18 +80,27 @@ def _as_1d(x: object) -> np.ndarray:
 def describe(data: object) -> DescribeResult:
     """Full descriptive summary (moments + quantiles) of a sample."""
     values = _as_1d(data)
+    n = values.size
+    mean = float(values.mean())
+    centered = values - mean
+    m2 = float(np.mean(centered * centered))
+    m3 = float(np.mean(centered**3))
+    m4 = float(np.mean(centered**4))
+    std = math.sqrt(m2 * n / (n - 1)) if n > 1 else 0.0
+    skewness = m3 / m2**1.5 if m2 > 0.0 else 0.0
+    kurtosis = m4 / (m2 * m2) - 3.0 if m2 > 0.0 else -3.0
     q25, median, q75 = np.percentile(values, [25, 50, 75])
     return DescribeResult(
-        n=int(values.size),
-        mean=float(np.mean(values)),
-        std=float(np.std(values, ddof=1)),
-        minimum=float(np.min(values)),
+        n=int(n),
+        mean=mean,
+        std=std,
+        minimum=float(values.min()),
         q25=float(q25),
         median=float(median),
         q75=float(q75),
-        maximum=float(np.max(values)),
-        skewness=float(sps.skew(values)),
-        kurtosis=float(sps.kurtosis(values)),
+        maximum=float(values.max()),
+        skewness=skewness,
+        kurtosis=kurtosis,
     )
 
 

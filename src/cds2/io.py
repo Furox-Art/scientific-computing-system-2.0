@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 
 __all__ = [
@@ -73,23 +74,32 @@ def write_parquet(df: pd.DataFrame, path: str, index: bool = False, **kwargs: ob
 
 def summarize(df: pd.DataFrame) -> pd.DataFrame:
     """Column-level summary: dtypes, nulls, uniques and numeric moments."""
+    non_null = df.notna().sum()
+    nulls = len(df) - non_null
+    unique_counts = df.nunique(dropna=True)
+    numeric = df.select_dtypes(include=[np.number])
+    moments = (
+        numeric.agg(["mean", "std", "min", "max"])
+        if len(numeric.columns)
+        else pd.DataFrame(index=["mean", "std", "min", "max"])
+    )
     rows: list[dict[str, object]] = []
     for column in df.columns:
-        series = df[column]
-        entry: dict[str, object] = {
-            "column": column,
-            "dtype": str(series.dtype),
-            "non_null": int(series.notna().sum()),
-            "nulls": int(series.isna().sum()),
-            "unique": int(series.nunique(dropna=True)),
-        }
-        numeric = pd.to_numeric(series, errors="coerce").dropna()
-        if len(numeric):
-            entry["mean"] = float(numeric.mean())
-            entry["std"] = float(numeric.std())
-            entry["min"] = float(numeric.min())
-            entry["max"] = float(numeric.max())
+        if column in moments.columns:
+            mean_value, std_value, min_value, max_value = (float(v) for v in moments[column])
         else:
-            entry.update({"mean": None, "std": None, "min": None, "max": None})
-        rows.append(entry)
+            mean_value = std_value = min_value = max_value = None
+        rows.append(
+            {
+                "column": column,
+                "dtype": str(df[column].dtype),
+                "non_null": int(non_null[column]),
+                "nulls": int(nulls[column]),
+                "unique": int(unique_counts[column]),
+                "mean": mean_value,
+                "std": std_value,
+                "min": min_value,
+                "max": max_value,
+            }
+        )
     return pd.DataFrame(rows)

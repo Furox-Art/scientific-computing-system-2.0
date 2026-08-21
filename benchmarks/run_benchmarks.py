@@ -420,10 +420,13 @@ def write_markdown_report(results: list[BenchResult], path: Path) -> None:
         )
     lines += [
         "",
-        "Wrapper-only rows (solve small, fft, welch, ...) demonstrate that the",
-        "cds2 API layer adds no measurable cost over calling NumPy/SciPy",
-        "directly. Specialist rows (NetworkX, scikit-learn) show where the",
-        "pure-NumPy implementations inside cds2 win or lose.",
+        "Wrapper-only rows (solve, fft, welch, t-test, minimize) demonstrate",
+        "that the cds2 API layer adds no measurable cost over calling",
+        "NumPy/SciPy directly. Rows where cds2 returns strictly more",
+        "information (describe adds quartiles; dataframe summary adds nulls",
+        "and uniques per column) carry a small honest premium for it.",
+        "Specialist rows (NetworkX, scikit-learn) show where pure-NumPy",
+        "implementations win or lose against compiled C code.",
         "",
     ]
     path.write_text("\n".join(lines), encoding="utf-8")
