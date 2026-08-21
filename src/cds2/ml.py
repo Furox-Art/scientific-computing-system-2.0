@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Self
-
 import numpy as np
 from numpy.typing import NDArray
 from scipy.spatial import cKDTree
@@ -39,7 +37,7 @@ class StandardScaler:
         self.mean_: FloatArray | None = None
         self.scale_: FloatArray | None = None
 
-    def fit(self, x: object) -> Self:
+    def fit(self, x: object) -> StandardScaler:
         arr = np.asarray(x, dtype=float)
         if arr.ndim == 1:
             arr = arr.reshape(-1, 1)
@@ -97,7 +95,7 @@ class LinearRegression:
         self.coef_: FloatArray | None = None
         self.intercept_: float = 0.0
 
-    def fit(self, x: object, y: object) -> Self:
+    def fit(self, x: object, y: object) -> LinearRegression:
         design = self._design(x)
         target = np.asarray(y, dtype=float).ravel()
         solution, *_rest = np.linalg.lstsq(design, target, rcond=None)
@@ -147,7 +145,7 @@ class LogisticRegression:
         self.coef_: FloatArray | None = None
         self.intercept_: float = 0.0
 
-    def fit(self, x: object, y: object) -> Self:
+    def fit(self, x: object, y: object) -> LogisticRegression:
         features = np.asarray(x, dtype=float)
         if features.ndim == 1:
             features = features.reshape(-1, 1)
@@ -197,7 +195,7 @@ class KMeans:
         self.labels_: NDArray[np.int64] | None = None
         self.inertia_: float | None = None
 
-    def fit(self, x: object) -> Self:
+    def fit(self, x: object) -> KMeans:
         points = np.asarray(x, dtype=float)
         if points.ndim == 1:
             points = points.reshape(-1, 1)
@@ -269,7 +267,7 @@ class PCA:
         self.explained_variance_ratio_: FloatArray | None = None
         self.mean_: FloatArray | None = None
 
-    def fit(self, x: object) -> Self:
+    def fit(self, x: object) -> PCA:
         arr = np.asarray(x, dtype=float)
         if arr.ndim != 2:
             msg = "PCA expects a 2-D array of shape (n_samples, n_features)"
@@ -306,7 +304,7 @@ class KNeighborsClassifier:
         self._tree: cKDTree | None = None
         self._targets: NDArray[np.int64] | None = None
 
-    def fit(self, x: object, y: object) -> Self:
+    def fit(self, x: object, y: object) -> KNeighborsClassifier:
         points = np.asarray(x, dtype=float)
         if points.ndim == 1:
             points = points.reshape(-1, 1)
