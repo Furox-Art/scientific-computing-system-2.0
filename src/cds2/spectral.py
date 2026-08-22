@@ -21,7 +21,6 @@ FloatArray = NDArray[np.float64]
 def laplacian(adj: object, normalized: bool = False) -> sparse.csr_matrix:
     """Graph Laplacian ``L = D - W`` (combinatorial or symmetric-normalized)."""
     matrix = sparse.coo_matrix(adj)
-    n = matrix.shape[0]
     binary = sparse.csr_matrix(matrix)
     binary.data = np.ones_like(binary.data)
     degree = np.asarray(binary.sum(axis=1)).ravel().astype(float)
