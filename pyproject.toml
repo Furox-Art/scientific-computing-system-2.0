@@ -52,6 +52,12 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "openpyxl",
+    "pyarrow",
+    "pandas-stubs>=2.0",
+    # Cap numpy under 2.5 for the dev toolchain only: numpy>=2.5 stubs use
+    # `type` statements that mypy cannot parse with python_version = "3.10".
+    # The runtime dependency floor (numpy>=1.26) is unchanged.
+    "numpy>=1.26,<2.5",
     "pytest>=8.0",
     "pytest-cov",
     "ruff>=0.4",
@@ -63,6 +69,10 @@ docs = [
     "mkdocstrings[python]>=0.26",
 ]
 all = [
+    "openpyxl",
+    "pyarrow",
+    "pandas-stubs>=2.0",
+    "numpy>=1.26,<2.5",
     "pytest>=8.0",
     "pytest-cov",
     "ruff>=0.4",
