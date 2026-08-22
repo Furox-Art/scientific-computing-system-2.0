@@ -4,6 +4,28 @@ All notable changes to **cognitive-discovery-system-v2** will be documented in
 this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.5.1] - 2026-08-22
+
+Quality-gate release: strict typing and full coverage are now enforced by CI.
+No API or behavior changes; 265 -> 344 tests.
+
+### Added
+
+- **mypy `--strict` gate** — zero errors across all 19 source files,
+  enforced by a dedicated CI job (`types`). SciPy/Matplotlib/openpyxl
+  handled via documented module overrides; pandas typed through stubs.
+- **100% blended coverage gate** — statement + branch coverage at 100%
+  enforced via `--cov-fail-under=100` on the reference cell. Coverage rose
+  from 88%: ~80 gap-closing tests including forced NumPy-fallback KMeans
+  paths, pagerank fallback arcs, empty-cluster rescue and every validation
+  guard.
+
+### Changed
+
+- dev extras gained openpyxl, pyarrow, pandas-stubs and a numpy<2.5 cap
+  (dev-only; mypy target 3.10 cannot parse numpy>=2.5 stubs).
+- `pacf` dropped an always-true guard found while chasing the last branch.
+
 ## [v2.5.0] - 2026-08-22
 
 Flagship release: two new scientific modules plus four major capability
