@@ -128,4 +128,6 @@ def truncated_svd(A: object, k: int = 6, seed: int | None = None) -> TruncatedSV
     """Rank-``k`` truncated singular value decomposition."""
     u, s, vt = svds(sparse.csr_matrix(A), k=k, solver="arpack", rng=seed)
     order = np.argsort(s)[::-1]
-    return TruncatedSVDResult(u=np.asarray(u[:, order]), s=np.asarray(s[order]), vt=np.asarray(vt[order, :]))
+    return TruncatedSVDResult(
+        u=np.asarray(u[:, order]), s=np.asarray(s[order]), vt=np.asarray(vt[order, :])
+    )
