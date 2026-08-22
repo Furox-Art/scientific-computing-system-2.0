@@ -32,6 +32,8 @@ __all__ = [
     "sparse_diag",
     "sparse_kron",
     "one_norm_est",
+    "jacobi_preconditioner",
+    "ilu_preconditioner",
 ]
 
 
@@ -42,6 +44,7 @@ class IterativeSolveResult:
     x: NDArray[np.float64]
     converged: bool
     iterations_info: int
+    residual_norm: float | None = None
 
 
 @dataclass(frozen=True)
@@ -67,11 +70,14 @@ def _as_matrix(A: object) -> object:
     return sparse.csr_matrix(A)
 
 
-def _finish(x: np.ndarray, info: int) -> IterativeSolveResult:
+def _finish(A: object, b: np.ndarray, x: np.ndarray, info: int) -> IterativeSolveResult:
+    solution = np.asarray(x, dtype=float)
+    residual_value = float(np.linalg.norm(_as_matrix(A) @ solution - b))
     return IterativeSolveResult(
-        x=np.asarray(x, dtype=float),
+        x=solution,
         converged=bool(info == 0),
         iterations_info=int(info),
+        residual_norm=residual_value,
     )
 
 
@@ -80,10 +86,12 @@ def solve_cg(
     b: object,
     rtol: float = 1e-8,
     maxiter: int | None = None,
+    M: LinearOperator | None = None,
 ) -> IterativeSolveResult:
     """Conjugate-gradient solve for symmetric positive-definite systems."""
-    solution, info = cg(_as_matrix(A), np.asarray(b, dtype=float), rtol=rtol, maxiter=maxiter)
-    return _finish(solution, info)
+    rhs = np.asarray(b, dtype=float)
+    solution, info = cg(_as_matrix(A), rhs, rtol=rtol, maxiter=maxiter, M=M)
+    return _finish(A, rhs, solution, info)
 
 
 def solve_gmres(
@@ -92,13 +100,15 @@ def solve_gmres(
     rtol: float = 1e-8,
     maxiter: int | None = None,
     restart: int | None = None,
+    M: LinearOperator | None = None,
 ) -> IterativeSolveResult:
     """Generalized minimal residual solve for general square systems."""
+    rhs = np.asarray(b, dtype=float)
     kwargs: dict[str, object] = {"rtol": rtol, "maxiter": maxiter}
     if restart is not None:
         kwargs["restart"] = restart
-    solution, info = gmres(_as_matrix(A), np.asarray(b, dtype=float), **kwargs)
-    return _finish(solution, info)
+    solution, info = gmres(_as_matrix(A), rhs, M=M, **kwargs)
+    return _finish(A, rhs, solution, info)
 
 
 def solve_bicgstab(
@@ -106,10 +116,12 @@ def solve_bicgstab(
     b: object,
     rtol: float = 1e-8,
     maxiter: int | None = None,
+    M: LinearOperator | None = None,
 ) -> IterativeSolveResult:
     """Biconjugate gradient stabilized solve - often faster on nonsymmetric PDEs."""
-    solution, info = bicgstab(_as_matrix(A), np.asarray(b, dtype=float), rtol=rtol, maxiter=maxiter)
-    return _finish(solution, info)
+    rhs = np.asarray(b, dtype=float)
+    solution, info = bicgstab(_as_matrix(A), rhs, rtol=rtol, maxiter=maxiter, M=M)
+    return _finish(A, rhs, solution, info)
 
 
 def largest_eigenpairs(A: object, k: int = 6, seed: int | None = None) -> EigenpairsResult:
@@ -163,3 +175,34 @@ def one_norm_est(A: object, seed: int | None = None) -> float:
 
     value = onenormest(sparse.csr_matrix(A))
     return float(value)
+
+
+def jacobi_preconditioner(A: object) -> LinearOperator:
+    """Diagonal (Jacobi) preconditioner ``M = diag(A)^{-1}``."""
+    matrix = sparse.csr_matrix(A)
+    n = matrix.shape[0]
+    diagonal_values = np.asarray(matrix.diagonal(), dtype=float)
+    inverse_diagonal = np.where(diagonal_values != 0.0, 1.0 / diagonal_values, 1.0)
+
+    def apply(vector: NDArray[np.float64]) -> NDArray[np.float64]:
+        return inverse_diagonal * vector
+
+    return LinearOperator((n, n), matvec=apply)
+
+
+def ilu_preconditioner(
+    A: object,
+    drop_tol: float = 1e-4,
+    fill_factor: float = 10.0,
+) -> LinearOperator:
+    """Incomplete-LU preconditioner via SuperLU's ILU factorization."""
+    from scipy.sparse.linalg import spilu
+
+    matrix = sparse.csc_matrix(A)
+    n = matrix.shape[0]
+    factorization = spilu(matrix, drop_tol=drop_tol, fill_factor=fill_factor)
+
+    def apply(vector: NDArray[np.float64]) -> NDArray[np.float64]:
+        return np.asarray(factorization.solve(vector), dtype=float)
+
+    return LinearOperator((n, n), matvec=apply)

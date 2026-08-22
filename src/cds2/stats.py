@@ -36,6 +36,7 @@ __all__ = [
     "norm_cdf",
     "norm_ppf",
     "BootstrapResult",
+    "StreamingStats",
     "bootstrap_ci",
     "permutation_test",
     "covariance_matrix",
@@ -349,3 +350,62 @@ def multivariate_normal_logpdf(x: object, mean: object, cov: object) -> float:
         cov=np.asarray(cov, dtype=float),
     )
     return float(value)
+
+
+class StreamingStats:
+    """Welford incremental mean/variance for datasets larger than memory."""
+
+    def __init__(self) -> None:
+        self.count_value: int = 0
+        self._mean: float = 0.0
+        self._m2: float = 0.0
+
+    def push(self, chunk: object) -> StreamingStats:
+        batch = np.asarray(chunk, dtype=float).ravel()
+        if batch.size == 0:
+            return self
+        batch_count = batch.size
+        batch_mean = float(batch.mean())
+        batch_sum_sq = float(((batch - batch_mean) ** 2).sum())
+        delta = batch_mean - self._mean
+        total = self.count_value + batch_count
+        self._mean += delta * batch_count / total
+        self._m2 += batch_sum_sq + delta * delta * self.count_value * batch_count / total
+        self.count_value = total
+        return self
+
+    def merge(self, other: StreamingStats) -> StreamingStats:
+        merged = StreamingStats()
+        merged.count_value = self.count_value
+        merged._mean = self._mean
+        merged._m2 = self._m2
+
+        delta = other._mean - merged._mean
+        total = merged.count_value + other.count_value
+        if total == 0:
+            return merged
+        if merged.count_value == 0:
+            merged._mean = other._mean
+            merged._m2 = other._m2
+            merged.count_value = other.count_value
+            return merged
+        merged._mean += delta * other.count_value / total
+        merged._m2 += other._m2 + delta * delta * merged.count_value * other.count_value / total
+        merged.count_value = total
+        return merged
+
+    @property
+    def mean(self) -> float:
+        if self.count_value == 0:
+            raise ValueError("no observations pushed yet")
+        return self._mean
+
+    @property
+    def variance(self) -> float:
+        if self.count_value < 2:
+            raise ValueError("variance needs at least two observations")
+        return self._m2 / (self.count_value - 1)
+
+    @property
+    def standard_deviation(self) -> float:
+        return float(np.sqrt(self.variance))

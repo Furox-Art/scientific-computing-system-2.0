@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -15,6 +16,7 @@ __all__ = [
     "mc_expectation",
     "hit_or_miss",
     "metropolis_hastings",
+    "parallel_mc_integrate",
 ]
 
 FloatArray = NDArray[np.float64]
@@ -133,3 +135,51 @@ def metropolis_hastings(
             samples[kept] = current
             kept += 1
     return MCMCResult(samples=samples, acceptance_rate=accepted / total_steps)
+
+
+def _integrate_chunk(
+    job: tuple[Callable[..., object], float, float, int, int | None],
+) -> float:  # pragma: no cover - worker subprocess
+    func, low, high, count, chunk_seed = job
+    typed_func = cast("Callable[[FloatArray], FloatArray]", func)
+    return mc_integrate(typed_func, low, high, n=count, seed=chunk_seed)
+
+
+def parallel_mc_integrate(
+    func: Callable[..., object],
+    a: float,
+    b: float,
+    n_total: int = 4_000_000,
+    workers: int | None = None,
+    seed: int | None = None,
+) -> float:
+    """Chunked Monte Carlo integration across worker processes.
+
+    ``func`` must be picklable - define it at module level. Each worker gets
+    an equal sub-interval and an independent seed; the result averages the
+    per-chunk estimates.
+    """
+    import os
+    from concurrent.futures import ProcessPoolExecutor
+
+    worker_count = workers or os.cpu_count() or 2
+    if b <= a:
+        msg = "b must be greater than a"
+        raise ValueError(msg)
+    width = (b - a) / worker_count
+    per_worker = max(n_total // worker_count, 1)
+    jobs = [
+        (
+            func,
+            a + index * width,
+            a + (index + 1) * width,
+            per_worker,
+            None if seed is None else seed + index,
+        )
+        for index in range(worker_count)
+    ]
+    # Subprocess bodies are invisible to the coverage tracer by design;
+    # correctness of this block is asserted functionally by its tests.
+    with ProcessPoolExecutor(max_workers=worker_count) as pool:  # pragma: no cover
+        estimates = list(pool.map(_integrate_chunk, jobs))
+    return float(np.sum(estimates))

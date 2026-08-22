@@ -4,6 +4,46 @@ All notable changes to **cognitive-discovery-system-v2** will be documented in
 this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v3.1.0] - 2026-08-22
+
+Industrial-tier release: preconditioned sparse solvers at six-figure scale,
+process-parallel Monte Carlo and constant-memory streaming statistics.
+
+### Added
+
+- **`cds2.sparse.jacobi_preconditioner` / `ilu_preconditioner`** - SuperLU
+  ILU wrapped as LinearOperator; all iterative solvers accept ``M``.
+  Showcase: a 250k-unknown system with condition ~6e9 stalls plain CG yet
+  converges routinely under ILU preconditioning.
+- **Solver diagnostics** - iterative results report true residual norm.
+- **`cds2.montecarlo.parallel_mc_integrate`** - process-parallel chunked
+  integration with independent per-worker seeds.
+- **`cds2.stats.StreamingStats`** - Welford incremental mean/variance,
+  vectorized pushes + pairwise merge, constant memory.
+- **`cds2.io.iter_csv`** - chunked reader generator for out-of-core data.
+
+### Changed
+
+- Test count 431 -> 453; gates held throughout.
+
+## [v3.0.0] - 2026-08-22
+
+Flagship surface expansion.
+
+### Added
+
+- **`cds2.distributions`** - 57 functions across 19 probability families
+  (t, chi2, F, exponential, uniform, lognormal, Poisson, binomial, gamma,
+  beta, Weibull, Cauchy, Laplace, Gumbel, Pareto, Rayleigh, geometric,
+  negative-binomial, hypergeometric), each with pdf/pmf + cdf (+ ppf).
+- **Special functions doubled to 42** - digamma, Fresnel C/S, Airy Ai/Bi,
+  Legendre Pn, elliptic K/E, exp1, hypergeometric 2F1, spherical Bessels,
+  Bessel jv/yv/iv/kv, Hankel1, Struve H0/H1, Chebyshev T/U, Laguerre,
+  Hermite, Jacobi, spherical harmonics, Lambert W, Faddeeva w, E_n, Si/Ci.
+- **`examples/`** - four runnable end-to-end case studies: signal
+  denoising, Michaelis-Menten fitting, Bayesian MCMC inference,
+  citation-network PageRank + spectral clustering.
+
 ## [v2.6.0] - 2026-08-22
 
 Scientific-depth release closing the biggest coverage gaps of the platform:

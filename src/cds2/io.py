@@ -17,6 +17,7 @@ __all__ = [
     "read_parquet",
     "write_parquet",
     "summarize",
+    "iter_csv",
 ]
 
 
@@ -108,3 +109,10 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
         )
     result: pd.DataFrame = pd.DataFrame(rows)
     return result
+
+
+def iter_csv(path: str, chunksize: int = 100_000, **kwargs: Any) -> Any:
+    """Yield successive DataFrame chunks - process datasets larger than RAM."""
+    reader = pd.read_csv(path, chunksize=chunksize, **kwargs)
+    for chunk in reader:
+        yield cast("pd.DataFrame", chunk)

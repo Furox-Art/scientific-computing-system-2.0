@@ -158,6 +158,7 @@ from .montecarlo import (
     mc_expectation,
     mc_integrate,
     metropolis_hastings,
+    parallel_mc_integrate,
     pi_estimate,
 )
 from .optimize import (
@@ -207,6 +208,8 @@ from .sparse import (
     EigenpairsResult,
     IterativeSolveResult,
     TruncatedSVDResult,
+    ilu_preconditioner,
+    jacobi_preconditioner,
     largest_eigenpairs,
     one_norm_est,
     smallest_eigenpairs,
@@ -271,6 +274,7 @@ from .stats import (
     BootstrapResult,
     CorrelationResult,
     DescribeResult,
+    StreamingStats,
     TestResult,
     anova,
     bootstrap_ci,
@@ -392,6 +396,7 @@ __all__ = [
     "mc_expectation",
     "mc_integrate",
     "metropolis_hastings",
+    "parallel_mc_integrate",
     "pi_estimate",
     # sparse / spectral
     "EigenpairsResult",
@@ -407,6 +412,8 @@ __all__ = [
     "sparse_diag",
     "sparse_kron",
     "one_norm_est",
+    "ilu_preconditioner",
+    "jacobi_preconditioner",
     "laplacian",
     "fiedler_vector",
     "algebraic_connectivity",
@@ -452,6 +459,7 @@ __all__ = [
     "coherence",
     # stats
     "BootstrapResult",
+    "StreamingStats",
     "CorrelationResult",
     "DescribeResult",
     "TestResult",
