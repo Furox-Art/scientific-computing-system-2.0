@@ -107,6 +107,4 @@ class TestStatsMatrixAdditionsV31:
         merged = StreamingStats().merge(StreamingStats().push(data))
         assert merged.count_value == 500
         assert merged.mean == pytest.approx(float(np.mean(data)))
-        assert merged.standard_deviation == pytest.approx(
-            float(np.std(data, ddof=1)), rel=1e-9
-        )
+        assert merged.standard_deviation == pytest.approx(float(np.std(data, ddof=1)), rel=1e-9)
