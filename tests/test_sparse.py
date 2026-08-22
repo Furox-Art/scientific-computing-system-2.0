@@ -33,10 +33,10 @@ class TestIterativeSolvers:
 
     def test_bicgstab(self, poisson_system) -> None:
         matrix, rhs = poisson_system
-        result = sparse.solve_bicgstab(matrix, rhs)
+        result = sparse.solve_bicgstab(matrix, rhs, rtol=1e-12)
         reference = np.linalg.solve(matrix, rhs)
         assert result.converged
-        assert np.max(np.abs(result.x - reference)) < 1e-3
+        assert np.max(np.abs(result.x - reference)) < 1e-5
 
     def test_tight_tolerance_improves_accuracy(self, poisson_system) -> None:
         matrix, rhs = poisson_system
