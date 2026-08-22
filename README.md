@@ -70,6 +70,8 @@ scores = cds2.graph.pagerank(adj)
 | `cds2.io` | pandas | CSV/JSON read-write, optional Excel/Parquet bridges, DataFrame summaries |
 | `cds2.calculus` | NumPy | derivative, complex-step gradient, jacobian, hessian |
 | `cds2.special` | scipy.special | gamma, erf family, beta, Bessels, zeta |
+| `cds2.sparse` | scipy.sparse.linalg | CG/GMRES/BiCGSTAB solvers, Lanczos eigenpairs, truncated SVD |
+| `cds2.spectral` | scipy.sparse | Laplacians, Fiedler vector, algebraic connectivity, spectral clustering |
 
 ## CLI
 

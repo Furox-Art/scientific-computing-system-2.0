@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cognitive-discovery-system-v2"
-version = "2.4.0"
+version = "2.5.0"
 description = "A NumPy/SciPy/Pandas/Matplotlib-powered scientific computing platform: accelerated linear algebra, statistics, optimization, integration, interpolation, signal processing, Monte Carlo, graphs (with PageRank), machine learning, time series, visualization and I/O."
 readme = "README.md"
 license = "MIT"

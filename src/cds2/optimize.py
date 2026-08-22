@@ -15,6 +15,7 @@ __all__ = [
     "GlobalResult",
     "minimize",
     "minimize_scalar",
+    "minimize_constrained",
     "root",
     "find_root_scalar",
     "newton_root",
@@ -182,6 +183,38 @@ def curve_fit(
     """Fit model parameters by non-linear least squares."""
     params, covariance = spo.curve_fit(f, np.asarray(xdata), np.asarray(ydata), p0=p0)
     return FitResult(params=np.asarray(params, dtype=float), covariance=covariance)
+
+
+def minimize_constrained(
+    fun: Callable[..., float],
+    x0: Sequence[float],
+    constraints: Sequence[dict[str, object]] | None = None,
+    bounds: Sequence[Sequence[float | None]] | None = None,
+    method: str = "SLSQP",
+    jac: Callable[..., object] | None = None,
+    **kwargs: object,
+) -> OptimizationResult:
+    """Minimize under equality/inequality constraints (SLSQP or trust-constr).
+
+    ``constraints`` uses SciPy's dict form, e.g.
+    ``{"type": "eq", "fun": lambda v: v[0] + v[1] - 1}``.
+    """
+    res = spo.minimize(
+        fun,
+        np.asarray(x0, dtype=float),
+        method=method,
+        bounds=bounds,
+        constraints=constraints,
+        jac=jac,
+        **kwargs,
+    )
+    return OptimizationResult(
+        x=res.x,
+        fun=float(res.fun),
+        success=bool(res.success),
+        message=str(res.message),
+        n_iterations=getattr(res, "nit", None),
+    )
 
 
 def differential_evolution(

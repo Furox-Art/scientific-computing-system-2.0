@@ -11,10 +11,12 @@ from scipy import integrate as spi
 __all__ = [
     "QuadResult",
     "OdeResult",
+    "BVPResult",
     "quad",
     "integrate_2d",
     "integrate_3d",
     "solve_ivp",
+    "solve_bvp",
     "trapezoid",
     "cumulative_trapezoid",
     "simpson",
@@ -39,6 +41,46 @@ class OdeResult:
     message: str
     t_events: tuple[np.ndarray, ...] | None = None
     y_events: tuple[np.ndarray, ...] | None = None
+
+
+@dataclass(frozen=True)
+class BVPResult:
+    """Solution of a two-point boundary value problem on the output mesh."""
+
+    x: np.ndarray
+    y: np.ndarray
+    success: bool
+    message: str
+
+
+def solve_bvp(
+    func: Callable[[np.ndarray, np.ndarray], np.ndarray],
+    bc: Callable[[np.ndarray, np.ndarray], np.ndarray],
+    initial_mesh: Sequence[float],
+    initial_guess: object,
+    tol: float = 1e-3,
+    max_nodes: int = 1000,
+) -> BVPResult:
+    """Solve a two-point boundary value problem y' = func(t, y), bc(ya, yb) = 0.
+
+    ``initial_mesh`` is the starting node grid; ``initial_guess`` is a
+    (n_states, len(mesh)) array of starting values for the collocation
+    solver (4th-order collocation with residual control).
+    """
+    res = spi.solve_bvp(
+        func,
+        bc,
+        np.asarray(initial_mesh, dtype=float),
+        np.atleast_2d(np.asarray(initial_guess, dtype=float)),
+        tol=tol,
+        max_nodes=max_nodes,
+    )
+    return BVPResult(
+        x=np.asarray(res.x),
+        y=np.asarray(res.y),
+        success=bool(res.success),
+        message=str(res.message),
+    )
 
 
 def quad(func: Callable[[float], float], a: float, b: float) -> QuadResult:

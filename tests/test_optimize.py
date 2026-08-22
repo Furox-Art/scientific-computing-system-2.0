@@ -78,6 +78,37 @@ class TestLeastSquaresAndFit:
         assert fit.params[1] == pytest.approx(1.7, rel=1e-3)
 
 
+class TestConstrainedMinimization:
+    def test_equality_constraint_circle_on_line(self) -> None:
+        result = optimize.minimize_constrained(
+            lambda v: v[0] ** 2 + v[1] ** 2,
+            x0=[3.0, 3.0],
+            constraints=[{"type": "eq", "fun": lambda v: v[0] + v[1] - 1.0}],
+        )
+        assert result.success
+        assert np.allclose(result.x, [0.5, 0.5], atol=1e-6)
+
+    def test_inequality_constraint_respected(self) -> None:
+        result = optimize.minimize_constrained(
+            lambda v: (v[0] - 5.0) ** 2,
+            x0=[0.0],
+            constraints=[{"type": "ineq", "fun": lambda v: 2.0 - v[0]}],
+        )
+        assert result.x[0] == pytest.approx(2.0, abs=1e-6)
+        assert result.fun == pytest.approx(9.0, abs=1e-6)
+
+    def test_bounds_and_constraints_combined(self) -> None:
+        result = optimize.minimize_constrained(
+            lambda v: -v[0] * v[1],
+            x0=[1.0, 1.0],
+            bounds=[(0.0, 3.0), (0.0, 3.0)],
+            constraints=[{"type": "ineq", "fun": lambda v: 4.0 - v[0] - v[1]}],
+        )
+        assert result.success
+        assert np.allclose(result.x, [2.0, 2.0], atol=1e-4)
+        assert result.fun == pytest.approx(-4.0, abs=1e-6)
+
+
 class TestDifferentialEvolution:
     def test_finds_global_minimum_of_bowl(self) -> None:
         result = optimize.differential_evolution(

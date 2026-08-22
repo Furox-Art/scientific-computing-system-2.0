@@ -3,13 +3,29 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
 
-__all__ = ["pi_estimate", "mc_integrate", "mc_expectation", "hit_or_miss"]
+__all__ = [
+    "MCMCResult",
+    "pi_estimate",
+    "mc_integrate",
+    "mc_expectation",
+    "hit_or_miss",
+    "metropolis_hastings",
+]
 
 FloatArray = NDArray[np.float64]
+
+
+@dataclass(frozen=True)
+class MCMCResult:
+    """Markov-chain sample set plus diagnostics."""
+
+    samples: FloatArray
+    acceptance_rate: float
 
 
 def pi_estimate(n: int = 100_000, seed: int | None = None) -> float:
@@ -78,3 +94,42 @@ def hit_or_miss(
     hits = int(np.count_nonzero(y <= f_values))
     box_area = (b - a) * y_max
     return box_area * hits / n
+
+
+def metropolis_hastings(
+    log_prob: Callable[[FloatArray], float],
+    initial: object,
+    n_samples: int = 10_000,
+    burn_in: int = 1_000,
+    proposal_scale: float = 1.0,
+    thin: int = 1,
+    seed: int | None = None,
+) -> MCMCResult:
+    """Metropolis-Hastings sampler for an unnormalized density.
+
+    ``log_prob`` receives a 1-D state vector and returns its log-density
+    (up to an additive constant). Gaussian random-walk proposals; the first
+    ``burn_in`` steps are discarded, then every ``thin``-th step is kept.
+    """
+    if n_samples < 1 or burn_in < 0 or thin < 1:
+        msg = "need n_samples >= 1, burn_in >= 0 and thin >= 1"
+        raise ValueError(msg)
+    rng = np.random.default_rng(seed)
+    current = np.atleast_1d(np.asarray(initial, dtype=float)).copy()
+    current_log_prob = float(log_prob(current))
+    total_steps = burn_in + n_samples * thin
+    samples = np.empty((n_samples, current.size))
+    accepted = 0
+    kept = 0
+    for step in range(total_steps):
+        proposal = current + rng.normal(scale=proposal_scale, size=current.size)
+        proposal_log_prob = float(log_prob(proposal))
+        log_accept_ratio = proposal_log_prob - current_log_prob
+        if np.log(rng.random()) < log_accept_ratio:
+            current = proposal
+            current_log_prob = proposal_log_prob
+            accepted += 1
+        if step >= burn_in and (step - burn_in) % thin == 0 and kept < n_samples:
+            samples[kept] = current
+            kept += 1
+    return MCMCResult(samples=samples, acceptance_rate=accepted / total_steps)

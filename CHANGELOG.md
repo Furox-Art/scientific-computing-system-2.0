@@ -4,6 +4,34 @@ All notable changes to **cognitive-discovery-system-v2** will be documented in
 this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.5.0] - 2026-08-22
+
+Flagship release: two new scientific modules plus four major capability
+upgrades across the platform. Module count now 16 + CLI, ~165 flat exports,
+265 tests.
+
+### Added
+
+- **`cds2.sparse`** — large-scale sparse linear algebra: conjugate gradient,
+  GMRES (with restart) and BiCGSTAB iterative solvers, Lanczos eigenpairs
+  (`largest_eigenpairs` / `smallest_eigenpairs`) and truncated SVD.
+- **`cds2.spectral`** — spectral graph theory: combinatorial and
+  normalized Laplacians, Fiedler vectors, algebraic connectivity and
+  spectral clustering (eigendecomposition embedding + k-means).
+- **`cds2.montecarlo.metropolis_hastings`** — seeded random-walk MH sampler
+  with burn-in, thinning and acceptance-rate diagnostics.
+- **`cds2.optimize.minimize_constrained`** — SLSQP-based constrained
+  minimization with SciPy-dict equality/inequality constraints.
+- **`cds2.calculus.propagate_error`** — first-order uncertainty propagation
+  through arbitrary functions via the Jacobian.
+- **`cds2.integrate.solve_bvp`** — two-point boundary value problems via
+  4th-order collocation.
+
+### Changed
+
+- `largest_eigenpairs` selects algebraically largest eigenvalues (LA).
+- 28 new tests this cycle (236 -> 265).
+
 ## [v2.4.0] - 2026-08-22
 
 Scientific-computing depth release: scattered-data RBF interpolation, ODE

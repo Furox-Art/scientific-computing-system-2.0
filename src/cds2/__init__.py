@@ -18,17 +18,21 @@ from . import (
     montecarlo,
     optimize,
     signals,
+    sparse,
     special,
+    spectral,
     stats,
     timeseries,
     viz,
 )
 from ._version import __version__
 from .calculus import (
+    ErrorPropagationResult,
     complex_step_gradient,
     derivative,
     hessian,
     jacobian,
+    propagate_error,
 )
 from .graph import (
     ComponentResult,
@@ -46,6 +50,7 @@ from .graph import (
     topological_order,
 )
 from .integrate import (
+    BVPResult,
     OdeResult,
     QuadResult,
     cumulative_trapezoid,
@@ -53,6 +58,7 @@ from .integrate import (
     integrate_3d,
     quad,
     simpson,
+    solve_bvp,
     solve_ivp,
     trapezoid,
 )
@@ -87,7 +93,14 @@ from .linalg import (
     svd,
     trace,
 )
-from .montecarlo import hit_or_miss, mc_expectation, mc_integrate, pi_estimate
+from .montecarlo import (
+    MCMCResult,
+    hit_or_miss,
+    mc_expectation,
+    mc_integrate,
+    metropolis_hastings,
+    pi_estimate,
+)
 from .optimize import (
     FitResult,
     GlobalResult,
@@ -99,6 +112,7 @@ from .optimize import (
     least_squares,
     linprog,
     minimize,
+    minimize_constrained,
     minimize_scalar,
     newton_root,
     root,
@@ -127,6 +141,23 @@ from .signals import (
 )
 from .signals import (
     moving_average as moving_average_signal,
+)
+from .sparse import (
+    EigenpairsResult,
+    IterativeSolveResult,
+    TruncatedSVDResult,
+    largest_eigenpairs,
+    smallest_eigenpairs,
+    solve_bicgstab,
+    solve_cg,
+    solve_gmres,
+    truncated_svd,
+)
+from .spectral import (
+    algebraic_connectivity,
+    fiedler_vector,
+    laplacian,
+    spectral_cluster,
 )
 from .stats import (
     BootstrapResult,
@@ -183,6 +214,8 @@ __all__ = [
     "optimize",
     "signals",
     "special",
+    "sparse",
+    "spectral",
     "stats",
     "timeseries",
     "viz",
@@ -201,6 +234,7 @@ __all__ = [
     "single_source_shortest_paths",
     "topological_order",
     # integrate
+    "BVPResult",
     "OdeResult",
     "QuadResult",
     "cumulative_trapezoid",
@@ -208,6 +242,7 @@ __all__ = [
     "integrate_3d",
     "quad",
     "simpson",
+    "solve_bvp",
     "solve_ivp",
     "trapezoid",
     # interpolate
@@ -240,10 +275,26 @@ __all__ = [
     "svd",
     "trace",
     # montecarlo
+    "MCMCResult",
     "hit_or_miss",
     "mc_expectation",
     "mc_integrate",
+    "metropolis_hastings",
     "pi_estimate",
+    # sparse / spectral
+    "EigenpairsResult",
+    "IterativeSolveResult",
+    "TruncatedSVDResult",
+    "largest_eigenpairs",
+    "smallest_eigenpairs",
+    "solve_cg",
+    "solve_gmres",
+    "solve_bicgstab",
+    "truncated_svd",
+    "laplacian",
+    "fiedler_vector",
+    "algebraic_connectivity",
+    "spectral_cluster",
     # optimize
     "FitResult",
     "GlobalResult",
@@ -255,6 +306,7 @@ __all__ = [
     "least_squares",
     "linprog",
     "minimize",
+    "minimize_constrained",
     "minimize_scalar",
     "newton_root",
     "root",
@@ -309,6 +361,8 @@ __all__ = [
     "wilcoxon_signed_rank",
     "z_scores",
     # calculus
+    "ErrorPropagationResult",
+    "propagate_error",
     "complex_step_gradient",
     "derivative",
     "hessian",

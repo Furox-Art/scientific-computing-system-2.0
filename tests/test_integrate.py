@@ -119,3 +119,28 @@ class TestStiffSolvers:
         assert result.success
         # u = y - exp(-t) satisfies u' = -1000u with u(0) = 0, so y = exp(-t)
         assert result.y[0][-1] == pytest.approx(np.exp(-1.0), rel=1e-4)
+
+
+class TestBVPSolver:
+    def test_parabola_unique_solution(self) -> None:
+        mesh = np.linspace(0.0, 1.0, 21)
+        solution = integrate.solve_bvp(
+            lambda _t, y: np.vstack([y[1], -2.0 * np.ones_like(y[1])]),
+            lambda ya, yb: np.array([ya[0], yb[0]]),
+            mesh,
+            np.zeros((2, mesh.size)),
+        )
+        assert solution.success
+        expected = mesh * (1.0 - mesh)
+        assert float(np.max(np.abs(solution.y[0] - expected))) < 1e-7
+
+    def test_linear_gradient_problem(self) -> None:
+        mesh = np.linspace(0.0, 1.0, 15)
+        solution = integrate.solve_bvp(
+            lambda _t, y: np.vstack([y[1], np.zeros_like(y[1])]),
+            lambda ya, yb: np.array([ya[0] - 2.0, yb[0] - 5.0]),
+            mesh,
+            np.zeros((2, mesh.size)),
+        )
+        assert solution.success
+        assert np.allclose(solution.y[0], 2.0 + 3.0 * solution.x, atol=1e-7)

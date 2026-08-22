@@ -74,3 +74,21 @@ class TestHessian:
         assert result.shape == (2, 2)
         assert result[0, 1] == pytest.approx(result[1, 0], rel=1e-6)
         assert result[0, 1] == pytest.approx(4.0, rel=1e-3)
+
+
+class TestPropagateError:
+    def test_linear_map_exact_covariance(self) -> None:
+        matrix = np.array([[2.0, 0.0], [1.0, 3.0]])
+        input_cov = np.diag([0.01, 0.04])
+        result = calculus.propagate_error(lambda v: matrix @ v, [1.0, 2.0], input_cov)
+        assert np.allclose(result.covariance, matrix @ input_cov @ matrix.T)
+
+    def test_quadratic_matches_delta_method(self) -> None:
+        result = calculus.propagate_error(lambda v: v[0] ** 2, [4.0], [[0.01]])
+        analytic = (2.0 * 4.0) ** 2 * 0.01
+        assert result.covariance[0, 0] == pytest.approx(analytic, rel=1e-6)
+        assert result.mean[0] == pytest.approx(16.0)
+
+    def test_mismatched_cov_size_raises(self) -> None:
+        with pytest.raises(ValueError, match="n x n"):
+            calculus.propagate_error(lambda v: v[0], [1.0, 2.0], [[0.01]])

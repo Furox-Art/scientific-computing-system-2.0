@@ -1,17 +1,52 @@
-"""Numerical differentiation: derivatives, Jacobians and Hessians."""
+"""Numerical differentiation: derivatives, Jacobians, Hessians, uncertainty."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import NDArray
 
 __all__ = [
+    "ErrorPropagationResult",
     "derivative",
     "complex_step_gradient",
     "jacobian",
     "hessian",
+    "propagate_error",
 ]
+
+
+@dataclass(frozen=True)
+class ErrorPropagationResult:
+    """First-order propagated output mean and covariance."""
+
+    mean: NDArray[np.float64]
+    covariance: NDArray[np.float64]
+
+
+def propagate_error(
+    f: Callable[[np.ndarray], object],
+    x: object,
+    cov: object,
+    step: float | None = None,
+) -> ErrorPropagationResult:
+    """Linearized (first-order) uncertainty propagation via the Jacobian.
+
+    For ``f: R^n -> R^m`` with input covariance ``cov`` (n x n), returns the
+    output mean ``f(x)`` and covariance ``J cov J^T``.
+    """
+    point = np.atleast_1d(np.asarray(x, dtype=float))
+    jacobian_matrix = jacobian(f, point, step=step)
+    input_cov = np.atleast_2d(np.asarray(cov, dtype=float))
+    if input_cov.shape[0] != point.size:
+        msg = "cov must be an n x n matrix matching x"
+        raise ValueError(msg)
+    output_mean = np.atleast_1d(np.asarray(f(point.copy()), dtype=float))
+    output_cov = jacobian_matrix @ input_cov @ jacobian_matrix.T
+    return ErrorPropagationResult(mean=output_mean, covariance=output_cov)
+
 
 _CUBRT_EPS = float(np.cbrt(np.finfo(float).eps))
 

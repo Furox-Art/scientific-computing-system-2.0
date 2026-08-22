@@ -41,6 +41,8 @@ nav:
       - cds2.timeseries: api/timeseries.md
       - cds2.viz: api/viz.md
       - cds2.io: api/io.md
+      - cds2.sparse: api/sparse.md
+      - cds2.spectral: api/spectral.md
       - cds2.calculus: api/calculus.md
       - cds2.special: api/special.md
       - cds2.cli: api/cli.md
