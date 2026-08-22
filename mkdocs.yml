@@ -28,6 +28,7 @@ nav:
   - Getting started: getting-started.md
   - Modules overview: modules.md
   - Examples: examples.md
+  - Industrial computing: industrial.md
   - Benchmarks: benchmarks.md
   - API Reference:
       - cds2.linalg: api/linalg.md

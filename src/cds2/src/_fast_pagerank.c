@@ -120,14 +120,25 @@ iterate(PyObject *self, PyObject *args)
     const double teleport = (1.0 - damping) / (double)n_nodes;
 
     int iterations = 0;
+
+    /* Pure C hot loops: drop the GIL and let OpenMP fan rows across
+     * cores on builds compiled with it (Linux wheels). */
+    Py_BEGIN_ALLOW_THREADS
+
     for (int iter = 0; iter < max_iter; iter++) {
         double dangling_mass = 0.0;
+#if defined(_OPENMP)
+#pragma omp parallel for reduction(+ : dangling_mass)
+#endif
         for (Py_ssize_t idx = 0; idx < n_dangling; idx++) {
             dangling_mass += rank[dangling[idx]];
         }
         const double uniform_add =
             damping * dangling_mass / (double)n_nodes + teleport;
 
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static)
+#endif
         for (int j = 0; j < n_nodes; j++) {
             double acc = 0.0;
             for (Py_ssize_t p = indptr[j]; p < indptr[j + 1]; p++) {
@@ -151,6 +162,8 @@ iterate(PyObject *self, PyObject *args)
             break;
         }
     }
+
+    Py_END_ALLOW_THREADS
 
     PyObject *rank_bytes = PyBytes_FromStringAndSize(
         (const char *)rank, (Py_ssize_t)n_nodes * (Py_ssize_t)sizeof(double));

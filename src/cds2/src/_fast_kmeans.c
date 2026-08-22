@@ -83,10 +83,22 @@ lloyd(PyObject *self, PyObject *args)
     }
 
     int iterations = 0;
+
+    /* Hot loops touch no Python objects: drop the GIL so embedded Python
+     * threads keep running. The pragma below fans rows across cores when
+     * the module was built with OpenMP (Linux wheels); MSVC builds keep
+     * it disabled because its legacy OpenMP rejects this loop shape. */
+    int row_count = (int)n;
+    Py_BEGIN_ALLOW_THREADS
+
     for (int iter = 0; iter < max_iter; iter++) {
-        /* Assignment step. */
-        for (Py_ssize_t i = 0; i < n; i++) {
-            const double *row = points + i * d;
+        /* Assignment step - dominant cost, embarrassingly parallel. */
+#if defined(_OPENMP)
+#pragma omp parallel for schedule(static)
+#endif
+        for (int i = 0; i < row_count; i++) {
+            const Py_ssize_t row_index = (Py_ssize_t)i;
+            const double *row = points + row_index * d;
             double best_dist = DBL_MAX;
             Py_ssize_t best_index = 0;
             for (Py_ssize_t j = 0; j < k; j++) {
@@ -158,6 +170,8 @@ lloyd(PyObject *self, PyObject *args)
             break;
         }
     }
+
+    Py_END_ALLOW_THREADS
 
     PyObject *labels_bytes = PyBytes_FromStringAndSize(
         (const char *)labels, (Py_ssize_t)n * (Py_ssize_t)sizeof(long long));

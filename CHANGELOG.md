@@ -1,3 +1,24 @@
+## [v3.2.0] - 2026-08-22
+
+Multicore-kernel release: OpenMP-accelerated C kernels on Linux wheels,
+GIL released during all hot loops, plus an industrial computing guide.
+
+### Added
+
+- **OpenMP parallel C kernels** (Linux wheels): KMeans assignment sweep
+  and PageRank power iteration fan across cores via pragma-guided loops;
+  both kernels drop the GIL during compute so embedded Python threads
+  keep running. Windows/macOS wheels build the serial kernel silently.
+- **docs/industrial.md** - end-to-end guide: preconditioned six-figure
+  solves, process-parallel Monte Carlo, streaming statistics, out-of-core
+  CSV processing.
+
+### Changed
+
+- setup.py enables -fopenmp only on Linux toolchains (MSVC legacy OpenMP
+  rejects the kernel loop shapes; Apple clang needs external libomp).
+- Sparse iterative results gained residual_norm diagnostics earlier this
+  cycle are now exercised on every solver in the test suite.
 # Changelog
 
 All notable changes to **cognitive-discovery-system-v2** will be documented in
