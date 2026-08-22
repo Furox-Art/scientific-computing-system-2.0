@@ -33,11 +33,12 @@ accepts ``M`` and reports the true residual norm ``||Ax - b||``.
 ```python
 from cds2.montecarlo import parallel_mc_integrate
 
-def integrand(x):          # must be picklable: defined at module level
+
+def integrand(x):  # must be picklable: defined at module level
     return np.exp(-x * x)
 
-estimate = parallel_mc_integrate(integrand, 0.0, 6.0,
-                                 n_total=20_000_000, workers=8, seed=42)
+
+estimate = parallel_mc_integrate(integrand, 0.0, 6.0, n_total=20_000_000, workers=8, seed=42)
 ```
 
 Workers receive equal sub-intervals and independent seeds; the estimate is
@@ -50,7 +51,7 @@ import numpy as np
 from cds2.stats import StreamingStats
 
 stream = StreamingStats()
-for chunk in iter_csv_chunk_source():      # your generator of batches
+for chunk in iter_csv_chunk_source():  # your generator of batches
     stream.push(chunk[["signal"]].to_numpy())
 
 print(stream.mean, stream.standard_deviation, stream.count_value)
