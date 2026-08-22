@@ -74,7 +74,7 @@ def mc_expectation(
 
 
 def hit_or_miss(
-    func: Callable[[float], float],
+    func: Callable[..., object],
     a: float,
     b: float,
     y_max: float,
@@ -86,11 +86,11 @@ def hit_or_miss(
     x = rng.uniform(a, b, size=n)
     y = rng.uniform(0.0, y_max, size=n)
     try:
-        f_values = np.asarray(func(x), dtype=float)
+        f_values: FloatArray = np.asarray(func(x), dtype=float)
         if f_values.shape != x.shape:
             raise ValueError("vectorized evaluation returned wrong shape")
     except Exception:
-        f_values = np.array([func(xi) for xi in x], dtype=float)
+        f_values = np.array([func(xi) for xi in x.tolist()], dtype=float)
     hits = int(np.count_nonzero(y <= f_values))
     box_area = (b - a) * y_max
     return box_area * hits / n

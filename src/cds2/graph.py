@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import numpy as np
 from numpy.typing import NDArray
@@ -43,7 +44,7 @@ IntArray = NDArray[np.int64]
 FloatArray = NDArray[np.float64]
 
 try:
-    from cds2 import _fast_pagerank as _pr_kernel
+    from cds2 import _fast_pagerank as _pr_kernel  # type: ignore[attr-defined]
 
     _HAS_PR_KERNEL = True
 except ImportError:  # pragma: no cover - exercised on pure-Python builds
@@ -75,7 +76,7 @@ class ComponentResult:
 
 def from_edges(
     n: int,
-    edges: list[tuple[int, int]] | list[tuple[int, int, float]],
+    edges: Sequence[tuple[int, int] | tuple[int, int, float]],
     weighted: bool = False,
     directed: bool = True,
 ) -> sparse.csr_matrix:
@@ -88,9 +89,13 @@ def from_edges(
         raise ValueError(msg)
     if not edges:
         return sparse.csr_matrix((n, n), dtype=float)
-    rows = [int(e[0]) for e in edges]
-    cols = [int(e[1]) for e in edges]
-    data = [float(e[2]) for e in edges] if weighted else [1.0] * len(edges)
+    rows: list[int] = []
+    cols: list[int] = []
+    data: list[float] = []
+    for edge in edges:
+        rows.append(int(edge[0]))
+        cols.append(int(edge[1]))
+        data.append(float(edge[2]) if weighted and len(edge) > 2 else 1.0)
     for u, v in zip(rows, cols, strict=False):
         if not (0 <= u < n and 0 <= v < n):
             msg = f"edge ({u}, {v}) references a node outside 0..{n - 1}"
@@ -142,19 +147,19 @@ def shortest_paths(
     matrix = sparse.csr_matrix(adj)
     source = None if indices is None else np.asarray(indices, dtype=np.int32)
     if method == "dijkstra":
-        dist = cs_dijkstra(matrix, indices=source, unweighted=unweighted)
+        dist: Any = cs_dijkstra(matrix, indices=source, unweighted=unweighted)
     elif method == "bellman_ford":
         dist = bellman_ford(matrix, indices=source)
     else:
         msg = f"unsupported shortest-path method: {method!r}"
         raise ValueError(msg)
-    return ShortestPaths(method=method, distances=np.asarray(dist))
+    return ShortestPaths(method=method, distances=np.asarray(dist, dtype=float))
 
 
 def single_source_shortest_paths(adj: object, source: int, method: str = "dijkstra") -> FloatArray:
     """Distance vector from one node to all others."""
     result = shortest_paths(adj, indices=np.array([source]), method=method)
-    return result.distances[0]
+    return np.asarray(result.distances[0], dtype=float)
 
 
 def floyd_warshall_paths(adj: object) -> ShortestPaths:
@@ -213,7 +218,8 @@ def pagerank(
             tol,
         )
         rank_vec = np.frombuffer(rank_buffer, dtype=np.float64).copy()
-        return rank_vec / rank_vec.sum()
+        rank_vec = np.frombuffer(rank_buffer, dtype=np.float64).copy()
+        return np.asarray(rank_vec / rank_vec.sum(), dtype=float)
 
     rank_vec = np.full(n, 1.0 / n)
     follow_matrix = sparse.csr_matrix((follow_data, follow_indices, follow_indptr), shape=(n, n))
@@ -227,7 +233,7 @@ def pagerank(
         rank_vec = new_rank
         if delta < tol:
             break
-    return rank_vec / rank_vec.sum()
+    return np.asarray(rank_vec / rank_vec.sum(), dtype=float)
 
 
 def topological_order(n: int, edges: list[tuple[int, int]]) -> list[int]:

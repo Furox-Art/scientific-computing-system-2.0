@@ -7,6 +7,7 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 __all__ = [
@@ -191,7 +192,7 @@ def save_figure(fig: Figure, path: str | Path, dpi: int = 150, close: bool = Tru
     return target
 
 
-def _decorate(ax: plt.Axes, title: str, xlabel: str, ylabel: str) -> None:
+def _decorate(ax: Axes, title: str, xlabel: str, ylabel: str) -> None:
     if title:
         ax.set_title(title)
     if xlabel:

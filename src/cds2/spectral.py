@@ -90,4 +90,6 @@ def spectral_cluster(
     row_norms = np.linalg.norm(embedding, axis=1, keepdims=True)
     unit_embedding = embedding / np.where(row_norms == 0.0, 1.0, row_norms)
     clusterer = KMeans(n_clusters=n_clusters, seed=seed).fit(unit_embedding)
-    return clusterer.labels_
+    labels = clusterer.labels_
+    assert labels is not None
+    return labels

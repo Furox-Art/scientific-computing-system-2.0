@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -96,7 +97,8 @@ def complex_step_gradient(f: Callable[..., object], x: object) -> np.ndarray:
         perturbed = point.astype(np.complex128)
         perturbed[index] += 1j * h
         value = f(perturbed)
-        gradient[index] = float(np.imag(value)) / h
+        imaginary_part = complex(cast(Any, value)).imag
+        gradient[index] = imaginary_part / h
     return gradient
 
 

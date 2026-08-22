@@ -70,7 +70,8 @@ def regular_grid_interp(
         [np.asarray(axis, dtype=float) for axis in grid_axes],
         np.asarray(values, dtype=float),
     )
-    return np.asarray(interpolator(np.atleast_2d(query_points)))
+    query = np.atleast_2d(np.asarray(query_points, dtype=float))
+    return np.asarray(interpolator(query), dtype=float)
 
 
 def rbf_interp(

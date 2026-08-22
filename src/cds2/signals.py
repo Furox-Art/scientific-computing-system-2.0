@@ -91,17 +91,15 @@ def power_spectrum(x: object, fs: float) -> Spectrum:
 
 def welch_spectrum(x: object, fs: float, nperseg: int = 256) -> Spectrum:
     """Welch-averaged power spectral density (lower variance than periodogram)."""
-    freqs, psd = sps.welch(np.asarray(x, dtype=float), fs=fs, nperseg=min(nperseg, len(x)))
+    values = np.asarray(x, dtype=float)
+    freqs, psd = sps.welch(values, fs=fs, nperseg=min(nperseg, values.size))
     return Spectrum(frequencies=np.asarray(freqs), power=np.asarray(psd))
 
 
 def spectrogram(x: object, fs: float, nperseg: int = 256) -> SpectrogramResult:
     """STFT magnitude squared over sliding windows."""
-    freqs, times, sxx = sps.spectrogram(
-        np.asarray(x, dtype=float),
-        fs=fs,
-        nperseg=min(nperseg, len(x)),
-    )
+    values = np.asarray(x, dtype=float)
+    freqs, times, sxx = sps.spectrogram(values, fs=fs, nperseg=min(nperseg, values.size))
     return SpectrogramResult(
         times=np.asarray(times), frequencies=np.asarray(freqs), power=np.asarray(sxx)
     )
@@ -131,7 +129,7 @@ def butter_bandpass(low: float, high: float, fs: float, order: int = 5) -> np.nd
 def filter_signal(x: object, sos: object) -> np.ndarray:
     """Zero-phase forward-backward filtering with second-order sections."""
     filtered = sps.sosfiltfilt(sos, np.asarray(x, dtype=float))
-    return np.asarray(filtered)
+    return np.asarray(filtered, dtype=float)
 
 
 def moving_average(x: object, window: int) -> np.ndarray:
@@ -173,22 +171,23 @@ def find_peaks(
     if prominence is not None:
         kwargs["prominence"] = prominence
     indices, _properties = sps.find_peaks(values, **kwargs)
-    return PeakResult(indices=np.asarray(indices), heights=values[indices])
+    index_array = np.asarray(indices, dtype=np.int64)
+    return PeakResult(indices=index_array, heights=np.asarray(values[index_array], dtype=float))
 
 
 def envelope(x: object) -> np.ndarray:
     """Analytic-signal amplitude envelope via the Hilbert transform."""
     analytic = sps.hilbert(np.asarray(x, dtype=float))
-    return np.abs(analytic)
+    return np.asarray(np.abs(analytic), dtype=float)
 
 
 def resample_signal(x: object, num: int) -> np.ndarray:
     """Fourier-method resampling to exactly ``num`` samples."""
     resampled = sps.resample(np.asarray(x, dtype=float), num)
-    return np.asarray(resampled)
+    return np.asarray(resampled, dtype=float)
 
 
 def detrend_signal(x: object) -> np.ndarray:
     """Remove the best-fit linear trend from a signal."""
     detrended = sps.detrend(np.asarray(x, dtype=float))
-    return np.asarray(detrended)
+    return np.asarray(detrended, dtype=float)

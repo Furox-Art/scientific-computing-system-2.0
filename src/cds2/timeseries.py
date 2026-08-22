@@ -123,9 +123,8 @@ def pacf(x: object, nlags: int = 20) -> np.ndarray:
     rho = acf(values, nlags)
     partial = np.ones(nlags + 1)
     phi = np.zeros((nlags + 1, nlags + 1))
-    if nlags >= 1:
-        phi[1, 1] = rho[1]
-        partial[1] = rho[1]
+    phi[1, 1] = rho[1]
+    partial[1] = rho[1]
     for m in range(2, nlags + 1):
         previous = phi[m - 1, 1:m]
         numerator = rho[m] - previous @ rho[m - 1 : 0 : -1]

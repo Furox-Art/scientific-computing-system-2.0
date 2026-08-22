@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import scipy.linalg as sla
+from numpy.typing import NDArray
 
 __all__ = [
     "EigenResult",
@@ -70,7 +72,7 @@ def solve(a: object, b: object) -> np.ndarray:
     """Solve the linear system ``a x = b`` for a square matrix ``a``."""
     a_arr = _as_matrix(a, "a")
     b_arr = np.asarray(b, dtype=float)
-    return np.linalg.solve(a_arr, b_arr)
+    return np.asarray(np.linalg.solve(a_arr, b_arr), dtype=float)
 
 
 def det(a: object) -> float:
@@ -80,14 +82,16 @@ def det(a: object) -> float:
 
 def inv(a: object) -> np.ndarray:
     """Inverse of a square, non-singular matrix."""
-    return np.linalg.inv(_as_matrix(a, "a"))
+    return np.asarray(np.linalg.inv(_as_matrix(a, "a")), dtype=float)
 
 
-def pinv(a: object, rcond: float | None = None) -> np.ndarray:
+def pinv(a: object, rcond: float | None = None) -> NDArray[np.float64]:
     """Moore-Penrose pseudo-inverse."""
     arr = np.asarray(a, dtype=float)
-    kwargs: dict[str, float] = {} if rcond is None else {"rcond": rcond}
-    return np.linalg.pinv(arr, **kwargs)
+    result: NDArray[np.float64] = (
+        np.linalg.pinv(arr) if rcond is None else np.linalg.pinv(arr, rcond=rcond)
+    )
+    return result
 
 
 def eig(a: object) -> EigenResult:
@@ -108,13 +112,14 @@ def svd(a: object, full_matrices: bool = True) -> SVDResult:
     return SVDResult(u=u, s=s, vh=vh)
 
 
-def norm(x: object, ord: float | str | None = None) -> float:  # noqa: A002
+def norm(x: object, ord: float | Literal["fro", "nuc"] | None = None) -> float:  # noqa: A002
     """Vector or matrix norm (Frobenius by default for matrices)."""
     value = np.asarray(x, dtype=float)
     if value.ndim not in (1, 2):
         msg = "norm expects a 1-D vector or 2-D matrix"
         raise ValueError(msg)
-    return float(np.linalg.norm(value, ord=ord))
+    result: float = float(np.linalg.norm(value, ord=ord))
+    return result
 
 
 def trace(a: object) -> float:
@@ -130,8 +135,10 @@ def matrix_power(a: object, n: int) -> np.ndarray:
 def rank(a: object, tol: float | None = None) -> int:
     """Numerical rank of a matrix."""
     arr = np.asarray(a, dtype=float)
-    kwargs: dict[str, float] = {} if tol is None else {"tol": tol}
-    return int(np.linalg.matrix_rank(arr, **kwargs))
+    rank_value: int = (
+        int(np.linalg.matrix_rank(arr)) if tol is None else int(np.linalg.matrix_rank(arr, tol=tol))
+    )
+    return rank_value
 
 
 def cond(a: object) -> float:
@@ -141,7 +148,7 @@ def cond(a: object) -> float:
 
 def cholesky(a: object) -> np.ndarray:
     """Lower-triangular Cholesky factor of a positive-definite matrix."""
-    return np.linalg.cholesky(_as_matrix(a, "a"))
+    return np.asarray(np.linalg.cholesky(_as_matrix(a, "a")), dtype=float)
 
 
 def lstsq(a: object, b: object, rcond: float | None = None) -> LeastSquaresResult:
@@ -162,12 +169,12 @@ def lstsq(a: object, b: object, rcond: float | None = None) -> LeastSquaresResul
 
 def expm(a: object) -> np.ndarray:
     """Matrix exponential via Pade approximation with scaling and squaring."""
-    return np.asarray(sla.expm(_as_matrix(a, "a")))
+    return np.asarray(sla.expm(_as_matrix(a, "a")), dtype=float)
 
 
 def logm(a: object) -> np.ndarray:
     """Principal matrix logarithm."""
-    return np.asarray(sla.logm(_as_matrix(a, "a")))
+    return np.asarray(sla.logm(_as_matrix(a, "a")), dtype=float)
 
 
 def sqrtm(a: object) -> np.ndarray:

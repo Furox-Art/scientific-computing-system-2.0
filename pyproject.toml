@@ -51,6 +51,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "openpyxl",
     "pytest>=8.0",
     "pytest-cov",
     "ruff>=0.4",
@@ -87,6 +88,17 @@ include = ["cds2*"]
 [tool.setuptools.package-data]
 cds2 = ["py.typed"]
 
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src/cds2"]
+
+[[tool.mypy.overrides]]
+# SciPy and Matplotlib ship no inline types or stubs; their APIs are used
+# through thin wrappers so the Any leakage is contained at call boundaries.
+module = ["scipy.*", "matplotlib.*", "openpyxl.*"]
+ignore_missing_imports = true
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
@@ -107,6 +119,7 @@ branch = true
 
 [tool.coverage.report]
 show_missing = true
+fail_under = 100
 exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.:",

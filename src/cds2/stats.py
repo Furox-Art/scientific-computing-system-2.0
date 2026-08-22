@@ -243,7 +243,7 @@ def z_scores(data: object) -> np.ndarray:
     if sd == 0:
         msg = "z_scores undefined for a constant sample"
         raise ValueError(msg)
-    return (values - np.mean(values)) / sd
+    return np.asarray((values - np.mean(values)) / sd)
 
 
 def norm_pdf(x: float, mu: float = 0.0, sigma: float = 1.0) -> float:
@@ -273,7 +273,7 @@ class BootstrapResult:
 
 def bootstrap_ci(
     data: object,
-    statistic: Callable[[np.ndarray], float] | None = None,
+    statistic: Callable[..., float] | None = None,
     n_resamples: int = 10_000,
     confidence: float = 0.95,
     seed: int | None = None,

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     pass
 
 try:
-    from cds2 import _fast_kmeans as _c_kernel
+    from cds2 import _fast_kmeans as _c_kernel  # type: ignore[attr-defined]
 
     _HAS_C_KERNEL = True
 except ImportError:
@@ -287,7 +287,7 @@ class KMeans:
         if points.ndim == 1:
             points = points.reshape(1, -1)
         distances = cdist(points, self.cluster_centers_, "sqeuclidean")
-        return distances.argmin(axis=1)
+        return np.asarray(distances.argmin(axis=1), dtype=np.int64)
 
     @staticmethod
     def _kmeans_pp_init(
@@ -383,7 +383,7 @@ class KNeighborsClassifier:
             votes = self._targets[neighbor_indices]
             values, counts = np.unique(votes, return_counts=True)
             predictions[row_index] = values[counts.argmax()]
-        return predictions
+        return predictions.astype(np.int64, copy=False)
 
 
 def make_regression_data(
