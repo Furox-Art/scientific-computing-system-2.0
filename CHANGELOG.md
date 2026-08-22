@@ -1,3 +1,12 @@
+## [v3.2.1] - 2026-08-22
+
+Packaging fix: restore the PEP 561 py.typed marker that went missing from
+the working tree, so type checkers pick up cds2 inline annotations again
+in installed distributions. Full audit otherwise clean: 453 tests at 100%
+blended coverage, mypy strict zero errors, ruff clean, docs strict build,
+all four examples verified, wheel contents confirmed (py.typed + both C
+kernels).
+
 ## [v3.2.0] - 2026-08-22
 
 Multicore-kernel release: OpenMP-accelerated C kernels on Linux wheels,
