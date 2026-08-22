@@ -32,7 +32,7 @@ class DecompositionResult:
 
 
 def _as_series(series: object) -> pd.Series:
-    result = pd.Series(series, dtype=float)
+    result: pd.Series = pd.Series(series, dtype=float)
     return result
 
 
