@@ -4,6 +4,31 @@ All notable changes to **cognitive-discovery-system-v2** will be documented in
 this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 
+## [v2.6.0] - 2026-08-22
+
+Scientific-depth release closing the biggest coverage gaps of the platform:
+a full distributions module, a 2x special-functions expansion and runnable
+case studies.
+
+### Added
+
+- **`cds2.distributions`** — 24 functions across eight probability
+  distributions (Student-t, chi-squared, F, exponential, uniform,
+  lognormal, Poisson, binomial) with pdf/pmf, cdf and ppf for each.
+- **Special functions doubled** — digamma, Fresnel integrals, Airy Ai/Bi,
+  Legendre polynomials, complete elliptic integrals K/E, exponential
+  integral E1, Gauss hypergeometric 2F1, spherical Bessels j0/j1.
+- **`examples/`** — four runnable end-to-end case studies:
+  - signal denoising (Butterworth + Welch verification)
+  - Michaelis-Menten experiment fitting with residual inference
+  - Bayesian sensor-bias MCMC vs analytic conjugate posterior
+  - citation-network PageRank + spectral clustering + DAG validation
+
+### Changed
+
+- Module count 16 -> 17; flat exports ~213; test count grew again with
+  distribution and special-function suites.
+
 ## [v2.5.1] - 2026-08-22
 
 Quality-gate release: strict typing and full coverage are now enforced by CI.

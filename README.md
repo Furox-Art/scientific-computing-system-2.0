@@ -71,6 +71,7 @@ scores = cds2.graph.pagerank(adj)
 | `cds2.calculus` | NumPy | derivative, complex-step gradient, jacobian, hessian |
 | `cds2.special` | scipy.special | gamma, erf family, beta, Bessels, zeta |
 | `cds2.sparse` | scipy.sparse.linalg | CG/GMRES/BiCGSTAB solvers, Lanczos eigenpairs, truncated SVD |
+| `cds2.distributions` | scipy.stats | t, chi2, F, exponential, uniform, lognormal, poisson, binomial (pdf/cdf/ppf) |
 | `cds2.spectral` | scipy.sparse | Laplacians, Fiedler vector, algebraic connectivity, spectral clustering |
 
 ## CLI
@@ -89,6 +90,8 @@ The original zero-dependency pure-Python line lives at
 [Furox88/cognitive-discovery-system](https://github.com/Furox88/cognitive-discovery-system)
 and remains available. v2 is an independent project that trades that
 constraint for the speed and breadth of the scientific Python ecosystem.
+
+Runnable case studies live in [examples/](examples/) - see the docs page for details.
 
 ## Benchmarks
 

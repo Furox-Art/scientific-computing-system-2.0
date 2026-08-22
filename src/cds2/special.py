@@ -9,14 +9,26 @@ from scipy import special as sps
 __all__ = [
     "gamma_fn",
     "gammaln",
+    "digamma",
     "erf",
     "erfc",
     "erfinv",
+    "fresnel_c",
+    "fresnel_s",
     "beta_fn",
     "betaln",
     "bessel_j0",
     "bessel_j1",
     "bessel_y0",
+    "spherical_bessel_j0",
+    "spherical_bessel_j1",
+    "airy_ai",
+    "airy_bi",
+    "legendre_pn",
+    "elliptic_k",
+    "elliptic_e",
+    "exp1",
+    "hypergeometric_2f1",
     "zeta",
 ]
 
@@ -33,6 +45,21 @@ def gamma_fn(x: object) -> NDArray[np.float64]:
 def gammaln(x: object) -> NDArray[np.float64]:
     """Log-gamma function - numerically stable for large inputs."""
     return _as_array(sps.gammaln(_as_array(x)))
+
+
+def digamma(x: object) -> NDArray[np.float64]:
+    """Digamma (psi) function - logarithmic derivative of gamma."""
+    return _as_array(sps.digamma(_as_array(x)))
+
+
+def fresnel_c(x: object) -> NDArray[np.float64]:
+    """Fresnel cosine integral C(x)."""
+    return _as_array(sps.fresnel(_as_array(x))[0])
+
+
+def fresnel_s(x: object) -> NDArray[np.float64]:
+    """Fresnel sine integral S(x)."""
+    return _as_array(sps.fresnel(_as_array(x))[1])
 
 
 def erf(x: object) -> NDArray[np.float64]:
@@ -73,6 +100,53 @@ def bessel_j1(x: object) -> NDArray[np.float64]:
 def bessel_y0(x: object) -> NDArray[np.float64]:
     """Bessel function of the second kind (Neumann), order 0."""
     return _as_array(sps.y0(_as_array(x)))
+
+
+def spherical_bessel_j0(x: object) -> NDArray[np.float64]:
+    """Spherical Bessel function of the first kind, order 0."""
+    return _as_array(sps.spherical_jn(0, _as_array(x)))
+
+
+def spherical_bessel_j1(x: object) -> NDArray[np.float64]:
+    """Spherical Bessel function of the first kind, order 1."""
+    return _as_array(sps.spherical_jn(1, _as_array(x)))
+
+
+def airy_ai(x: object) -> NDArray[np.float64]:
+    """Airy function Ai - solves y'' = x*y, decaying for x > 0."""
+    ai, _aip, _bi, _bip = sps.airy(_as_array(x))
+    return _as_array(ai)
+
+
+def airy_bi(x: object) -> NDArray[np.float64]:
+    """Airy function Bi - grows exponentially for x > 0."""
+    _ai, _aip, bi, _bip = sps.airy(_as_array(x))
+    return _as_array(bi)
+
+
+def legendre_pn(n: int, x: object) -> NDArray[np.float64]:
+    """Legendre polynomial P_n evaluated on [-1, 1]."""
+    return _as_array(sps.eval_legendre(n, _as_array(x)))
+
+
+def elliptic_k(m: object) -> NDArray[np.float64]:
+    """Complete elliptic integral of the first kind K(m)."""
+    return _as_array(sps.ellipk(_as_array(m)))
+
+
+def elliptic_e(m: object) -> NDArray[np.float64]:
+    """Complete elliptic integral of the second kind E(m)."""
+    return _as_array(sps.ellipe(_as_array(m)))
+
+
+def exp1(x: object) -> NDArray[np.float64]:
+    """Exponential integral E1(x) = integral from x to inf of e^-t/t."""
+    return _as_array(sps.exp1(_as_array(x)))
+
+
+def hypergeometric_2f1(a: float, b: float, c: float, z: object) -> NDArray[np.float64]:
+    """Gauss hypergeometric function 2F1(a, b; c; z)."""
+    return _as_array(sps.hyp2f1(a, b, c, _as_array(z)))
 
 
 def zeta(x: float, q: float | None = None) -> float:

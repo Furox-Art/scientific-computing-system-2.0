@@ -51,3 +51,45 @@ class TestBesselAndZeta:
 
     def test_zeta_two_is_pi_squared_over_six(self) -> None:
         assert special.zeta(2.0) == pytest.approx((np.pi**2) / 6.0, rel=1e-12)
+
+
+class TestExpandedSpecials:
+    def test_digamma_half_is_negative_gamma(self) -> None:
+        assert special.digamma(0.5)[0] == pytest.approx(-np.euler_gamma - 2 * np.log(2))
+
+    def test_fresnel_at_zero(self) -> None:
+        assert special.fresnel_c(0.0)[0] == pytest.approx(0.0)
+        assert special.fresnel_s(0.0)[0] == pytest.approx(0.0)
+
+    def test_spherical_bessel_limits(self) -> None:
+        limit = 1e-6
+        assert special.spherical_bessel_j0(limit)[0] == pytest.approx(1.0, abs=1e-5)
+        assert special.spherical_bessel_j1(limit)[0] == pytest.approx(0.0, abs=1e-5)
+
+    def test_airy_ai_decays(self) -> None:
+        small = special.airy_ai(1.0)[0]
+        large = special.airy_ai(10.0)[0]
+        assert 0 < large < small
+
+    def test_airy_bi_grows(self) -> None:
+        assert special.airy_bi(10.0)[0] > special.airy_bi(1.0)[0]
+
+    def test_legendre_polynomial_values(self) -> None:
+        assert special.legendre_pn(0, [0.3])[0] == pytest.approx(1.0)
+        assert special.legendre_pn(1, [0.6])[0] == pytest.approx(0.6)
+        assert special.legendre_pn(2, [0.0])[0] == pytest.approx(-0.5)
+
+    def test_elliptic_integrals_complete(self) -> None:
+        assert special.elliptic_k([0.0])[0] == pytest.approx(np.pi / 2)
+        assert special.elliptic_e([0.0])[0] == pytest.approx(np.pi / 2)
+
+    def test_exp1_one(self) -> None:
+        assert special.exp1(1.0)[0] == pytest.approx(0.21938393439552027)
+
+    def test_hypergeometric_quadratic(self) -> None:
+        grid = np.linspace(-0.9, 0.9, 19)
+        series = special.hypergeometric_2f1(-2, 1, 1, grid)
+        assert np.allclose(series, (1 - grid) ** 2)
+
+    def test_zeta_hurwitz_shift(self) -> None:
+        assert special.zeta(2.0, q=1.0) == pytest.approx(special.zeta(2.0))

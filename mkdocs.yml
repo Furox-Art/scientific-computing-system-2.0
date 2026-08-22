@@ -27,6 +27,7 @@ nav:
   - Home: index.md
   - Getting started: getting-started.md
   - Modules overview: modules.md
+  - Examples: examples.md
   - Benchmarks: benchmarks.md
   - API Reference:
       - cds2.linalg: api/linalg.md
