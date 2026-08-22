@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -26,6 +28,10 @@ __all__ = [
     "largest_eigenpairs",
     "smallest_eigenpairs",
     "truncated_svd",
+    "sparse_eye",
+    "sparse_diag",
+    "sparse_kron",
+    "one_norm_est",
 ]
 
 
@@ -131,3 +137,29 @@ def truncated_svd(A: object, k: int = 6, seed: int | None = None) -> TruncatedSV
     return TruncatedSVDResult(
         u=np.asarray(u[:, order]), s=np.asarray(s[order]), vt=np.asarray(vt[order, :])
     )
+
+
+def sparse_eye(n: int) -> sparse.csr_matrix:
+    """Identity matrix in CSR form."""
+    return sparse.eye(n, format="csr")
+
+
+def sparse_diag(values: Any, offsets: Sequence[int] | None = None) -> sparse.csr_matrix:
+    """Diagonal (or multi-offset band) matrix from ``values``."""
+    if offsets is None:
+        return sparse.diags(np.asarray(values, dtype=float), offsets=0, format="csr")
+    bands = [np.asarray(band, dtype=float) for band in values]
+    return sparse.diags(bands, list(offsets), format="csr")
+
+
+def sparse_kron(a: object, b: object) -> sparse.csr_matrix:
+    """Kronecker product of two sparse matrices."""
+    return sparse.kron(sparse.csr_matrix(a), sparse.csr_matrix(b), format="csr")
+
+
+def one_norm_est(A: object, seed: int | None = None) -> float:
+    """Lower bound estimate of the 1-norm of a square sparse matrix."""
+    from scipy.sparse.linalg import onenormest
+
+    value = onenormest(sparse.csr_matrix(A))
+    return float(value)

@@ -1,3 +1,3 @@
 """Static package version. Keep in lockstep with pyproject.toml."""
 
-__version__ = "2.6.0"
+__version__ = "3.0.0"

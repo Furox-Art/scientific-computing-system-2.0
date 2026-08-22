@@ -30,6 +30,24 @@ __all__ = [
     "exp1",
     "hypergeometric_2f1",
     "zeta",
+    "bessel_jv",
+    "bessel_yv",
+    "bessel_iv",
+    "bessel_kv",
+    "hankel1_fn",
+    "struve_h0",
+    "struve_h1",
+    "chebyshev_tn",
+    "chebyshev_un",
+    "laguerre_ln",
+    "hermite_hn",
+    "jacobi_pnab",
+    "spherical_harmonic",
+    "lambert_w",
+    "faddeeva_w",
+    "exponential_integral_en",
+    "sine_cosine_integrals",
+    "binomial_coefficient",
 ]
 
 
@@ -154,3 +172,102 @@ def zeta(x: float, q: float | None = None) -> float:
     if q is None:
         return float(sps.zeta(x))
     return float(sps.zeta(x, q))
+
+
+# -------------------------------------------------- extended families ----
+def bessel_jv(nu: float, x: object) -> NDArray[np.float64]:
+    """Bessel function of the first kind of real order ``nu``."""
+    return _as_array(sps.jv(nu, _as_array(x)))
+
+
+def bessel_yv(nu: float, x: object) -> NDArray[np.float64]:
+    """Bessel function of the second kind of real order ``nu``."""
+    return _as_array(sps.yv(nu, _as_array(x)))
+
+
+def bessel_iv(nu: float, x: object) -> NDArray[np.float64]:
+    """Modified Bessel function of the first kind."""
+    return _as_array(sps.iv(nu, _as_array(x)))
+
+
+def bessel_kv(nu: float, x: object) -> NDArray[np.float64]:
+    """Modified Bessel function of the second kind."""
+    return _as_array(sps.kv(nu, _as_array(x)))
+
+
+def hankel1_fn(nu: float, x: object) -> NDArray[np.float64]:
+    """Hankel function of the first kind H1_nu (real part)."""
+    return _as_array(np.real(sps.hankel1(nu, _as_array(x))))
+
+
+def struve_h0(x: object) -> NDArray[np.float64]:
+    """Struve function H_0."""
+    return _as_array(sps.struve(0, _as_array(x)))
+
+
+def struve_h1(x: object) -> NDArray[np.float64]:
+    """Struve function H_1."""
+    return _as_array(sps.struve(1, _as_array(x)))
+
+
+def chebyshev_tn(n: int, x: object) -> NDArray[np.float64]:
+    """Chebyshev polynomial T_n on [-1, 1]."""
+    return _as_array(sps.eval_chebyt(n, _as_array(x)))
+
+
+def chebyshev_un(n: int, x: object) -> NDArray[np.float64]:
+    """Chebyshev polynomial U_n on [-1, 1]."""
+    return _as_array(sps.eval_chebyu(n, _as_array(x)))
+
+
+def laguerre_ln(n: int, x: object) -> NDArray[np.float64]:
+    """Laguerre polynomial L_n on [0, inf)."""
+    return _as_array(sps.eval_laguerre(n, _as_array(x)))
+
+
+def hermite_hn(n: int, x: object) -> NDArray[np.float64]:
+    """Physicists' Hermite polynomial H_n."""
+    return _as_array(sps.eval_hermite(n, _as_array(x)))
+
+
+def jacobi_pnab(n: int, alpha: float, beta_param: float, x: object) -> NDArray[np.float64]:
+    """Jacobi polynomial P_n^(alpha, beta) on [-1, 1]."""
+    return _as_array(sps.eval_jacobi(n, alpha, beta_param, _as_array(x)))
+
+
+def spherical_harmonic(m: int, l_degree: int, theta: object, phi: object) -> NDArray[np.complex128]:
+    """Spherical harmonic Y_l^m at polar ``theta`` and azimuth ``phi``."""
+    values = sps.sph_harm_y(
+        l_degree,
+        m,
+        np.asarray(theta, dtype=float),
+        np.asarray(phi, dtype=float),
+    )
+    return np.atleast_1d(np.asarray(values, dtype=np.complex128))
+
+
+def lambert_w(x: object) -> NDArray[np.float64]:
+    """Lambert W function solving W*exp(W) = x (principal branch)."""
+    return _as_array(np.real(sps.lambertw(_as_array(x))))
+
+
+def faddeeva_w(z_real: object, z_imag: object) -> NDArray[np.complex128]:
+    """Faddeeva function w(z) for z = z_real + i*z_imag."""
+    argument = np.asarray(z_real, dtype=float) + 1j * np.asarray(z_imag, dtype=float)
+    return np.atleast_1d(np.asarray(sps.wofz(argument), dtype=np.complex128))
+
+
+def exponential_integral_en(n_order: int, x: object) -> NDArray[np.float64]:
+    """Generalized exponential integral E_n(x)."""
+    return _as_array(sps.expn(n_order, _as_array(x)))
+
+
+def sine_cosine_integrals(x: object) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Return (Si(x), Ci(x)) - sine and cosine integrals."""
+    si_values, ci_values = sps.sici(_as_array(x))
+    return _as_array(si_values), _as_array(ci_values)
+
+
+def binomial_coefficient(n: int, k: int) -> float:
+    """Number of ways to choose ``k`` items from ``n``."""
+    return float(sps.comb(n, k, exact=True))

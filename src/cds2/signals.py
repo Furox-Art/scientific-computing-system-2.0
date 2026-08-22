@@ -30,6 +30,8 @@ __all__ = [
     "envelope",
     "resample_signal",
     "detrend_signal",
+    "stft",
+    "coherence",
 ]
 
 
@@ -191,3 +193,17 @@ def detrend_signal(x: object) -> np.ndarray:
     """Remove the best-fit linear trend from a signal."""
     detrended = sps.detrend(np.asarray(x, dtype=float))
     return np.asarray(detrended, dtype=float)
+
+
+def stft(x: object, fs: float, nperseg: int = 256) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Short-time Fourier transform returning (times, frequencies, complex Zxx)."""
+    freqs, times, zxx = sps.stft(np.asarray(x, dtype=float), fs=fs, nperseg=nperseg)
+    return np.asarray(times), np.asarray(freqs), np.asarray(zxx)
+
+
+def coherence(x: object, y: object, fs: float, nperseg: int = 256) -> Spectrum:
+    """Magnitude-squared coherence between two signals."""
+    signal_x = np.asarray(x, dtype=float)
+    signal_y = np.asarray(y, dtype=float)
+    freqs, coh = sps.coherence(signal_x, signal_y, fs=fs, nperseg=min(nperseg, signal_x.size))
+    return Spectrum(frequencies=np.asarray(freqs), power=np.asarray(coh))

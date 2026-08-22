@@ -31,6 +31,38 @@ __all__ = [
     "binomial_pmf",
     "binomial_cdf",
     "binomial_ppf",
+    "gamma_pdf",
+    "gamma_cdf",
+    "gamma_ppf",
+    "beta_pdf",
+    "beta_cdf",
+    "beta_ppf",
+    "weibull_pdf",
+    "weibull_cdf",
+    "weibull_ppf",
+    "cauchy_pdf",
+    "cauchy_cdf",
+    "cauchy_ppf",
+    "laplace_pdf",
+    "laplace_cdf",
+    "laplace_ppf",
+    "gumbel_pdf",
+    "gumbel_cdf",
+    "gumbel_ppf",
+    "pareto_pdf",
+    "pareto_cdf",
+    "pareto_ppf",
+    "rayleigh_pdf",
+    "rayleigh_cdf",
+    "rayleigh_ppf",
+    "geometric_pmf",
+    "geometric_cdf",
+    "geometric_ppf",
+    "negative_binomial_pmf",
+    "negative_binomial_cdf",
+    "negative_binomial_ppf",
+    "hypergeometric_pmf",
+    "hypergeometric_cdf",
 ]
 
 
@@ -168,3 +200,176 @@ def binomial_cdf(k: object, n: int, p: float) -> NDArray[np.float64]:
 def binomial_ppf(q: object, n: int, p: float) -> NDArray[np.float64]:
     """Binomial quantile function."""
     return _wrap(sps.binom.ppf(_as_array(q), n, p))
+
+
+# --------------------------------------------------------------- gamma ----
+def gamma_pdf(x: object, a: float, scale: float = 1.0) -> NDArray[np.float64]:
+    """Gamma density with shape ``a`` and ``scale``."""
+    return _wrap(sps.gamma.pdf(_as_array(x), a=a, scale=scale))
+
+
+def gamma_cdf(x: object, a: float, scale: float = 1.0) -> NDArray[np.float64]:
+    """Gamma cumulative distribution function."""
+    return _wrap(sps.gamma.cdf(_as_array(x), a=a, scale=scale))
+
+
+def gamma_ppf(q: object, a: float, scale: float = 1.0) -> NDArray[np.float64]:
+    """Gamma quantile function."""
+    return _wrap(sps.gamma.ppf(_as_array(q), a=a, scale=scale))
+
+
+# ---------------------------------------------------------------- beta ----
+def beta_pdf(x: object, a: float, b: float) -> NDArray[np.float64]:
+    """Beta density on [0, 1] with shape parameters ``a``, ``b``."""
+    return _wrap(sps.beta.pdf(_as_array(x), a=a, b=b))
+
+
+def beta_cdf(x: object, a: float, b: float) -> NDArray[np.float64]:
+    """Beta cumulative distribution function."""
+    return _wrap(sps.beta.cdf(_as_array(x), a=a, b=b))
+
+
+def beta_ppf(q: object, a: float, b: float) -> NDArray[np.float64]:
+    """Beta quantile function."""
+    return _wrap(sps.beta.ppf(_as_array(q), a=a, b=b))
+
+
+# ------------------------------------------------------------- weibull ----
+def weibull_pdf(x: object, c: float, scale: float = 1.0) -> NDArray[np.float64]:
+    """Weibull density with shape ``c``."""
+    return _wrap(sps.weibull_min.pdf(_as_array(x), c=c, scale=scale))
+
+
+def weibull_cdf(x: object, c: float, scale: float = 1.0) -> NDArray[np.float64]:
+    """Weibull cumulative distribution function."""
+    return _wrap(sps.weibull_min.cdf(_as_array(x), c=c, scale=scale))
+
+
+def weibull_ppf(q: object, c: float, scale: float = 1.0) -> NDArray[np.float64]:
+    """Weibull quantile function."""
+    return _wrap(sps.weibull_min.ppf(_as_array(q), c=c, scale=scale))
+
+
+# -------------------------------------------------------------- cauchy ----
+def cauchy_pdf(x: object, loc: float = 0.0, scale: float = 1.0) -> NDArray[np.float64]:
+    """Cauchy density - heavy-tailed, no finite moments."""
+    return _wrap(sps.cauchy.pdf(_as_array(x), loc=loc, scale=scale))
+
+
+def cauchy_cdf(x: object, loc: float = 0.0, scale: float = 1.0) -> NDArray[np.float64]:
+    """Cauchy cumulative distribution function."""
+    return _wrap(sps.cauchy.cdf(_as_array(x), loc=loc, scale=scale))
+
+
+def cauchy_ppf(q: object, loc: float = 0.0, scale: float = 1.0) -> NDArray[np.float64]:
+    """Cauchy quantile function."""
+    return _wrap(sps.cauchy.ppf(_as_array(q), loc=loc, scale=scale))
+
+
+# -------------------------------------------------------------- laplace ----
+def laplace_pdf(x: object, loc: float = 0.0, scale: float = 1.0) -> NDArray[np.float64]:
+    """Laplace (double exponential) density."""
+    return _wrap(sps.laplace.pdf(_as_array(x), loc=loc, scale=scale))
+
+
+def laplace_cdf(x: object, loc: float = 0.0, scale: float = 1.0) -> NDArray[np.float64]:
+    """Laplace cumulative distribution function."""
+    return _wrap(sps.laplace.cdf(_as_array(x), loc=loc, scale=scale))
+
+
+def laplace_ppf(q: object, loc: float = 0.0, scale: float = 1.0) -> NDArray[np.float64]:
+    """Laplace quantile function."""
+    return _wrap(sps.laplace.ppf(_as_array(q), loc=loc, scale=scale))
+
+
+# --------------------------------------------------------------- gumbel ----
+def gumbel_pdf(x: object, loc: float = 0.0, scale: float = 1.0) -> NDArray[np.float64]:
+    """Gumbel extreme-value density for maxima."""
+    return _wrap(sps.gumbel_r.pdf(_as_array(x), loc=loc, scale=scale))
+
+
+def gumbel_cdf(x: object, loc: float = 0.0, scale: float = 1.0) -> NDArray[np.float64]:
+    """Gumbel cumulative distribution function."""
+    return _wrap(sps.gumbel_r.cdf(_as_array(x), loc=loc, scale=scale))
+
+
+def gumbel_ppf(q: object, loc: float = 0.0, scale: float = 1.0) -> NDArray[np.float64]:
+    """Gumbel quantile function."""
+    return _wrap(sps.gumbel_r.ppf(_as_array(q), loc=loc, scale=scale))
+
+
+# --------------------------------------------------------------- pareto ----
+def pareto_pdf(x: object, b: float, scale: float = 1.0) -> NDArray[np.float64]:
+    """Pareto power-law density with tail index ``b``."""
+    return _wrap(sps.pareto.pdf(_as_array(x), b=b, scale=scale))
+
+
+def pareto_cdf(x: object, b: float, scale: float = 1.0) -> NDArray[np.float64]:
+    """Pareto cumulative distribution function."""
+    return _wrap(sps.pareto.cdf(_as_array(x), b=b, scale=scale))
+
+
+def pareto_ppf(q: object, b: float, scale: float = 1.0) -> NDArray[np.float64]:
+    """Pareto quantile function."""
+    return _wrap(sps.pareto.ppf(_as_array(q), b=b, scale=scale))
+
+
+# ------------------------------------------------------------- rayleigh ----
+def rayleigh_pdf(x: object, scale: float = 1.0) -> NDArray[np.float64]:
+    """Rayleigh density - magnitude of 2-D Gaussian noise."""
+    return _wrap(sps.rayleigh.pdf(_as_array(x), scale=scale))
+
+
+def rayleigh_cdf(x: object, scale: float = 1.0) -> NDArray[np.float64]:
+    """Rayleigh cumulative distribution function."""
+    return _wrap(sps.rayleigh.cdf(_as_array(x), scale=scale))
+
+
+def rayleigh_ppf(q: object, scale: float = 1.0) -> NDArray[np.float64]:
+    """Rayleigh quantile function."""
+    return _wrap(sps.rayleigh.ppf(_as_array(q), scale=scale))
+
+
+# ------------------------------------------------------------ geometric ----
+def geometric_pmf(k: object, p: float) -> NDArray[np.float64]:
+    """Geometric mass - trials until first success."""
+    return _wrap(sps.geom.pmf(np.atleast_1d(np.asarray(k)), p))
+
+
+def geometric_cdf(k: object, p: float) -> NDArray[np.float64]:
+    """Geometric cumulative mass."""
+    return _wrap(sps.geom.cdf(np.atleast_1d(np.asarray(k)), p))
+
+
+def geometric_ppf(q: object, p: float) -> NDArray[np.float64]:
+    """Geometric quantile function."""
+    return _wrap(sps.geom.ppf(_as_array(q), p))
+
+
+# ------------------------------------------------------ negative binomial ----
+def negative_binomial_pmf(k: object, n_failures: float, p: float) -> NDArray[np.float64]:
+    """Negative-binomial mass - successes before ``n_failures`` failures."""
+    return _wrap(sps.nbinom.pmf(np.atleast_1d(np.asarray(k)), n_failures, p))
+
+
+def negative_binomial_cdf(k: object, n_failures: float, p: float) -> NDArray[np.float64]:
+    """Negative-binomial cumulative mass."""
+    return _wrap(sps.nbinom.cdf(np.atleast_1d(np.asarray(k)), n_failures, p))
+
+
+def negative_binomial_ppf(q: object, n_failures: float, p: float) -> NDArray[np.float64]:
+    """Negative-binomial quantile function."""
+    return _wrap(sps.nbinom.ppf(_as_array(q), n_failures, p))
+
+
+# ------------------------------------------------------- hypergeometric ----
+def hypergeometric_pmf(k: object, ngood: int, nbad: int, nsample: int) -> NDArray[np.float64]:
+    """Hypergeometric mass - draws without replacement."""
+    population = ngood + nbad
+    return _wrap(sps.hypergeom.pmf(np.atleast_1d(np.asarray(k)), population, ngood, nsample))
+
+
+def hypergeometric_cdf(k: object, ngood: int, nbad: int, nsample: int) -> NDArray[np.float64]:
+    """Hypergeometric cumulative mass."""
+    population = ngood + nbad
+    return _wrap(sps.hypergeom.cdf(np.atleast_1d(np.asarray(k)), population, ngood, nsample))

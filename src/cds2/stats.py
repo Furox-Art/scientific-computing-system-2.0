@@ -38,6 +38,9 @@ __all__ = [
     "BootstrapResult",
     "bootstrap_ci",
     "permutation_test",
+    "covariance_matrix",
+    "correlation_matrix",
+    "multivariate_normal_logpdf",
 ]
 
 
@@ -322,3 +325,27 @@ def permutation_test(
     extreme_count = int(np.count_nonzero(np.abs(permuted_diffs) >= abs(observed)))
     p_value = (extreme_count + 1) / (n_permutations + 1)
     return TestResult(statistic=observed, p_value=float(p_value))
+
+
+def covariance_matrix(data: object) -> np.ndarray:
+    """Sample covariance matrix of column-variables (rows = observations)."""
+    values = np.atleast_2d(np.asarray(data, dtype=float))
+    return np.asarray(np.cov(values, rowvar=False, ddof=1))
+
+
+def correlation_matrix(data: object) -> np.ndarray:
+    """Pearson correlation matrix of column-variables."""
+    values = np.atleast_2d(np.asarray(data, dtype=float))
+    return np.asarray(np.corrcoef(values, rowvar=False))
+
+
+def multivariate_normal_logpdf(x: object, mean: object, cov: object) -> float:
+    """Log-density of a multivariate normal at a single point."""
+    from scipy import stats as sps
+
+    value = sps.multivariate_normal.logpdf(
+        np.asarray(x, dtype=float),
+        mean=np.asarray(mean, dtype=float),
+        cov=np.asarray(cov, dtype=float),
+    )
+    return float(value)
