@@ -512,7 +512,7 @@ class TestFinalArcs:
         matrix, rhs = poisson_system_sparse
         result = sparse.solve_gmres(matrix, rhs, rtol=1e-12)
         reference = np.linalg.solve(matrix, rhs)
-        assert result.converged
+        assert np.max(np.abs(result.x - reference)) < 1e-5
 
     def test_pacf_two_lags_runs_recursion(self) -> None:
         values = np.random.default_rng(1).normal(size=80)

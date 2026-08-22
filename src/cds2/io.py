@@ -106,4 +106,5 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
                 "max": max_value,
             }
         )
-    return pd.DataFrame(rows)
+    result: pd.DataFrame = pd.DataFrame(rows)
+    return result
