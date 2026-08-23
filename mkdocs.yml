@@ -45,6 +45,12 @@ nav:
       - cds2.io: api/io.md
       - cds2.sparse: api/sparse.md
       - cds2.spectral: api/spectral.md
+      - cds2.modeling: api/modeling.md
+      - cds2.quantum: api/quantum.md
+      - cds2.knowledge: api/knowledge.md
+      - cds2.scientific: api/scientific.md
+      - cds2.hypothesis: api/hypothesis.md
+      - cds2.nlp: api/nlp.md
       - cds2.calculus: api/calculus.md
       - cds2.special: api/special.md
       - cds2.cli: api/cli.md

@@ -1,3 +1,35 @@
+## [v3.3.0] - 2026-08-23
+
+Heritage-completion release: every module from the v1.x line now has a
+home in cds2. Module count 17 -> 24 (+ CLI), export surface ~330 names.
+
+### Added
+
+- **`cds2.modeling`** - symbolic mathematics: expression trees with full
+  operator overloading, symbolic differentiation (product/quotient/chain
+  for constant exponents and bases), algebraic simplification rules,
+  substitution, LaTeX export, Newton equation solving and least-squares
+  parameter fitting via `MathModel`.
+- **`cds2.quantum`** - dense statevector circuit simulator: X/Y/Z/H/S/T
+  gates, RX/RY/RZ rotations, CNOT/CZ/SWAP, probabilities and seeded
+  measurement sampling (up to 16 qubits).
+- **`cds2.knowledge`** - `KnowledgeGraph` (typed relations, BFS shortest
+  paths, transitive closure, cycle detection), `Notebook` with tags and
+  concept links, and ranked `search` across concepts/relations/notes.
+- **`cds2.scientific`** - CODATA physical constants plus mechanics,
+  electromagnetism, thermodynamics and relativity formula helpers.
+- **`cds2.hypothesis`** - heuristic hypothesis generation: trend,
+  periodicity, outlier and pairwise-correlation hypotheses with confidence
+  scores and domain tags.
+- **`cds2.nlp`** - educational NLP toolkit: micrograd-style scalar
+  autograd, trainable BPE tokenizer, scaled dot-product + multi-head
+  attention, and a deterministic mini-GPT forward pass with sampling.
+
+### Changed
+
+- Test count 453 -> 643; 100% blended coverage and mypy strict maintained
+  across all 30 source files.
+
 ## [v3.2.1] - 2026-08-22
 
 Packaging fix: restore the PEP 561 py.typed marker that went missing from
