@@ -132,7 +132,6 @@ class TestModelingArcs:
         assert visited == ["Variable", "Negate"]
 
     def test_solve_equation_zero_derivative_breaks(self) -> None:
-        x = symbol("x")
         model = MathModel.from_formula(Constant(3.0), Constant(3.0))
         solution = model.solve_equation(
             "missing_var", target_value=0.0, known={}, initial_guess=2.0
