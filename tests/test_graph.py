@@ -130,3 +130,92 @@ class TestTopologicalOrder:
     def test_cycle_raises(self) -> None:
         with pytest.raises(ValueError, match="cycle"):
             graph.topological_order(3, [(0, 1), (1, 2), (2, 0)])
+
+
+class TestBetweennessCentrality:
+    def test_path_middle_node_dominates(self) -> None:
+        path = graph.from_edges(3, [(0, 1), (1, 2)], directed=True)
+        scores = graph.betweenness_centrality(path)
+        assert scores[1] > scores[0]
+        assert scores[1] > scores[2]
+
+    def test_directed_pair_counts(self) -> None:
+        diamond = graph.from_edges(4, [(0, 1), (0, 2), (1, 3), (2, 3)], directed=True)
+        scores = graph.betweenness_centrality(diamond)
+        assert scores[0] == pytest.approx(0.0)
+        assert scores[3] == pytest.approx(0.0)
+        assert scores[1] == pytest.approx(scores[2])
+
+    def test_unnormalized_scale(self) -> None:
+        path = graph.from_edges(3, [(0, 1), (1, 2)], directed=False)
+        raw = graph.betweenness_centrality(path, normalized=False)
+        assert raw[1] == pytest.approx(1.0)
+
+    def test_empty_graph(self) -> None:
+        assert graph.betweenness_centrality(sparse.csr_matrix((0, 0))).size == 0
+
+
+class TestClosenessCentrality:
+    def test_star_center_highest(self) -> None:
+        star = graph.from_edges(5, [(0, i) for i in range(1, 5)], directed=False)
+        scores = graph.closeness_centrality(star)
+        assert int(np.argmax(scores)) == 0
+
+    def test_path_endpoints_equal(self) -> None:
+        path = graph.from_edges(4, [(0, 1), (1, 2), (2, 3)], directed=False)
+        scores = graph.closeness_centrality(path)
+        assert scores[0] == pytest.approx(scores[3])
+        assert scores[1] == pytest.approx(scores[2])
+        assert scores[1] > scores[0]
+
+
+class TestEigenvectorCentrality:
+    def test_star_center_dominates_bipartite(self) -> None:
+        star = graph.from_edges(5, [(0, i) for i in range(1, 5)], directed=False)
+        scores = graph.eigenvector_centrality(star)
+        assert scores[0] == pytest.approx(2.0 * scores[1], rel=1e-6)
+
+    def test_path_middles_higher(self) -> None:
+        path = graph.from_edges(4, [(0, 1), (1, 2), (2, 3)], directed=False)
+        scores = graph.eigenvector_centrality(path)
+        assert min(scores[1], scores[2]) > max(scores[0], scores[3])
+
+    def test_sum_to_one_and_empty(self) -> None:
+        cycle = graph.from_edges(3, [(0, 1), (1, 2), (2, 0)], directed=False)
+        scores = graph.eigenvector_centrality(cycle)
+        assert scores.sum() == pytest.approx(1.0)
+        assert graph.eigenvector_centrality(sparse.csr_matrix((0, 0))).size == 0
+
+
+class TestCentralityCoverageEdges:
+    def test_betweenness_ignores_self_loops(self) -> None:
+        looped = graph.from_edges(3, [(0, 0), (0, 1), (1, 2)], directed=True)
+        scores = graph.betweenness_centrality(looped)
+        assert scores[0] == pytest.approx(0.0)
+
+    def test_closeness_empty_and_disconnected(self) -> None:
+        assert graph.closeness_centrality(sparse.csr_matrix((0, 0))).size == 0
+        disconnected = graph.from_edges(3, [(0, 1)], directed=False)
+        scores = graph.closeness_centrality(disconnected)
+        assert scores[2] == pytest.approx(0.0)
+        assert 0.0 < scores[0] < 1.0
+
+    def test_eigenvector_directed_symmetrized(self) -> None:
+        directed_path = graph.from_edges(3, [(0, 1), (1, 2)], directed=True)
+        scores = graph.eigenvector_centrality(directed_path)
+        assert scores.sum() == pytest.approx(1.0)
+        assert scores[1] > scores[0]
+
+    def test_eigenvector_zero_matrix(self) -> None:
+        empty = sparse.csr_matrix((3, 3))
+        scores = graph.eigenvector_centrality(empty)
+        assert np.all(scores == 0.0)
+
+    def test_eigenvector_fallback_bipartite_complete(self) -> None:
+        complete_bipartite = graph.from_edges(
+            6,
+            [(0, 3), (0, 4), (0, 5), (1, 3), (1, 4), (1, 5), (2, 3), (2, 4), (2, 5)],
+            directed=False,
+        )
+        scores = graph.eigenvector_centrality(complete_bipartite, max_iter=5)
+        assert scores.sum() == pytest.approx(1.0)

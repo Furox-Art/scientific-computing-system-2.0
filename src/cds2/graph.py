@@ -28,6 +28,7 @@ __all__ = [
     "DegreeResult",
     "ComponentResult",
     "ShortestPaths",
+    "CentralityResult",
     "from_edges",
     "degree",
     "connected_components",
@@ -38,6 +39,9 @@ __all__ = [
     "bellman_ford_paths",
     "pagerank",
     "topological_order",
+    "betweenness_centrality",
+    "closeness_centrality",
+    "eigenvector_centrality",
 ]
 
 IntArray = NDArray[np.int64]
@@ -72,6 +76,13 @@ class ComponentResult:
 
     count: int
     labels: IntArray
+
+
+@dataclass(frozen=True)
+class CentralityResult:
+    """Per-node centrality scores."""
+
+    scores: FloatArray
 
 
 def from_edges(
@@ -259,3 +270,119 @@ def topological_order(n: int, edges: list[tuple[int, int]]) -> list[int]:
         msg = "cycle detected: graph is not a DAG"
         raise ValueError(msg)
     return order
+
+
+def betweenness_centrality(adj: object, normalized: bool = True) -> FloatArray:
+    """Brandes betweenness centrality on the unweighted successor graph.
+
+    Directed graphs use n=1 pairs; undirected graphs divide by two.
+    """
+    matrix = sparse.csr_matrix(adj)
+    n = matrix.shape[0]
+    if n == 0:
+        return np.zeros(0)
+    successors_list: list[list[int]] = [[] for _ in range(n)]
+    coo = matrix.tocoo()
+    for u, v in zip(coo.row.tolist(), coo.col.tolist(), strict=False):
+        if u != v and matrix[u, v] != 0:
+            successors_list[u].append(v)
+
+    betweenness = np.zeros(n)
+    for source in range(n):
+        stack: deque[int] = deque()
+        predecessors: list[list[int]] = [[] for _ in range(n)]
+        path_counts = np.zeros(n)
+        path_counts[source] = 1.0
+        distances = np.full(n, -1.0)
+        distances[source] = 0.0
+        visit_queue: deque[int] = deque([source])
+        while visit_queue:
+            node = visit_queue.popleft()
+            stack.append(node)
+            for neighbor in successors_list[node]:
+                if distances[neighbor] < 0.0:
+                    distances[neighbor] = distances[node] + 1.0
+                    visit_queue.append(neighbor)
+                if distances[neighbor] == distances[node] + 1.0:
+                    path_counts[neighbor] += path_counts[node]
+                    predecessors[neighbor].append(node)
+        dependencies = np.zeros(n)
+        while stack:
+            target = stack.pop()
+            for predecessor in predecessors[target]:
+                share = path_counts[predecessor] / path_counts[target]
+                dependencies[predecessor] += share * (1.0 + dependencies[target])
+            if target != source:
+                betweenness[target] += dependencies[target]
+
+    scale_denominator = (n - 1) * (n - 2) if n > 2 else 1
+    if normalized:
+        betweenness /= scale_denominator
+    betweenness /= 2.0 if not directed_flag(matrix) else 1.0
+    return np.asarray(betweenness, dtype=float)
+
+
+def directed_flag(matrix: sparse.csr_matrix) -> bool:
+    """True when the matrix is not symmetric."""
+    difference = abs(matrix - matrix.T)
+    return float(difference.sum()) > 1e-12
+
+
+def closeness_centrality(adj: object, wf_improved: bool = True) -> FloatArray:
+    """Wasserman-Faust closeness centrality from single-source distances."""
+    matrix = sparse.csr_matrix(adj)
+    n = matrix.shape[0]
+    if n == 0:
+        return np.zeros(0)
+    distances = cs_dijkstra(matrix, unweighted=_is_unweighted(matrix))
+    scores = np.zeros(n)
+    for node in range(n):
+        row = distances[node]
+        reachable = row[np.isfinite(row) & (row > 0)]
+        total = float(reachable.sum())
+        if total > 0:
+            raw_score = reachable.size / total
+            if wf_improved and reachable.size < n - 1:
+                raw_score *= reachable.size / (n - 1)
+            scores[node] = raw_score
+    return scores
+
+
+def eigenvector_centrality(
+    adj: object, max_iter: int = 200, tol: float = 1e-10, directed: bool | None = None
+) -> FloatArray:
+    """Eigenvector centrality of the largest (Perron) eigenvalue.
+
+    Power iteration with an oscillation guard: bipartite graphs that fail to
+    settle fall back to a Lanczos solve for the dominant eigenvector.
+    """
+    coo = sparse.coo_matrix(adj)
+    n = coo.shape[0]
+    if n == 0:
+        return np.zeros(0)
+    is_directed = directed if directed is not None else directed_flag(sparse.csr_matrix(adj))
+    matrix = sparse.csr_matrix(coo)
+    if is_directed:
+        matrix = matrix.maximum(matrix.T).tocsr()
+    vector = np.full(n, 1.0 / n)
+    for _ in range(max_iter):
+        new_vector = np.asarray(matrix @ vector, dtype=float).ravel()
+        norm_value = float(np.linalg.norm(new_vector, 1))
+        if norm_value == 0:
+            return np.zeros(n)
+        new_vector /= norm_value
+        delta = float(np.abs(new_vector - vector).max())
+        vector = new_vector
+        if delta < tol:
+            break
+    else:
+        from cds2.sparse import largest_eigenpairs
+
+        result = largest_eigenpairs(matrix, k=1)
+        vector = np.abs(np.asarray(result.eigenvectors[:, 0], dtype=float)).ravel()
+        total = float(vector.sum())
+        if total == 0:  # pragma: no cover - defensive: Lanczos returns a unit vector
+            return np.zeros(n)
+        return np.asarray(vector / total, dtype=float)
+    total = vector.sum()
+    return np.asarray(vector / total, dtype=float)

@@ -5,6 +5,9 @@ from __future__ import annotations
 import math
 from collections.abc import Iterator, Mapping
 
+import numpy as np
+from numpy.typing import NDArray
+
 __all__ = [
     "Expression",
     "Constant",
@@ -17,14 +20,20 @@ __all__ = [
     "Negate",
     "symbol",
     "diff",
+    "integrate",
     "simplify",
     "substitute",
     "evaluate",
     "to_string",
     "iter_postorder",
     "to_latex",
+    "polynomial_coefficients",
+    "solve_polynomial",
     "MathModel",
 ]
+
+
+FloatArray = NDArray[np.float64]
 
 
 class Expression:
@@ -234,6 +243,152 @@ def diff(expression: Expression, variable: str) -> Expression:
             return Multiply(log_term, diff(expression.right, variable))
         raise NotImplementedError("d/dx u(x)^v(x): take logarithms or provide a numeric base")
     raise NotImplementedError(f"differentiation not defined for {type(expression).__name__}")
+
+
+def integrate(expression: Expression, variable: str) -> Expression:
+    """Symbolic indefinite integral of a polynomial expression w.r.t. ``variable``.
+
+    Handles sums, constant factors, powers with numeric exponents (except
+    ``x**-1``) and plain variables; anything else raises ``NotImplementedError``.
+    The integration constant is omitted.
+    """
+    if isinstance(expression, Constant):
+        return Multiply(expression, Variable(variable))
+    if isinstance(expression, Variable):
+        if expression.name == variable:
+            return Divide(Power(Variable(variable), Constant(2.0)), Constant(2.0))
+        return Multiply(expression, Variable(variable))
+    if isinstance(expression, Negate):
+        return Negate(integrate(expression.operand, variable))
+    if isinstance(expression, Add):
+        return Add(integrate(expression.left, variable), integrate(expression.right, variable))
+    if isinstance(expression, Subtract):
+        return Subtract(integrate(expression.left, variable), integrate(expression.right, variable))
+    if isinstance(expression, Multiply):
+        left_free = variable in expression.left.variables()
+        right_free = variable in expression.right.variables()
+        if not left_free and not right_free:
+            return Multiply(expression, Variable(variable))
+        if not left_free:
+            return Multiply(expression.left, integrate(expression.right, variable))
+        if not right_free:
+            return Multiply(integrate(expression.left, variable), expression.right)
+        raise NotImplementedError("integration of x*x style products needs expansion first")
+    if isinstance(expression, Power):
+        base = expression.left
+        exponent = expression.right
+        if isinstance(base, Variable) and base.name == variable and isinstance(exponent, Constant):
+            if math.isclose(exponent.value, -1.0):
+                raise NotImplementedError("integral of 1/x is out of scope")
+            new_power = Power(base, Constant(exponent.value + 1.0))
+            return Divide(new_power, Constant(exponent.value + 1.0))
+        if variable not in expression.variables():
+            return Multiply(expression, Variable(variable))
+        raise NotImplementedError("unsupported power pattern in integral")
+    if isinstance(expression, Divide):
+        numerator_free = variable in expression.left.variables()
+        denominator_free = variable in expression.right.variables()
+        if not denominator_free:
+            return Divide(integrate(expression.left, variable), expression.right)
+        if not numerator_free and isinstance(expression.right, Variable):
+            raise NotImplementedError("integral of 1/x is out of scope")
+        raise NotImplementedError("unsupported division pattern in integral")
+    raise NotImplementedError(f"integration not defined for {type(expression).__name__}")
+
+
+def polynomial_coefficients(expression: Expression, variable: str) -> FloatArray:
+    """Coefficients (ascending powers) of the polynomial in ``variable``.
+
+    Raises ``ValueError`` when the expression is not a polynomial in the
+    requested variable.
+    """
+    return np.asarray(_poly_coefficients(expression, variable), dtype=float)
+
+
+def _poly_coefficients(expression: Expression, variable: str) -> list[float]:
+    if isinstance(expression, Constant):
+        return [expression.value]
+    if isinstance(expression, Variable):
+        return [0.0, 1.0] if expression.name == variable else _raise_not_polynomial(expression)
+    if isinstance(expression, Negate):
+        return [-c for c in _poly_coefficients(expression.operand, variable)]
+    if isinstance(expression, Add):
+        left = _poly_coefficients(expression.left, variable)
+        right = _poly_coefficients(expression.right, variable)
+        size = max(len(left), len(right))
+        left += [0.0] * (size - len(left))
+        right += [0.0] * (size - len(right))
+        return [a + b for a, b in zip(left, right, strict=True)]
+    if isinstance(expression, Subtract):
+        left = _poly_coefficients(expression.left, variable)
+        right = _poly_coefficients(expression.right, variable)
+        size = max(len(left), len(right))
+        left += [0.0] * (size - len(left))
+        right += [0.0] * (size - len(right))
+        return [a - b for a, b in zip(left, right, strict=True)]
+    if isinstance(expression, Multiply):
+        left = _poly_coefficients(expression.left, variable)
+        right = _poly_coefficients(expression.right, variable)
+        result = [0.0] * (len(left) + len(right) - 1)
+        for i, a in enumerate(left):
+            for j, b in enumerate(right):
+                result[i + j] += a * b
+        return result
+    if isinstance(expression, Divide):
+        divisor = _is_constant_value(expression.right)
+        if divisor is not None and abs(divisor) > 0:
+            return [c / divisor for c in _poly_coefficients(expression.left, variable)]
+        return _raise_not_polynomial(expression)
+    if isinstance(expression, Power):
+        if isinstance(expression.left, Variable) and expression.left.name == variable:
+            if isinstance(expression.right, Constant):
+                power = int(round(expression.right.value))
+                if power >= 0 and math.isclose(expression.right.value, float(power)):
+                    coeffs = [0.0] * (power + 1)
+                    coeffs[power] = 1.0
+                    return coeffs
+        return _raise_not_polynomial(expression)
+    return _raise_not_polynomial(expression)
+
+
+def _is_constant_value(expression: Expression) -> float | None:
+    if isinstance(expression, Constant):
+        return expression.value
+    return None
+
+
+def _raise_not_polynomial(expression: Expression) -> list[float]:
+    msg = f"expression is not a polynomial: {type(expression).__name__}"
+    raise ValueError(msg)
+
+
+def solve_polynomial(
+    lhs: Expression,
+    rhs: Expression,
+    unknown: str,
+    real_only: bool = False,
+) -> NDArray[np.float64] | NDArray[np.complex128]:
+    """Roots of ``lhs = rhs`` treated as a polynomial in ``unknown``.
+
+    Returns complex roots (ascending powers input); with ``real_only`` only
+    the real roots are returned, sorted ascending.
+    """
+    combined = Subtract(lhs, rhs)
+    coefficients = np.asarray(_poly_coefficients(combined, unknown), dtype=float)
+    degree = coefficients.size - 1
+    while degree > 0 and math.isclose(coefficients[degree], 0.0):
+        degree -= 1
+    if degree >= 1:
+        # numpy expects descending powers; our tree walk produces ascending.
+        return_array: NDArray[np.complex128] = np.roots(coefficients[: degree + 1][::-1]).astype(
+            np.complex128
+        )
+    else:
+        return_array = np.zeros(0, dtype=np.complex128)
+    if real_only:
+        reals = return_array[np.abs(return_array.imag) < 1e-9].real
+        return np.sort(np.asarray(reals, dtype=np.float64))
+    return return_array
 
 
 def simplify(expression: Expression, max_rounds: int = 8) -> Expression:

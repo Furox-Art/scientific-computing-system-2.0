@@ -33,7 +33,7 @@ def cmd_info(_args: argparse.Namespace) -> int:
 
     from . import __version__
 
-    print("cognitive-discovery-system-v2")
+    print("scientific-computing-system-2.0")
     print(f"  cds2        {__version__}")
     print(f"  python      {platform.python_version()}")
     print(f"  numpy       {numpy.__version__}")
@@ -118,7 +118,7 @@ def cmd_plot(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="cds2", description="cognitive-discovery-system-v2 command line"
+        prog="cds2", description="scientific-computing-system-2.0 command line"
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

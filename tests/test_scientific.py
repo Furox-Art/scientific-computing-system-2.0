@@ -96,3 +96,65 @@ class TestElectromagnetismAndQuantum:
             scientific.ideal_gas_pressure(1.0, 300.0, 0.0)
         with pytest.raises(ValueError, match="temperature"):
             scientific.ideal_gas_pressure(1.0, 0.0, 1.0)
+
+
+class TestUnitConversion:
+    def test_length_chain(self) -> None:
+        assert scientific.convert_units(1.0, "km", "m") == pytest.approx(1000.0)
+        assert scientific.convert_units(1.0, "mile", "km") == pytest.approx(1.609344)
+        assert scientific.convert_units(12.0, "inch", "ft") == pytest.approx(1.0)
+
+    def test_mass(self) -> None:
+        assert scientific.convert_units(1.0, "tonne", "kg") == pytest.approx(1000.0)
+        assert scientific.convert_units(1.0, "lb", "g") == pytest.approx(453.59237)
+
+    def test_time_and_energy(self) -> None:
+        assert scientific.convert_units(2.0, "h", "min") == pytest.approx(120.0)
+        assert scientific.convert_units(1.0, "kcal", "J") == pytest.approx(4184.0)
+
+    def test_pressure_and_angle(self) -> None:
+        assert scientific.convert_units(1.0, "atm", "bar") == pytest.approx(1.01325)
+        assert scientific.convert_units(180.0, "deg", "rad") == pytest.approx(math.pi)
+
+    def test_temperature_round_trip(self) -> None:
+        celsius = 25.0
+        fahrenheit = scientific.convert_units(celsius, "C", "F")
+        assert fahrenheit == pytest.approx(77.0)
+        kelvin = scientific.convert_units(celsius, "C", "K")
+        assert kelvin == pytest.approx(298.15)
+        back = scientific.convert_units(fahrenheit, "F", "C")
+        assert back == pytest.approx(celsius)
+
+    def test_identity(self) -> None:
+        assert scientific.convert_units(3.5, "J", "J") == 3.5
+
+    def test_dimension_mixing_raises(self) -> None:
+        with pytest.raises(ValueError):
+            scientific.convert_units(1.0, "m", "kg")
+
+    def test_unknown_unit_raises(self) -> None:
+        with pytest.raises(ValueError, match="unknown unit"):
+            scientific.convert_units(1.0, "parsec", "m")
+
+    def test_list_units_includes_temperatures(self) -> None:
+        units = scientific.list_units()
+        for expected in ("m", "kg", "s", "J", "Pa", "rad", "C", "F", "K"):
+            assert expected in units
+
+
+class TestTemperatureEdgeCases:
+    def test_kelvin_source(self) -> None:
+        assert scientific.convert_units(300.0, "K", "C") == pytest.approx(26.85)
+        assert scientific.convert_units(0.0, "K", "F") == pytest.approx(-459.67)
+
+
+class TestUnitConversionCoverageEdges:
+    def test_unknown_target_unit(self) -> None:
+        with pytest.raises(ValueError, match="unknown unit"):
+            scientific.convert_units(1.0, "m", "cubit")
+
+    def test_temperature_vs_si_dimension_mix_raises(self) -> None:
+        with pytest.raises(ValueError, match="temperature"):
+            scientific.convert_units(1.0, "C", "m")
+        with pytest.raises(ValueError, match="temperature"):
+            scientific.convert_units(1.0, "kg", "K")

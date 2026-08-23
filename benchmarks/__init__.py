@@ -1,1 +1,1 @@
-"""Benchmark suite package for cognitive-discovery-system-v2."""
+"""Benchmark suite package for scientific-computing-system-2.0."""

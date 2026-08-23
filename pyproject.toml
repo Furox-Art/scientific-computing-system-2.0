@@ -3,8 +3,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cognitive-discovery-system-v2"
-version = "3.3.0"
+name = "scientific-computing-system-2.0"
+version = "4.0.0"
 description = "A NumPy/SciPy/Pandas/Matplotlib-powered scientific computing platform: accelerated linear algebra, statistics, optimization, integration, interpolation, signal processing, Monte Carlo, graphs (with PageRank), machine learning, time series, visualization and I/O."
 readme = "README.md"
 license = "MIT"
@@ -86,10 +86,10 @@ all = [
 cds2 = "cds2.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/Furox88/cognitive-discovery-system-v2"
-Repository = "https://github.com/Furox88/cognitive-discovery-system-v2"
-Issues = "https://github.com/Furox88/cognitive-discovery-system-v2/issues"
-Changelog = "https://github.com/Furox88/cognitive-discovery-system-v2/releases"
+Homepage = "https://github.com/Furox-Art/scientific-computing-system-2.0"
+Repository = "https://github.com/Furox-Art/scientific-computing-system-2.0"
+Issues = "https://github.com/Furox-Art/scientific-computing-system-2.0/issues"
+Changelog = "https://github.com/Furox-Art/scientific-computing-system-2.0/releases"
 
 [tool.setuptools.packages.find]
 where = ["src"]

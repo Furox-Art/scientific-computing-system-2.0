@@ -1,6 +1,6 @@
 # CDS v2
 
-**cognitive-discovery-system-v2** is a scientific computing platform built on
+**scientific-computing-system-2.0** is a scientific computing platform built on
 the scientific Python stack - NumPy, SciPy, pandas and matplotlib. The
 algorithms proven in the pure-Python
 [cognitive-discovery-system](https://github.com/Furox88/cognitive-discovery-system)
@@ -23,7 +23,7 @@ modules on top.
 ## Quick start
 
 ```bash
-pip install cognitive-discovery-system-v2
+pip install scientific-computing-system-2.0
 ```
 
 ```python

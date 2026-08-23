@@ -1,8 +1,8 @@
-# cognitive-discovery-system-v2
+# scientific-computing-system-2.0
 
-[![CI](https://github.com/Furox88/cognitive-discovery-system-v2/actions/workflows/tests.yml/badge.svg)](https://github.com/Furox88/cognitive-discovery-system-v2/actions/workflows/tests.yml)
-[![PyPI](https://img.shields.io/pypi/v/cognitive-discovery-system-v2)](https://pypi.org/project/cognitive-discovery-system-v2/)
-[![Python](https://img.shields.io/pypi/pyversions/cognitive-discovery-system-v2)](https://pypi.org/project/cognitive-discovery-system-v2/)
+[![CI](https://github.com/Furox-Art/scientific-computing-system-2.0/actions/workflows/tests.yml/badge.svg)](https://github.com/Furox-Art/scientific-computing-system-2.0/actions/workflows/tests.yml)
+[![PyPI](https://img.shields.io/pypi/v/scientific-computing-system-2.0)](https://pypi.org/project/scientific-computing-system-2.0/)
+[![Python](https://img.shields.io/pypi/pyversions/scientific-computing-system-2.0)](https://pypi.org/project/scientific-computing-system-2.0/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-261230.svg)](https://github.com/astral-sh/ruff)
 
@@ -15,14 +15,14 @@ modules on top.
 ## Installation
 
 ```bash
-pip install cognitive-discovery-system-v2
+pip install scientific-computing-system-2.0
 ```
 
 From source:
 
 ```bash
-git clone https://github.com/Furox88/cognitive-discovery-system-v2.git
-cd cognitive-discovery-system-v2
+git clone https://github.com/Furox-Art/scientific-computing-system-2.0.git
+cd scientific-computing-system-2.0
 pip install -e .[dev]
 ```
 
@@ -50,6 +50,27 @@ freqs, psd = cds2.signals.power_spectrum(np.sin(np.linspace(0, 100, 1024)), fs=2
 # Graphs with PageRank
 adj = cds2.graph.from_edges(4, [(0, 1), (0, 2), (1, 3), (2, 3)], directed=True)
 scores = cds2.graph.pagerank(adj)
+
+# Information theory
+h = cds2.infotheory.entropy([0.25, 0.25, 0.25, 0.25])
+mi = cds2.infotheory.mutual_information([[0.5, 0.0], [0.0, 0.5]])
+
+# Chaos / nonlinear dynamics
+series = cds2.chaos.logistic_map(3.99, length=400, seed=1)
+lyap = cds2.chaos.largest_lyapunov_exponent(series)
+
+# Bayesian conjugate updates
+post = cds2.bayes.beta_binomial_update(successes=7, failures=3)
+print(post.mean)  # 0.7
+
+# Metaheuristics
+res = cds2.metaheuristics.pso_minimize(lambda v: (v[0] - 3) ** 2, [(-10, 10)], seed=1)
+
+# Geometry
+area = cds2.geometry.hull_area([(0, 0), (1, 0), (0, 1)])
+
+# Reinforcement learning
+q_values, returns = cds2.rl.q_learn(cds2.rl.GridWorld(4, 4), episodes=300, seed=1)
 ```
 
 ## Modules
@@ -73,6 +94,12 @@ scores = cds2.graph.pagerank(adj)
 | `cds2.sparse` | scipy.sparse.linalg | CG/GMRES/BiCGSTAB solvers, Lanczos eigenpairs, truncated SVD |
 | `cds2.distributions` | scipy.stats | t, chi2, F, exponential, uniform, lognormal, poisson, binomial (pdf/cdf/ppf) |
 | `cds2.spectral` | scipy.sparse | Laplacians, Fiedler vector, algebraic connectivity, spectral clustering |
+| `cds2.infotheory` | NumPy | Shannon/joint/conditional entropy, KL & Jensen-Shannon divergence, mutual information, permutation entropy |
+| `cds2.chaos` | NumPy | delay embedding, false nearest neighbours, Lyapunov exponent, correlation dimension, sample entropy, Hurst exponent, bifurcation scans |
+| `cds2.bayes` | scipy.stats | Beta-Binomial / Normal-Normal / Gamma-Poisson conjugate updates, credible intervals, naive Bayes, Metropolis posteriors |
+| `cds2.metaheuristics` | NumPy | real-coded genetic algorithm, particle swarm optimization, simulated annealing |
+| `cds2.geometry` | scipy.spatial | convex hull, closest pair, point-in-polygon, polygon area/perimeter, line-segment intersection, rotations |
+| `cds2.rl` | NumPy | Bernoulli bandits (epsilon-greedy, UCB1), tabular Q-learning, grid-world environment |
 
 ## CLI
 

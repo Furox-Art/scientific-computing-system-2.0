@@ -1,9 +1,9 @@
 site_name: CDS v2
 site_description: Scientific computing platform on the NumPy/SciPy/pandas/matplotlib stack.
 site_author: Furox88
-site_url: https://furox88.github.io/cognitive-discovery-system-v2/
-repo_url: https://github.com/Furox88/cognitive-discovery-system-v2
-repo_name: Furox88/cognitive-discovery-system-v2
+site_url: https://furox-art.github.io/scientific-computing-system-2.0/
+repo_url: https://github.com/Furox-Art/scientific-computing-system-2.0
+repo_name: Furox-Art/scientific-computing-system-2.0
 
 theme:
   name: material
@@ -51,6 +51,12 @@ nav:
       - cds2.scientific: api/scientific.md
       - cds2.hypothesis: api/hypothesis.md
       - cds2.nlp: api/nlp.md
+      - cds2.infotheory: api/infotheory.md
+      - cds2.chaos: api/chaos.md
+      - cds2.bayes: api/bayes.md
+      - cds2.metaheuristics: api/metaheuristics.md
+      - cds2.geometry: api/geometry.md
+      - cds2.rl: api/rl.md
       - cds2.calculus: api/calculus.md
       - cds2.special: api/special.md
       - cds2.cli: api/cli.md

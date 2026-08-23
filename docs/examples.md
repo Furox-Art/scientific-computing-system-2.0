@@ -5,10 +5,10 @@ Each one prints its analysis; several also save figures.
 
 | Script | Techniques used |
 |---|---|
-| [`examples/signal_denoising.py`](https://github.com/Furox88/cognitive-discovery-system-v2/blob/main/examples/signal_denoising.py) | Butterworth low-pass design, Welch spectra, interference suppression |
-| [`examples/experiment_fitting.py`](https://github.com/Furox88/cognitive-discovery-system-v2/blob/main/examples/experiment_fitting.py) | Michaelis-Menten curve fit, parameter covariance, Welch t-test + permutation test on residuals |
-| [`examples/bayesian_inference.py`](https://github.com/Furox88/cognitive-discovery-system-v2/blob/main/examples/bayesian_inference.py) | Metropolis-Hastings MCMC, posterior mean, 95% credible interval vs analytic conjugate result |
-| [`examples/graph_analysis.py`](https://github.com/Furox88/cognitive-discovery-system-v2/blob/main/examples/graph_analysis.py) | Compiled PageRank kernel, spectral clustering, topological sort, algebraic connectivity |
+| [`examples/signal_denoising.py`](https://github.com/Furox-Art/scientific-computing-system-2.0/blob/main/examples/signal_denoising.py) | Butterworth low-pass design, Welch spectra, interference suppression |
+| [`examples/experiment_fitting.py`](https://github.com/Furox-Art/scientific-computing-system-2.0/blob/main/examples/experiment_fitting.py) | Michaelis-Menten curve fit, parameter covariance, Welch t-test + permutation test on residuals |
+| [`examples/bayesian_inference.py`](https://github.com/Furox-Art/scientific-computing-system-2.0/blob/main/examples/bayesian_inference.py) | Metropolis-Hastings MCMC, posterior mean, 95% credible interval vs analytic conjugate result |
+| [`examples/graph_analysis.py`](https://github.com/Furox-Art/scientific-computing-system-2.0/blob/main/examples/graph_analysis.py) | Compiled PageRank kernel, spectral clustering, topological sort, algebraic connectivity |
 
 Run any of them from a repository checkout:
 

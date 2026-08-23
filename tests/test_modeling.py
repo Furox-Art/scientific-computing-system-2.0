@@ -2,20 +2,27 @@
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from cds2.modeling import (
     Add,
     Constant,
     Divide,
+    Expression,
     MathModel,
+    Multiply,
     Negate,
+    Power,
     Subtract,
     Variable,
     diff,
     evaluate,
+    integrate,
     iter_postorder,
+    polynomial_coefficients,
     simplify,
+    solve_polynomial,
     substitute,
     symbol,
     to_latex,
@@ -174,3 +181,166 @@ class TestMathModel:
             epochs=400,
         )
         assert fitted["k"] == pytest.approx(3.0, abs=1e-3)
+
+
+class TestIntegrate:
+    def test_polynomial_integral(self, x: Variable) -> None:
+        expression = Add(Multiply(Constant(3.0), Power(x, Constant(2.0))), x)
+        integral = simplify(integrate(expression, "x"))
+        assert evaluate(integral, {"x": 2.0}) == pytest.approx(3 * 8 / 3 + 2)
+
+    def test_constant_rule(self) -> None:
+        result = integrate(Constant(4.0), "x")
+        assert isinstance(result, Multiply)
+
+    def test_negation(self, x: Variable) -> None:
+        integral = integrate(Negate(x), "x")
+        assert evaluate(simplify(integral), {"x": 1.0}) == pytest.approx(-0.5)
+
+    def test_product_with_free_factor(self, x: Variable) -> None:
+        y = symbol("y")
+        integral = integrate(Multiply(y, x), "x")
+        simplified = simplify(integral)
+        assert "y" in to_string(simplified)
+
+    def test_one_over_x_unsupported(self, x: Variable) -> None:
+        with pytest.raises(NotImplementedError, match="out of scope"):
+            integrate(Divide(Constant(1.0), x), "x")
+
+
+class TestPolynomialSolve:
+    def test_quadratic_roots(self, x: Variable) -> None:
+        roots = solve_polynomial(
+            Subtract(Power(x, Constant(2.0)), Multiply(Constant(5.0), x)),
+            Constant(-6.0),
+            "x",
+            real_only=True,
+        )
+        np.testing.assert_allclose(sorted(roots), [2.0, 3.0])
+
+    def test_complex_roots(self, x: Variable) -> None:
+        roots = solve_polynomial(Power(x, Constant(2.0)), Constant(-1.0), "x")
+        assert roots.size == 2
+
+    def test_non_polynomial_raises(self, x: Variable) -> None:
+        with pytest.raises(ValueError, match="not a polynomial"):
+            polynomial_coefficients(Divide(x, x), "x")
+
+
+class TestIntegrateRules:
+    def test_constant_and_variable_rules(self, x: Variable) -> None:
+        assert evaluate(simplify(integrate(Constant(4.0), "x")), {"x": 2.0}) == pytest.approx(8.0)
+        integral = simplify(integrate(x, "x"))
+        assert evaluate(integral, {"x": 2.0}) == pytest.approx(2.0)
+
+    def test_subtraction_rule(self, x: Variable) -> None:
+        integral = simplify(integrate(Subtract(x**2, x), "x"))
+        assert evaluate(integral, {"x": 3.0}) == pytest.approx(9.0 - 4.5)
+
+    def test_both_sides_free(self, x: Variable) -> None:
+        y = symbol("y")
+        integral = simplify(integrate(Multiply(y, Constant(3.0)), "x"))
+        assert evaluate(integral, {"x": 2.0, "y": 5.0}) == pytest.approx(30.0)
+
+    def test_right_side_free(self, x: Variable) -> None:
+        y = symbol("y")
+        integral = simplify(integrate(Multiply(x, y), "x"))
+        assert evaluate(integral, {"x": 2.0, "y": 5.0}) == pytest.approx(10.0)
+
+    def test_product_of_two_free_factors_unsupported(self, x: Variable) -> None:
+        with pytest.raises(NotImplementedError, match="expansion"):
+            integrate(Multiply(x, x), "x")
+
+    def test_one_over_x_power_unsupported(self, x: Variable) -> None:
+        with pytest.raises(NotImplementedError, match="out of scope"):
+            integrate(Power(x, Constant(-1.0)), "x")
+
+    def test_free_power_multiplies_by_variable(self, x: Variable) -> None:
+        y = symbol("y")
+        integral = simplify(integrate(Power(y, Constant(2.0)), "x"))
+        assert evaluate(integral, {"x": 3.0, "y": 2.0}) == pytest.approx(12.0)
+
+    def test_compound_base_power_unsupported(self, x: Variable) -> None:
+        expression = Power(Add(x, Constant(1.0)), Constant(2.0))
+        with pytest.raises(NotImplementedError, match="power pattern"):
+            integrate(expression, "x")
+
+    def test_division_by_constant(self, x: Variable) -> None:
+        integral = simplify(integrate(Divide(x, Constant(2.0)), "x"))
+        assert evaluate(integral, {"x": 2.0}) == pytest.approx(1.0)
+
+    def test_division_with_free_denominator_unsupported(self, x: Variable) -> None:
+        with pytest.raises(NotImplementedError, match="division"):
+            integrate(Divide(Constant(1.0), Add(x, Constant(1.0))), "x")
+
+    def test_unknown_node_type_rejected(self) -> None:
+        class Dummy(Expression):
+            pass
+
+        with pytest.raises(NotImplementedError, match="integration not defined"):
+            integrate(Dummy(), "x")
+
+
+class TestPolynomialCoefficientsAndSolve:
+    def test_negate_coefficients(self, x: Variable) -> None:
+        np.testing.assert_allclose(
+            polynomial_coefficients(Negate(Add(x, Constant(2.0))), "x"), [-2.0, -1.0]
+        )
+
+    def test_subtract_and_divide_by_constant(self, x: Variable) -> None:
+        expression = Divide(Subtract(Power(x, Constant(2.0)), x), Constant(2.0))
+        np.testing.assert_allclose(polynomial_coefficients(expression, "x"), [0.0, -0.5, 0.5])
+
+    def test_non_polynomial_division_raises(self, x: Variable) -> None:
+        with pytest.raises(ValueError, match="not a polynomial"):
+            polynomial_coefficients(Divide(Constant(1.0), x), "x")
+
+    def test_symbolic_exponent_not_polynomial(self, x: Variable) -> None:
+        n = symbol("n")
+        with pytest.raises(ValueError, match="not a polynomial"):
+            polynomial_coefficients(Power(x, n), "x")
+
+    def test_other_variable_treated_as_non_polynomial(self, x: Variable) -> None:
+        y = symbol("y")
+        with pytest.raises(ValueError, match="not a polynomial"):
+            polynomial_coefficients(y, "x")
+
+    def test_trailing_zero_degree_trimmed(self, x: Variable) -> None:
+        lhs = Add(Multiply(Constant(3.0), Power(x, Constant(2.0))), Constant(1.0))
+        rhs = Add(Multiply(Constant(3.0), Power(x, Constant(2.0))), Multiply(Constant(2.0), x))
+        roots = solve_polynomial(lhs, rhs, "x", real_only=True)
+        np.testing.assert_allclose(roots, [0.5])
+
+    def test_all_zero_degenerate(self, x: Variable) -> None:
+        identity = Add(x, Constant(0.0))
+        roots = solve_polynomial(identity, identity, "x")
+        assert roots.size == 0
+
+
+class TestModelingCoverageEdges:
+    def test_integrate_free_variable_becomes_factor(self, x: Variable) -> None:
+        y = symbol("y")
+        integral = simplify(integrate(y, "x"))
+        assert evaluate(integral, {"x": 2.0, "y": 5.0}) == pytest.approx(10.0)
+
+    def test_power_of_other_variable_not_polynomial(self, x: Variable) -> None:
+        y = symbol("y")
+        with pytest.raises(ValueError, match="not a polynomial"):
+            polynomial_coefficients(Power(y, Constant(2.0)), "x")
+
+    def test_unknown_expression_node_not_polynomial(self) -> None:
+        class Dummy(Expression):
+            pass
+
+        with pytest.raises(ValueError, match="not a polynomial"):
+            polynomial_coefficients(Dummy(), "x")
+
+
+class TestPolynomialFractionalPower:
+    def test_fractional_exponent_not_polynomial(self, x: Variable) -> None:
+        with pytest.raises(ValueError, match="not a polynomial"):
+            polynomial_coefficients(Power(x, Constant(-1.0)), "x")
+
+    def test_negative_exponent_not_polynomial(self, x: Variable) -> None:
+        with pytest.raises(ValueError, match="not a polynomial"):
+            polynomial_coefficients(Power(x, Constant(0.5)), "x")

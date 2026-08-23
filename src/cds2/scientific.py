@@ -23,6 +23,8 @@ __all__ = [
     "lorentz_factor",
     "ideal_gas_pressure",
     "escape_velocity",
+    "convert_units",
+    "list_units",
 ]
 
 CONSTANTS: dict[str, float] = {
@@ -153,3 +155,114 @@ def escape_velocity(mass_kg: float, radius_m: float) -> float:
         msg = "mass and radius must be positive"
         raise ValueError(msg)
     return math.sqrt(2.0 * CONSTANTS["G"] * mass_kg / radius_m)
+
+
+# ------------------------------------------------------------ unit system ---
+# factor maps each unit to its SI base; temperature uses offsets instead.
+UNIT_FACTORS: dict[str, float] = {
+    # length (m)
+    "nm": 1e-9,
+    "um": 1e-6,
+    "mm": 1e-3,
+    "cm": 1e-2,
+    "m": 1.0,
+    "km": 1e3,
+    "inch": 0.0254,
+    "ft": 0.3048,
+    "mile": 1609.344,
+    # mass (kg)
+    "mg": 1e-6,
+    "g": 1e-3,
+    "kg": 1.0,
+    "tonne": 1e3,
+    "lb": 0.45359237,
+    "oz": 0.028349523125,
+    # time (s)
+    "ms": 1e-3,
+    "s": 1.0,
+    "min": 60.0,
+    "h": 3600.0,
+    "day": 86400.0,
+    # energy (J)
+    "J": 1.0,
+    "kJ": 1e3,
+    "cal": 4.184,
+    "kcal": 4184.0,
+    "Wh": 3600.0,
+    "kWh": 3.6e6,
+    "eV": 1.602176634e-19,
+    # pressure (Pa)
+    "Pa": 1.0,
+    "kPa": 1e3,
+    "bar": 1e5,
+    "atm": 101325.0,
+    "mmHg": 133.322387415,
+    # angle (rad)
+    "rad": 1.0,
+    "deg": math.pi / 180.0,
+}
+
+UNIT_DIMENSIONS: dict[str, str] = {
+    **{unit: "length" for unit in ("nm", "um", "mm", "cm", "m", "km", "inch", "ft", "mile")},
+    **{unit: "mass" for unit in ("mg", "g", "kg", "tonne", "lb", "oz")},
+    **{unit: "time" for unit in ("ms", "s", "min", "h", "day")},
+    **{unit: "energy" for unit in ("J", "kJ", "cal", "kcal", "Wh", "kWh", "eV")},
+    **{unit: "pressure" for unit in ("Pa", "kPa", "bar", "atm", "mmHg")},
+    **{unit: "angle" for unit in ("rad", "deg")},
+}
+
+TEMPERATURE_UNITS = {"C", "F", "K"}
+
+
+def list_units() -> list[str]:
+    """All supported unit symbols, including the three temperatures."""
+    return sorted([*UNIT_FACTORS.keys(), *TEMPERATURE_UNITS])
+
+
+def _to_kelvin(value: float, unit: str) -> float:
+    if unit == "C":
+        return value + 273.15
+    if unit == "F":
+        return (value - 32.0) * 5.0 / 9.0 + 273.15
+    return value
+
+
+def _from_kelvin(value: float, unit: str) -> float:
+    if unit == "C":
+        return value - 273.15
+    if unit == "F":
+        return (value - 273.15) * 9.0 / 5.0 + 32.0
+    return value
+
+
+def convert_units(value: float, from_unit: str, to_unit: str) -> float:
+    """Convert ``value`` between supported units of one physical dimension.
+
+    Covers length, mass, time, energy, pressure and angle via ``UNIT_FACTORS``
+    plus temperatures in C/F/K. Mixing dimensions raises ``ValueError``.
+    """
+    source = from_unit.strip()
+    target = to_unit.strip()
+    source_is_temp = source in TEMPERATURE_UNITS
+    target_is_temp = target in TEMPERATURE_UNITS
+    if source not in UNIT_FACTORS and not source_is_temp:
+        msg = f"unknown unit: {source!r}"
+        raise ValueError(msg)
+    if target not in UNIT_FACTORS and not target_is_temp:
+        msg = f"unknown unit: {target!r}"
+        raise ValueError(msg)
+    if source_is_temp != target_is_temp:
+        msg = (
+            f"cannot convert between temperature and non-temperature units ({source!r}, {target!r})"
+        )
+        raise ValueError(msg)
+    if source_is_temp:
+        return _from_kelvin(_to_kelvin(value, source), target)
+    if UNIT_DIMENSIONS[source] != UNIT_DIMENSIONS[target]:
+        msg = (
+            f"cannot convert {UNIT_DIMENSIONS[source]} ({source!r}) to "
+            f"{UNIT_DIMENSIONS[target]} ({target!r})"
+        )
+        raise ValueError(msg)
+    base_value = value * UNIT_FACTORS[source]
+    return base_value / UNIT_FACTORS[target]

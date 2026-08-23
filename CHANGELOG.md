@@ -1,3 +1,49 @@
+## [v4.0.0] - 2026-08-24
+
+Identity and discovery release: the project is renamed to
+**scientific-computing-system-2.0** (repository, PyPI distribution and CLI
+branding) and six new domain modules join the library. Module count
+24 -> 30 (+ CLI), export surface ~350 names.
+
+### Added
+
+- **`cds2.infotheory`** - Shannon/joint/conditional entropy, KL and
+  Jensen-Shannon divergence, cross entropy, (normalized) mutual information
+  and Bandt-Pompe permutation entropy.
+- **`cds2.chaos`** - Takens delay embedding, false nearest neighbours,
+  Rosenstein largest Lyapunov exponent, Grassberger-Procaccia correlation
+  dimension, sample entropy, R/S Hurst exponent, logistic map iteration and
+  generic bifurcation scans.
+- **`cds2.bayes`** - Beta-Binomial / Normal-Normal / Gamma-Poisson conjugate
+  updates, credible intervals with sampling fallback, Gaussian naive Bayes,
+  Bayes factors and Metropolis posterior draws.
+- **`cds2.metaheuristics`** - real-coded genetic algorithm (tournament
+  selection, blend crossover, elitism), particle swarm optimization and
+  simulated annealing with exponential cooling.
+- **`cds2.geometry`** - convex hulls, closest pair via KD-tree, point-in-
+  polygon ray casting, shoelace area/perimeter, segment intersection tests,
+  infinite-line intersections, centroids and rotations.
+- **`cds2.rl`** - Bernoulli multi-armed bandits (epsilon-greedy with decay,
+  UCB1), tabular Q-learning and a deterministic grid-world environment.
+- **`cds2.modeling`** additions: symbolic polynomial integration
+  (`integrate`) and exact polynomial root finding (`polynomial_coefficients`,
+  `solve_polynomial`).
+- **`cds2.graph`** additions: Brandes betweenness centrality, Wasserman-Faust
+  closeness centrality and Lanczos-backed eigenvector centrality with an
+  oscillation guard for bipartite graphs.
+- **`cds2.scientific`** additions: `convert_units` / `list_units` covering
+  length, mass, time, energy, pressure, angle and temperature.
+
+### Changed
+
+- Package identity: PyPI distribution and repository renamed from
+  `cognitive-discovery-system-v2` to `scientific-computing-system-2.0`.
+  Import root remains `cds2`; the CLI remains `cds2`.
+- Test count 856; 100% blended coverage, mypy strict and ruff clean
+  maintained across all 36 source files.
+- Tooling: pre-commit configuration and a cibuildwheel wheel-building
+  workflow added; GitHub repository renamed.
+
 ## [v3.3.0] - 2026-08-23
 
 Heritage-completion release: every module from the v1.x line now has a
@@ -62,7 +108,7 @@ GIL released during all hot loops, plus an industrial computing guide.
   cycle are now exercised on every solver in the test suite.
 # Changelog
 
-All notable changes to **cognitive-discovery-system-v2** will be documented in
+All notable changes to **scientific-computing-system-2.0** will be documented in
 this file. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and the project adheres to [Semantic Versioning](https://semver.org/).
 

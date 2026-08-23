@@ -6,14 +6,14 @@ CDS v2 requires Python 3.10+ and installs its scientific dependencies
 automatically:
 
 ```bash
-pip install cognitive-discovery-system-v2
+pip install scientific-computing-system-2.0
 ```
 
 Development install from source:
 
 ```bash
-git clone https://github.com/Furox88/cognitive-discovery-system-v2.git
-cd cognitive-discovery-system-v2
+git clone https://github.com/Furox-Art/scientific-computing-system-2.0.git
+cd scientific-computing-system-2.0
 pip install -e .[dev]
 ```
 
