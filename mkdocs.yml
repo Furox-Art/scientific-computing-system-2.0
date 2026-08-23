@@ -60,6 +60,7 @@ nav:
       - cds2.rl: api/rl.md
       - cds2.calculus: api/calculus.md
       - cds2.special: api/special.md
+      - cds2.distributions: api/distributions.md
       - cds2.cli: api/cli.md
 
 plugins:

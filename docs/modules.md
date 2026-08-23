@@ -24,7 +24,7 @@ figures.
 | [`cds2.special`](api/special.md) | scipy.special | gamma, erf, Bessels, elliptics, orthogonal polynomials, zeta |
 | [`cds2.sparse`](api/sparse.md) | scipy.sparse.linalg | CG/GMRES/BiCGSTAB, Lanczos eigenpairs, truncated SVD |
 | [`cds2.spectral`](api/spectral.md) | scipy.sparse | Laplacians, Fiedler vector, algebraic connectivity, spectral clustering |
-| [`cds2.distributions`](api/../api/distributions.md) | scipy.stats | pdf/cdf/ppf for twenty-plus distributions |
+| [`cds2.distributions`](api/distributions.md) | scipy.stats | pdf/cdf/ppf for twenty-plus distributions |
 
 ## Discovery and modelling
 
