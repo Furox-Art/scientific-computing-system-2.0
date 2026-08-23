@@ -108,6 +108,9 @@ cds2 info
 cds2 stats 1,2,3,4,5
 cds2 integrate sin --a 0 --b 3.14159
 cds2 linsolve --a "3,1;1,2" --b "9,8"
+cds2 entropy "0.25,0.25,0.25,0.25"
+cds2 units 5 --from-unit km --to-unit mile
+cds2 solve --coeffs "1,-5,6"
 cds2 plot 1,3,2,5,4 --file out.png
 ```
 

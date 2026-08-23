@@ -144,6 +144,75 @@ loaded = io.read_csv("data.csv")
 print(io.summarize(loaded))
 ```
 
+### Information theory
+
+```python
+import numpy as np
+from cds2 import infotheory
+
+print(infotheory.entropy([0.25, 0.25, 0.25, 0.25]))  # 2.0 bits
+print(infotheory.mutual_information([[0.5, 0.0], [0.0, 0.5]]))  # 1.0 bit
+print(infotheory.permutation_entropy(np.sin(np.linspace(0, 50, 500))))
+```
+
+### Chaos and nonlinear dynamics
+
+```python
+from cds2 import chaos
+
+series = chaos.logistic_map(3.99, length=600, seed=1)
+print(chaos.largest_lyapunov_exponent(series).exponent)  # > 0 for chaotic r
+print(chaos.correlation_dimension(series).dimension)
+print(chaos.hurst_exponent(np.cumsum(np.random.default_rng(0).normal(size=2000))))
+```
+
+### Bayesian inference
+
+```python
+from cds2 import bayes
+
+posterior = bayes.beta_binomial_update(successes=7, failures=3)
+print(posterior.mean)  # 0.7
+
+classifier = bayes.NaiveBayes().fit([[0, 0], [0, 1], [10, 10], [10, 11]], [0, 0, 1, 1])
+print(classifier.predict([[0, 0], [10, 10]]))  # [0. 1.]
+```
+
+### Metaheuristics
+
+```python
+from cds2 import metaheuristics
+
+result = metaheuristics.pso_minimize(
+    lambda v: (v[0] - 3) ** 2 + (v[1] + 2) ** 2,
+    [(-10, 10), (-10, 10)],
+    seed=1,
+)
+print(result.x, result.fun)
+```
+
+### Geometry
+
+```python
+from cds2 import geometry
+
+print(geometry.hull_area([(0, 0), (1, 0), (0, 1)]))  # 0.5
+print(geometry.point_in_polygon((0.2, 0.2), [(0, 0), (1, 0), (1, 1), (0, 1)]))
+print(geometry.closest_pair([(0, 0), (5, 5), (1, 1), (9, 9)]))
+```
+
+### Reinforcement learning
+
+```python
+from cds2 import rl
+
+bandit_result = rl.ucb1(rl.Bandit([0.2, 0.8], seed=1), episodes=1000)
+print(bandit_result.counts)  # arm 1 dominates
+
+q_values, returns = rl.q_learn(rl.GridWorld(4, 4), episodes=400, seed=1)
+print(returns[-30:].mean())  # ~ 1.0 once the policy is learned
+```
+
 ## Command line
 
 ```text
@@ -151,6 +220,9 @@ cds2 info                       version table for the whole stack
 cds2 stats 1,2,3,4,5            descriptive statistics
 cds2 integrate sin --a 0 --b 3.14159
 cds2 linsolve --a "3,1;1,2" --b "9,8"
+cds2 entropy "0.25,0.25,0.25,0.25"
+cds2 units 5 --from-unit km --to-unit mile
+cds2 solve --coeffs "1,-5,6"
 cds2 plot 1,3,2,5,4 --file out.png
 ```
 

@@ -116,6 +116,51 @@ def cmd_plot(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_entropy(args: argparse.Namespace) -> int:
+    from .infotheory import entropy
+
+    probabilities = _parse_numbers(args.probabilities)
+    total = sum(probabilities)
+    if total <= 0:
+        print("error: probabilities must sum to a positive value", file=sys.stderr)
+        return 1
+    normalized = [value / total for value in probabilities]
+    print(f"entropy   {entropy(normalized, base=args.base):.6f}")
+    return 0
+
+
+def cmd_units(args: argparse.Namespace) -> int:
+    from .scientific import convert_units
+
+    try:
+        result = convert_units(args.value, args.from_unit, args.to_unit)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"{args.value:g} {args.from_unit} = {result:.10g} {args.to_unit}")
+    return 0
+
+
+def cmd_solve(args: argparse.Namespace) -> int:
+    import numpy as np
+
+    coefficients = _parse_numbers(args.coeffs)
+    if len(coefficients) < 2 or abs(coefficients[-1]) < 1e-15:
+        print(
+            "error: --coeffs needs descending powers with a nonzero leading term",
+            file=sys.stderr,
+        )
+        return 1
+    roots = np.roots(coefficients)
+    real_roots = sorted(root.real for root in roots if abs(root.imag) < 1e-9)
+    complex_roots = [root for root in roots if abs(root.imag) >= 1e-9]
+    for root_value in real_roots:
+        print(f"real      {root_value:.8g}")
+    for root_value in complex_roots:
+        print(f"complex   {root_value.real:.8g} {root_value.imag:+.8g}j")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="cds2", description="scientific-computing-system-2.0 command line"
@@ -151,6 +196,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     plot_parser.add_argument("--title", default="")
     plot_parser.set_defaults(handler=cmd_plot)
+
+    entropy_parser = subparsers.add_parser(
+        "entropy", help="Shannon entropy of comma-separated probabilities"
+    )
+    entropy_parser.add_argument("probabilities")
+    entropy_parser.add_argument("--base", type=float, default=2.0)
+    entropy_parser.set_defaults(handler=cmd_entropy)
+
+    units_parser = subparsers.add_parser("units", help="convert between physical units")
+    units_parser.add_argument("value", type=float)
+    units_parser.add_argument("--from-unit", required=True, dest="from_unit")
+    units_parser.add_argument("--to-unit", required=True, dest="to_unit")
+    units_parser.set_defaults(handler=cmd_units)
+
+    solve_parser = subparsers.add_parser(
+        "solve", help="roots of a polynomial given in descending powers"
+    )
+    solve_parser.add_argument(
+        "--coeffs", required=True, help='descending powers, e.g. "1,-5,6" for x^2-5x+6'
+    )
+    solve_parser.set_defaults(handler=cmd_solve)
 
     return parser
 

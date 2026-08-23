@@ -30,6 +30,7 @@ nav:
   - Examples: examples.md
   - Industrial computing: industrial.md
   - Benchmarks: benchmarks.md
+  - Release process: release.md
   - API Reference:
       - cds2.linalg: api/linalg.md
       - cds2.stats: api/stats.md

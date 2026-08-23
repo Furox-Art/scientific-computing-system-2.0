@@ -75,3 +75,56 @@ class TestParser:
     def test_unknown_subcommand_exits(self) -> None:
         with pytest.raises(SystemExit):
             build_parser().parse_args(["frobnicate"])
+
+
+class TestEntropyCommand:
+    def test_uniform_entropy(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["entropy", "0.25,0.25,0.25,0.25"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "2.000000" in out
+
+    def test_nats_base(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["entropy", "0.5,0.5", "--base", "2.718281828459045"])
+        assert code == 0
+
+    def test_nonpositive_total_fails(self) -> None:
+        assert main(["entropy", "0,0"]) == 1
+
+
+class TestUnitsCommand:
+    def test_length_conversion(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["units", "5", "--from-unit", "km", "--to-unit", "mile"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "3.106855961" in out
+
+    def test_temperature_conversion(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["units", "25", "--from-unit", "C", "--to-unit", "F"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "77" in out
+
+    def test_dimension_mixing_fails(self) -> None:
+        assert main(["units", "1", "--from-unit", "m", "--to-unit", "kg"]) == 1
+
+    def test_unknown_unit_fails(self) -> None:
+        assert main(["units", "1", "--from-unit", "parsec", "--to-unit", "m"]) == 1
+
+
+class TestSolveCommand:
+    def test_quadratic_roots(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["solve", "--coeffs", "1,-5,6"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "real      2" in out
+        assert "real      3" in out
+
+    def test_complex_roots(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["solve", "--coeffs", "1,0,1"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "complex" in out
+
+    def test_zero_leading_coefficient_fails(self) -> None:
+        assert main(["solve", "--coeffs", "1,0,0,0"]) == 1
