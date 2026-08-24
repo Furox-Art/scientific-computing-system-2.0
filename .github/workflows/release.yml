@@ -61,6 +61,7 @@ jobs:
       contents: write
       id-token: write
     steps:
+      - uses: actions/checkout@v4
       - name: Skip when the version is already on PyPI
         id: gate
         run: |
