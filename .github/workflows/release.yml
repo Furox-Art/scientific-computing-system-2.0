@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build compiled wheel
-        uses: pypa/cibuildwheel@v4.2
+        uses: pypa/cibuildwheel@v4.2.0
         env:
           CIBW_BUILD: "cp${{ matrix.python }}-*"
       - name: Upload artifacts
