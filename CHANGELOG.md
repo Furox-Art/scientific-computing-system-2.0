@@ -1,3 +1,29 @@
+## [v4.1.0] - 2026-08-24
+
+Industrial-grade expansion: statistical process control, design of
+experiments and graph community detection join the library, plus three new
+benchmark races and project governance docs.
+
+### Added
+
+- **`cds2.quality`** - Shewhart X-bar chart (A2/R-bar limits), EWMA chart
+  with time-varying limits, two-sided CUSUM, attribute p-chart for variable
+  lot sizes, and Cp/Cpk capability indices with normal-tail defective PPM.
+- **`cds2.design`** - full factorial designs, 2^k-p fractional factorials
+  via defining-relation generators ("D=ABC"), Latin hypercube sampling,
+  face-centred/rotatable central composite designs and coded-to-physical
+  factor mapping.
+- **`cds2.graph`** additions: seeded label-propagation community detection
+  (`detect_communities`) returning Newman modularity (`modularity`) for
+  partition quality.
+- Benchmarks: entropy vs hand-rolled numpy, Latin hypercube vs
+  scipy.stats.qmc, PSO vs scipy differential evolution.
+- Governance: CONTRIBUTING.md, SECURITY.md and Dependabot configuration.
+
+### Changed
+
+- Test count 866 -> 940+; 100% blended coverage, mypy strict and ruff clean
+  maintained across all 38 source files.
 ## [v4.0.0] - 2026-08-24
 
 Identity and discovery release: the project is renamed to

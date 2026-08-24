@@ -11,6 +11,7 @@ from . import (
     calculus,
     chaos,
     cli,
+    design,
     distributions,
     geometry,
     graph,
@@ -27,6 +28,7 @@ from . import (
     montecarlo,
     nlp,
     optimize,
+    quality,
     quantum,
     rl,
     scientific,
@@ -70,6 +72,14 @@ from .chaos import (
     largest_lyapunov_exponent,
     logistic_map,
     sample_entropy,
+)
+from .design import (
+    DesignResult,
+    central_composite,
+    fractional_factorial_2k,
+    full_factorial,
+    latin_hypercube,
+    pluck_factors,
 )
 from .distributions import (
     beta_cdf,
@@ -143,6 +153,7 @@ from .geometry import (
 )
 from .graph import (
     CentralityResult,
+    CommunityResult,
     ComponentResult,
     DegreeResult,
     ShortestPaths,
@@ -151,10 +162,12 @@ from .graph import (
     closeness_centrality,
     connected_components,
     degree,
+    detect_communities,
     eigenvector_centrality,
     floyd_warshall_paths,
     from_edges,
     minimum_spanning_forest,
+    modularity,
     pagerank,
     shortest_paths,
     single_source_shortest_paths,
@@ -246,6 +259,15 @@ from .optimize import (
     minimize_scalar,
     newton_root,
     root,
+)
+from .quality import (
+    CapabilityResult,
+    ControlChartResult,
+    cusum_chart,
+    ewma_chart,
+    p_chart,
+    process_capability,
+    xbar_chart,
 )
 from .rl import (
     Bandit,
@@ -422,6 +444,7 @@ __all__ = [
     "bayes",
     "calculus",
     "chaos",
+    "design",
     "distributions",
     "cli",
     "geometry",
@@ -439,6 +462,7 @@ __all__ = [
     "montecarlo",
     "nlp",
     "optimize",
+    "quality",
     "quantum",
     "rl",
     "scientific",
@@ -449,6 +473,21 @@ __all__ = [
     "stats",
     "timeseries",
     "viz",
+    # design
+    "DesignResult",
+    "central_composite",
+    "fractional_factorial_2k",
+    "full_factorial",
+    "latin_hypercube",
+    "pluck_factors",
+    # quality
+    "CapabilityResult",
+    "ControlChartResult",
+    "cusum_chart",
+    "ewma_chart",
+    "p_chart",
+    "process_capability",
+    "xbar_chart",
     # bayes
     "BetaPosterior",
     "GammaPoissonPosterior",
@@ -508,6 +547,7 @@ __all__ = [
     "ucb1",
     # graph
     "CentralityResult",
+    "CommunityResult",
     "ComponentResult",
     "DegreeResult",
     "ShortestPaths",
@@ -516,10 +556,12 @@ __all__ = [
     "closeness_centrality",
     "connected_components",
     "degree",
+    "detect_communities",
     "eigenvector_centrality",
     "floyd_warshall_paths",
     "from_edges",
     "minimum_spanning_forest",
+    "modularity",
     "pagerank",
     "shortest_paths",
     "single_source_shortest_paths",

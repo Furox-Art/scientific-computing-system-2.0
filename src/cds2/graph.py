@@ -29,6 +29,7 @@ __all__ = [
     "ComponentResult",
     "ShortestPaths",
     "CentralityResult",
+    "CommunityResult",
     "from_edges",
     "degree",
     "connected_components",
@@ -42,6 +43,8 @@ __all__ = [
     "betweenness_centrality",
     "closeness_centrality",
     "eigenvector_centrality",
+    "detect_communities",
+    "modularity",
 ]
 
 IntArray = NDArray[np.int64]
@@ -83,6 +86,15 @@ class CentralityResult:
     """Per-node centrality scores."""
 
     scores: FloatArray
+
+
+@dataclass(frozen=True)
+class CommunityResult:
+    """Label-propagation community detection output."""
+
+    labels: IntArray
+    n_communities: int
+    modularity: float
 
 
 def from_edges(
@@ -386,3 +398,84 @@ def eigenvector_centrality(
         return np.asarray(vector / total, dtype=float)
     total = vector.sum()
     return np.asarray(vector / total, dtype=float)
+
+
+def _undirected_neighbours(matrix: sparse.csr_matrix) -> list[list[int]]:
+    coo = sparse.coo_matrix(abs(matrix))
+    neighbours: list[set[int]] = [set() for _ in range(coo.shape[0])]
+    for u, v in zip(coo.row.tolist(), coo.col.tolist(), strict=False):
+        if u != v:
+            neighbours[u].add(v)
+            neighbours[v].add(u)
+    return [sorted(item) for item in neighbours]
+
+
+def detect_communities(
+    adj: object, max_sweeps: int = 50, seed: int | None = None
+) -> CommunityResult:
+    """Label-propagation communities with modularity as the quality score.
+
+    Deterministic given ``seed``; ties in the neighbour-label vote are broken
+    by the rng so repeated calls with the same seed reproduce exactly.
+    """
+    matrix = sparse.csr_matrix(adj)
+    n = matrix.shape[0]
+    if n == 0:
+        return CommunityResult(labels=np.zeros(0, dtype=np.int64), n_communities=0, modularity=0.0)
+    neighbours = _undirected_neighbours(matrix)
+    weights = np.asarray(np.abs(matrix).sum(axis=1)).ravel()
+    total_weight = float(weights.sum())
+    if total_weight == 0:
+        labels = np.arange(n, dtype=np.int64)
+        return CommunityResult(labels=labels, n_communities=n, modularity=0.0)
+
+    rng = np.random.default_rng(seed)
+    labels = np.arange(n, dtype=np.int64)
+    order = rng.permutation(n)
+    for _ in range(max_sweeps):
+        changed = False
+        for node in order:
+            if not neighbours[node]:
+                continue
+            votes: dict[int, float] = {}
+            for neighbour in neighbours[node]:
+                weight = float(matrix[node, neighbour])
+                key = int(labels[neighbour])
+                votes[key] = votes.get(key, 0.0) + weight
+            best_weight = max(votes.values())
+            winners = sorted(
+                label for label, weight in votes.items() if abs(weight - best_weight) < 1e-15
+            )
+            chosen = int(rng.choice(winners)) if len(winners) > 1 else winners[0]
+            if chosen != labels[node]:
+                labels[node] = chosen
+                changed = True
+        if not changed:
+            break
+    return CommunityResult(
+        labels=labels,
+        n_communities=int(np.unique(labels).size),
+        modularity=float(modularity(adj, labels)),
+    )
+
+
+def modularity(adj: object, labels: Sequence[int] | IntArray) -> float:
+    """Newman modularity Q of a partition on an undirected graph."""
+    matrix = sparse.csr_matrix(adj)
+    symmetric = matrix.maximum(matrix.T).tocsr()
+    n = symmetric.shape[0]
+    label_array = np.asarray(labels, dtype=np.int64)
+    if label_array.size != n:
+        msg = "one label per node is required"
+        raise ValueError(msg)
+    degrees = np.asarray(symmetric.sum(axis=1)).ravel()
+    two_m = float(degrees.sum())
+    if two_m == 0:
+        return 0.0
+
+    same = label_array[:, None] == label_array[None, :]
+    # Both sums count every undirected edge twice, matching the standard
+    # form Q = sum_c [ e_c / m - (d_c / 2m)^2 ].
+    edge_within = float(np.asarray(symmetric[same]).sum())
+    degree_within = float((degrees[:, None] * degrees[None, :] * same).sum())
+    return edge_within / two_m - degree_within / two_m**2

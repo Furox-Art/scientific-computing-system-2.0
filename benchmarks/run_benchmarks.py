@@ -279,6 +279,60 @@ def bench_sklearn_linreg(n_samples: int = 20_000, n_features: int = 10) -> Bench
     return _race(f"linreg {n_samples}x{n_features}", "sklearn", baseline, contender, 3, 3)
 
 
+def bench_entropy(n_samples: int = 200_000) -> BenchResult:
+    """Entropy of a binned continuous series: cds2 vs hand-rolled numpy."""
+
+    def baseline():
+        counts, _ = np.histogram(values, bins=64)
+        probabilities = counts / counts.sum()
+        positive = probabilities[probabilities > 0]
+        return float(-(positive * np.log2(positive)).sum())
+
+    def contender():
+        return cds2.infotheory.entropy(counts64 / counts64.sum(), base=2.0)
+
+    values = _rng().normal(size=n_samples)
+    counts64, _ = np.histogram(values, bins=64)
+    baseline()
+    contender()
+    return _race(f"entropy n={n_samples}", "numpy", baseline, contender, 5, 5)
+
+
+def bench_latin_hypercube(n_samples: int = 20_000, dimensions: int = 5) -> BenchResult | None:
+    """Latin hypercube: cds2.design vs scipy.stats.qmc."""
+    try:
+        from scipy import stats as qmc_stats
+
+        sampler_class = qmc_stats.qmc.LatinHypercube
+    except (AttributeError, ImportError):  # pragma: no cover - old scipy
+        return None
+
+    def baseline():
+        sampler_class(d=dimensions, seed=1).random(n_samples)
+
+    def contender():
+        cds2.design.latin_hypercube(n_samples, dimensions, seed=1)
+
+    return _race(f"LHS n={n_samples}/d={dimensions}", "scipy", baseline, contender, 3, 3)
+
+
+def bench_pso(n_dimensions: int = 8) -> BenchResult:
+    """PSO against scipy differential evolution on a quadratic bowl."""
+
+    def objective(x):
+        return float(np.sum((x - np.arange(1.0, n_dimensions + 1.0)) ** 2))
+
+    def baseline():
+        spo.differential_evolution(objective, [(0.0, 10.0)] * n_dimensions, seed=0, tol=1e-6)
+
+    def contender():
+        cds2.metaheuristics.pso_minimize(
+            objective, [(0.0, 10.0)] * n_dimensions, iterations=200, seed=0
+        )
+
+    return _race(f"pso d={n_dimensions}", "scipy", baseline, contender, 2, 2)
+
+
 CORE_BENCHMARKS: dict[str, Callable[[], BenchResult]] = {
     "solve_small": bench_solve_small,
     "solve_large": bench_solve_large,
@@ -290,6 +344,9 @@ CORE_BENCHMARKS: dict[str, Callable[[], BenchResult]] = {
     "minimize": bench_minimize,
     "mc_pi": bench_pi,
     "pandas_summary": bench_pandas_describe,
+    "entropy": bench_entropy,
+    "latin_hypercube": bench_latin_hypercube,
+    "pso": bench_pso,
 }
 
 OPTIONAL_BENCHMARKS: dict[str, Callable[[], BenchResult | None]] = {
@@ -311,6 +368,8 @@ def quick_sizes() -> dict[str, dict[str, int]]:
         "describe": {"n_samples": 50_000},
         "mc_pi": {"n_samples": 200_000},
         "pandas_summary": {"rows": 20_000},
+        "entropy": {"n_samples": 20_000},
+        "latin_hypercube": {"n_samples": 2_000},
         "networkx_pagerank": {"nodes": 100, "edges": 400},
         "sklearn_kmeans": {"n_samples": 600},
         "sklearn_linreg": {"n_samples": 2_000},

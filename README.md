@@ -100,6 +100,8 @@ q_values, returns = cds2.rl.q_learn(cds2.rl.GridWorld(4, 4), episodes=300, seed=
 | `cds2.metaheuristics` | NumPy | real-coded genetic algorithm, particle swarm optimization, simulated annealing |
 | `cds2.geometry` | scipy.spatial | convex hull, closest pair, point-in-polygon, polygon area/perimeter, line-segment intersection, rotations |
 | `cds2.rl` | NumPy | Bernoulli bandits (epsilon-greedy, UCB1), tabular Q-learning, grid-world environment |
+| `cds2.quality` | NumPy + scipy.stats | Shewhart/EWMA/CUSUM/p control charts, Cp/Cpk capability indices, defective PPM |
+| `cds2.design` | NumPy | full & fractional factorial DOE, Latin hypercube sampling, central composite designs |
 
 ## CLI
 

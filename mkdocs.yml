@@ -58,6 +58,8 @@ nav:
       - cds2.metaheuristics: api/metaheuristics.md
       - cds2.geometry: api/geometry.md
       - cds2.rl: api/rl.md
+      - cds2.quality: api/quality.md
+      - cds2.design: api/design.md
       - cds2.calculus: api/calculus.md
       - cds2.special: api/special.md
       - cds2.distributions: api/distributions.md

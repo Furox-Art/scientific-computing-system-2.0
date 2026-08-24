@@ -36,6 +36,8 @@ figures.
 | [`cds2.metaheuristics`](api/metaheuristics.md) | NumPy | genetic algorithm, particle swarm optimization, simulated annealing |
 | [`cds2.geometry`](api/geometry.md) | scipy.spatial | convex hull, closest pair, polygons, point-in-polygon, intersections |
 | [`cds2.rl`](api/rl.md) | NumPy | bandits (epsilon-greedy, UCB1), tabular Q-learning, grid world |
+| [`cds2.quality`](api/quality.md) | NumPy + scipy.stats | Shewhart/EWMA/CUSUM/p control charts, Cp/Cpk capability, defective PPM |
+| [`cds2.design`](api/design.md) | NumPy | full & fractional factorial DOE, Latin hypercube sampling, central composite |
 | [`cds2.modeling`](api/modeling.md) | pure Python | expression trees, symbolic diff/integral, polynomial solving, MathModel |
 | [`cds2.hypothesis`](api/hypothesis.md) | pure Python | heuristic hypothesis generation with confidence scores |
 | [`cds2.knowledge`](api/knowledge.md) | pure Python | knowledge graph, notebook, ranked search |

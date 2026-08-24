@@ -219,3 +219,60 @@ class TestCentralityCoverageEdges:
         )
         scores = graph.eigenvector_centrality(complete_bipartite, max_iter=5)
         assert scores.sum() == pytest.approx(1.0)
+
+
+class TestCommunities:
+    def test_two_triangles_split(self) -> None:
+        edges = [(0, 1), (1, 2), (0, 2), (3, 4), (4, 5), (3, 5)]
+        adj = graph.from_edges(6, edges, directed=False)
+        result = graph.detect_communities(adj, seed=1)
+        assert result.n_communities == 2
+        assert result.labels[0] == result.labels[1] == result.labels[2]
+        assert result.labels[3] == result.labels[4] == result.labels[5]
+        assert result.modularity == pytest.approx(0.5)
+
+    def test_reproducible_with_seed(self) -> None:
+        edges = [(i, (i + 1) % 12) for i in range(12)] + [(0, 6), (1, 7)]
+        adj = graph.from_edges(12, edges, directed=False)
+        first = graph.detect_communities(adj, seed=3)
+        second = graph.detect_communities(adj, seed=3)
+        np.testing.assert_array_equal(first.labels, second.labels)
+
+    def test_modularity_known_values(self) -> None:
+        path = graph.from_edges(4, [(0, 1), (1, 2), (2, 3)], directed=False)
+        assert graph.modularity(path, [0] * 4) == pytest.approx(0.0)
+        split = graph.modularity(path, [0, 0, 1, 1])
+        assert split == pytest.approx(1 / 6)
+
+    def test_empty_graph_and_label_mismatch(self) -> None:
+        empty = graph.detect_communities(sparse.csr_matrix((0, 0)))
+        assert empty.n_communities == 0
+        with pytest.raises(ValueError, match="one label per node"):
+            graph.modularity(graph.from_edges(3, [(0, 1)], directed=False), [0, 0])
+
+    def test_isolated_nodes_and_zero_degree_modularity(self) -> None:
+        lonely = sparse.csr_matrix((4, 4))
+        result = graph.detect_communities(lonely, seed=2)
+        assert result.n_communities == 4
+        assert graph.modularity(lonely, [0, 1, 2, 3]) == 0.0
+
+    def test_isolated_node_inside_community_run(self) -> None:
+        edges = [(0, 1), (1, 2), (0, 2)]
+        adj = graph.from_edges(4, edges, directed=False)
+        result = graph.detect_communities(adj, seed=4)
+        assert result.labels[3] == 3
+        assert result.n_communities == 2
+
+    def test_self_loops_ignored_in_neighbourhood(self) -> None:
+        looped = graph.from_edges(4, [(0, 0), (0, 1), (1, 2), (2, 0)], directed=False)
+        result = graph.detect_communities(looped, seed=6)
+        assert len(set(result.labels.tolist())) >= 1
+
+    def test_max_sweeps_exhausted_without_convergence(self) -> None:
+        ring = graph.from_edges(
+            8,
+            [(i, (i + 1) % 8) for i in range(8)] + [(0, 4), (2, 6)],
+            directed=False,
+        )
+        result = graph.detect_communities(ring, max_sweeps=1, seed=8)
+        assert result.labels.size == 8
