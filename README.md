@@ -102,6 +102,23 @@ q_values, returns = cds2.rl.q_learn(cds2.rl.GridWorld(4, 4), episodes=300, seed=
 | `cds2.rl` | NumPy | Bernoulli bandits (epsilon-greedy, UCB1), tabular Q-learning, grid-world environment |
 | `cds2.quality` | NumPy + scipy.stats | Shewhart/EWMA/CUSUM/p control charts, Cp/Cpk capability indices, defective PPM |
 | `cds2.design` | NumPy | full & fractional factorial DOE, Latin hypercube sampling, central composite designs |
+| `cds2.wavelets` | NumPy | Haar DWT/IDWT, multi-level decomposition, wavelet denoising |
+| `cds2.epidemiology` | NumPy | SIR/SEIR compartmental models (RK4), herd immunity, final-size iteration |
+| `cds2.image` | NumPy | 2-D convolution, Gaussian blur, Sobel edges, pooling, binary morphology |
+| `cds2.genetics` | pure Python | GC content, k-mers, reverse complement, Needleman-Wunsch alignment, ORF finder |
+| `cds2.reliability` | scipy.stats | Kaplan-Meier survival curves, Weibull fitting, MTBF/availability, bathtub hazard |
+| `cds2.finance` | NumPy + scipy.stats | returns, Sharpe/Sortino, max drawdown, Black-Scholes greeks, Monte Carlo VaR |
+| `cds2.text` | NumPy | tokenization, TF-IDF matrix, cosine & Jaccard similarity, term summaries |
+| `cds2.game_theory` | scipy.optimize | Nash equilibria, iterated dominance elimination, zero-sum minimax, IPD tournaments |
+| `cds2.combinatorial` | scipy.optimize | nearest-neighbor TSP + 2-opt, 0/1 knapsack DP, optimal assignment, LCS |
+| `cds2.spatial` | scipy.spatial | Moran's I, Geary's C, row-standardized weights, nearest-neighbor index |
+| `cds2.modeling` | pure Python | expression trees, symbolic diff/integral, polynomial solving, MathModel |
+| `cds2.hypothesis` | pure Python | heuristic hypothesis generation: trend, periodicity, outlier, correlation |
+| `cds2.knowledge` | pure Python | knowledge graph with typed relations, notebook, ranked search |
+| `cds2.scientific` | pure Python | CODATA constants, mechanics/EM/thermo formulas, unit conversion |
+| `cds2.quantum` | NumPy | statevector circuit simulator up to 16 qubits |
+| `cds2.nlp` | NumPy | scalar autograd, BPE tokenizer, multi-head attention, mini-GPT forward pass |
+| `cds2.cli` | argparse | `cds2` console entry point (info/stats/integrate/linsolve/entropy/units/solve/plot) |
 
 ## CLI
 

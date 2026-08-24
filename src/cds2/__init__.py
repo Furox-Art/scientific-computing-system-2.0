@@ -40,6 +40,7 @@ from . import (
     rl,
     scientific,
     signals,
+    sparse,
     spatial,
     special,
     spectral,
