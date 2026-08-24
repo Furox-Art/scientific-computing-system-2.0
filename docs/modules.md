@@ -1,6 +1,6 @@
 # Modules overview
 
-cds2 ships thirty importable modules plus a CLI. Every heavy computation is
+cds2 ships forty-two importable modules plus a CLI. Every heavy computation is
 delegated to NumPy/SciPy; pandas carries tabular data; matplotlib renders
 figures.
 

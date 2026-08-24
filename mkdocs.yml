@@ -60,6 +60,16 @@ nav:
       - cds2.rl: api/rl.md
       - cds2.quality: api/quality.md
       - cds2.design: api/design.md
+      - cds2.wavelets: api/wavelets.md
+      - cds2.epidemiology: api/epidemiology.md
+      - cds2.image: api/image.md
+      - cds2.genetics: api/genetics.md
+      - cds2.reliability: api/reliability.md
+      - cds2.finance: api/finance.md
+      - cds2.text: api/text.md
+      - cds2.game_theory: api/game_theory.md
+      - cds2.combinatorial: api/combinatorial.md
+      - cds2.spatial: api/spatial.md
       - cds2.calculus: api/calculus.md
       - cds2.special: api/special.md
       - cds2.distributions: api/distributions.md

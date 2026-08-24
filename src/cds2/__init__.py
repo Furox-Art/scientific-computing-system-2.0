@@ -11,11 +11,17 @@ from . import (
     calculus,
     chaos,
     cli,
+    combinatorial,
     design,
     distributions,
+    epidemiology,
+    finance,
+    game_theory,
+    genetics,
     geometry,
     graph,
     hypothesis,
+    image,
     infotheory,
     integrate,
     interpolate,
@@ -30,13 +36,15 @@ from . import (
     optimize,
     quality,
     quantum,
+    reliability,
     rl,
     scientific,
     signals,
-    sparse,
+    spatial,
     special,
     spectral,
     stats,
+    text,
     timeseries,
     viz,
 )
@@ -72,6 +80,16 @@ from .chaos import (
     largest_lyapunov_exponent,
     logistic_map,
     sample_entropy,
+)
+from .combinatorial import (
+    AssignmentResult,
+    KnapsackResult,
+    TourResult,
+    assign_min_cost,
+    knapsack_01,
+    longest_common_subsequence,
+    nearest_neighbor_tsp,
+    two_opt,
 )
 from .design import (
     DesignResult,
@@ -139,6 +157,48 @@ from .distributions import (
     weibull_pdf,
     weibull_ppf,
 )
+from .epidemiology import (
+    SEIRResult,
+    SIRResult,
+    effective_reproduction,
+    final_size_iteration,
+    herd_immunity_threshold,
+    simulate_seir,
+    simulate_sir,
+)
+from .finance import (
+    BSResult,
+    DrawdownResult,
+    annualized_volatility,
+    black_scholes,
+    historical_var,
+    log_returns,
+    max_drawdown,
+    monte_carlo_var,
+    sharpe_ratio,
+    simple_returns,
+    sortino_ratio,
+)
+from .game_theory import (
+    EliminationResult,
+    MixedEquilibrium,
+    PDResult,
+    expected_payoff,
+    iterated_elimination,
+    play_iterated_pd,
+    pure_nash_equilibria,
+    strictly_dominated_actions,
+    zero_sum_mixed,
+)
+from .genetics import (
+    AlignmentResult,
+    find_orfs,
+    gc_content,
+    global_align,
+    hamming_distance,
+    kmer_counts,
+    reverse_complement,
+)
 from .geometry import (
     HullResult,
     closest_pair,
@@ -172,6 +232,17 @@ from .graph import (
     shortest_paths,
     single_source_shortest_paths,
     topological_order,
+)
+from .image import (
+    EdgeResult,
+    binarize,
+    convolve2d,
+    dilate,
+    downsample,
+    erode,
+    gaussian_blur,
+    gaussian_kernel,
+    sobel_edges,
 )
 from .infotheory import (
     conditional_entropy,
@@ -269,6 +340,16 @@ from .quality import (
     process_capability,
     xbar_chart,
 )
+from .reliability import (
+    KMResult,
+    WeibullFit,
+    availability,
+    bathtub_curve,
+    kaplan_meier,
+    mtbf,
+    weibull_fit,
+    weibull_survival,
+)
 from .rl import (
     Bandit,
     BanditResult,
@@ -344,6 +425,15 @@ from .sparse import (
     sparse_eye,
     sparse_kron,
     truncated_svd,
+)
+from .spatial import (
+    GearyResult,
+    MoranResult,
+    NearestNeighborIndex,
+    build_weight_matrix,
+    gearys_c,
+    morans_i,
+    nearest_neighbor_index,
 )
 from .special import (
     airy_ai,
@@ -428,6 +518,16 @@ from .stats import (
     wilcoxon_signed_rank,
     z_scores,
 )
+from .text import (
+    SummaryResult,
+    TfidfResult,
+    cosine_similarity,
+    jaccard_similarity,
+    summarize_terms,
+    term_frequencies,
+    tfidf_matrix,
+    tokenize,
+)
 from .timeseries import (
     DecompositionResult,
     acf,
@@ -440,6 +540,17 @@ from .timeseries import (
 )
 
 __all__ = [
+    "combinatorial",
+    "design",
+    "epidemiology",
+    "finance",
+    "game_theory",
+    "genetics",
+    "image",
+    "quality",
+    "reliability",
+    "spatial",
+    "text",
     "__version__",
     "bayes",
     "calculus",
@@ -488,6 +599,15 @@ __all__ = [
     "p_chart",
     "process_capability",
     "xbar_chart",
+    # combinatorial
+    "AssignmentResult",
+    "KnapsackResult",
+    "TourResult",
+    "assign_min_cost",
+    "knapsack_01",
+    "longest_common_subsequence",
+    "nearest_neighbor_tsp",
+    "two_opt",
     # bayes
     "BetaPosterior",
     "GammaPoissonPosterior",
@@ -510,6 +630,54 @@ __all__ = [
     "largest_lyapunov_exponent",
     "logistic_map",
     "sample_entropy",
+    # epidemiology
+    "SEIRResult",
+    "SIRResult",
+    "effective_reproduction",
+    "final_size_iteration",
+    "herd_immunity_threshold",
+    "simulate_seir",
+    "simulate_sir",
+    # finance
+    "BSResult",
+    "DrawdownResult",
+    "annualized_volatility",
+    "black_scholes",
+    "historical_var",
+    "log_returns",
+    "max_drawdown",
+    "monte_carlo_var",
+    "sharpe_ratio",
+    "simple_returns",
+    "sortino_ratio",
+    # game_theory
+    "EliminationResult",
+    "MixedEquilibrium",
+    "PDResult",
+    "expected_payoff",
+    "iterated_elimination",
+    "play_iterated_pd",
+    "pure_nash_equilibria",
+    "strictly_dominated_actions",
+    "zero_sum_mixed",
+    # genetics
+    "AlignmentResult",
+    "find_orfs",
+    "gc_content",
+    "global_align",
+    "hamming_distance",
+    "kmer_counts",
+    "reverse_complement",
+    # image
+    "EdgeResult",
+    "binarize",
+    "convolve2d",
+    "dilate",
+    "downsample",
+    "erode",
+    "gaussian_blur",
+    "gaussian_kernel",
+    "sobel_edges",
     # infotheory
     "conditional_entropy",
     "cross_entropy",
@@ -537,6 +705,34 @@ __all__ = [
     "genetic_minimize",
     "pso_minimize",
     "simulated_annealing",
+    # reliability
+    "KMResult",
+    "WeibullFit",
+    "availability",
+    "bathtub_curve",
+    "kaplan_meier",
+    "mtbf",
+    "weibull_fit",
+    "weibull_survival",
+    "spatial",
+    "text",
+    # spatial
+    "GearyResult",
+    "MoranResult",
+    "NearestNeighborIndex",
+    "build_weight_matrix",
+    "gearys_c",
+    "morans_i",
+    "nearest_neighbor_index",
+    # text
+    "SummaryResult",
+    "TfidfResult",
+    "cosine_similarity",
+    "jaccard_similarity",
+    "summarize_terms",
+    "term_frequencies",
+    "tfidf_matrix",
+    "tokenize",
     # rl
     "Bandit",
     "BanditResult",

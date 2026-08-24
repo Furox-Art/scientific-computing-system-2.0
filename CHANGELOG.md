@@ -1,3 +1,42 @@
+## [v4.2.0] - 2026-08-24
+
+Ten-domain expansion release built with parallel agent orchestration:
+wavelets, epidemiology, image processing, genetics, reliability, finance,
+text analysis, game theory, combinatorial optimization and spatial
+statistics join the library.
+
+### Added
+
+- **`cds2.wavelets`** - Haar DWT/IDWT, multi-level decomposition and
+  MAD-thresholded wavelet denoising.
+- **`cds2.epidemiology`** - SIR/SEIR RK4 simulation with conservation
+  guarantees, herd-immunity threshold, final-size fixed-point solver.
+- **`cds2.image`** - 2-D convolution (same/valid), Gaussian blur, Sobel edge
+  detection with direction, mean/max/min pooling, binary morphology.
+- **`cds2.genetics`** - GC content, Hamming distance, k-mers, reverse
+  complement, Needleman-Wunsch global alignment with traceback, ORF finder
+  with standard translation table.
+- **`cds2.reliability`** - Kaplan-Meier survival curves with censoring,
+  Weibull MLE fit, MTBF/availability, composite bathtub hazard model.
+- **`cds2.finance`** - log/simple returns, Sharpe/Sortino ratios, maximum
+  drawdown tracking, Black-Scholes pricing with greeks, historical and
+  Monte Carlo VaR.
+- **`cds2.text`** - tokenization, smoothed TF-IDF matrix, cosine/Jaccard
+  similarity, top-k term summaries.
+- **`cds2.game_theory`** - strictly dominated action elimination, pure Nash
+  enumeration, zero-sum minimax via linear programming, iterated prisoner's
+  dilemma tournaments with five classic strategies.
+- **`cds2.combinatorial`** - nearest-neighbor TSP + 2-opt improvement, 0/1
+  knapsack DP with reconstruction, optimal assignment wrapper, LCS.
+- **`cds2.spatial`** - row-standardized weight builder, Moran's I and
+  Geary's C autocorrelation with z-scores, Clark-Evans nearest-neighbor
+  index.
+
+### Changed
+
+- Module count 32 -> 42 (+ CLI), export surface ~470 names.
+- Test count 927 -> ~1200; 100% blended coverage, mypy strict and ruff clean
+  maintained across all 48 source files.
 ## [v4.1.0] - 2026-08-24
 
 Industrial-grade expansion: statistical process control, design of
