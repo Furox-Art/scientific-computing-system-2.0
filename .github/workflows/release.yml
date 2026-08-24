@@ -61,12 +61,33 @@ jobs:
       contents: write
       id-token: write
     steps:
+      - name: Skip when the version is already on PyPI
+        id: gate
+        run: |
+          VERSION=$(python -c "
+          import pathlib, tomllib
+          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+          print(data['project']['version'])
+          ")
+          NAME=$(python -c "
+          import pathlib, tomllib
+          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
+          print(data['project']['name'])
+          ")
+          if curl -sfL "https://pypi.org/pypi/${NAME}/${VERSION}/json" > /dev/null; then
+            echo "Version ${VERSION} of ${NAME} already published - skipping upload."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Download all distributions
+        if: steps.gate.outputs.skip != 'true'
         uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
       - name: Publish to PyPI
+        if: steps.gate.outputs.skip != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
