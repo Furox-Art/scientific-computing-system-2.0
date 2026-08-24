@@ -47,6 +47,7 @@ from . import (
     text,
     timeseries,
     viz,
+    wavelets,
 )
 from ._version import __version__
 from .bayes import (
@@ -551,6 +552,7 @@ __all__ = [
     "reliability",
     "spatial",
     "text",
+    "wavelets",
     "__version__",
     "bayes",
     "calculus",
