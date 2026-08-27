@@ -11,6 +11,14 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege. Every job here pip-installs and executes third-party
+# packages, so none of them should hold a write-scoped GITHUB_TOKEN even if the
+# repository default is ever flipped from read-only. Kept at `contents: read`
+# so release.yml can still call this workflow, which requires the callee's
+# permissions to be a subset of the caller's.
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest

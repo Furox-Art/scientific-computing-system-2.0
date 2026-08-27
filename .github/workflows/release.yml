@@ -4,6 +4,13 @@ on:
   push:
     tags: ["v*.*.*"]
 
+# Serialise releases globally and never cancel one. Two tags pushed close
+# together would otherwise race each other into the same PyPI project, and a
+# publish interrupted halfway leaves artifacts uploaded but no GitHub release.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
