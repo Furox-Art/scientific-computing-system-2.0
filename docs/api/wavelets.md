@@ -3,4 +3,3 @@
 Haar wavelet transforms and wavelet denoising.
 
 ::: cds2.wavelets
-

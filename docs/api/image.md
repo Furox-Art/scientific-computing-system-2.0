@@ -3,4 +3,3 @@
 Grayscale image processing: convolution, edges, morphology.
 
 ::: cds2.image
-
