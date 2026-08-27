@@ -12,7 +12,7 @@
 
 **CDS v2** is a scientific computing platform built on the scientific Python
 stack — NumPy, SciPy, pandas and matplotlib. The algorithms proven in the
-pure-Python [cognitive-discovery-system](https://github.com/Furox88/cognitive-discovery-system)
+pure-Python [scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system)
 (v1.x) form its foundation; v2 rebuilds them for speed and adds new domain
 modules on top.
 
@@ -140,7 +140,7 @@ cds2 plot 1,3,2,5,4 --file out.png
 ## Relationship to CDS v1.x
 
 The original zero-dependency pure-Python line lives at
-[Furox88/cognitive-discovery-system](https://github.com/Furox88/cognitive-discovery-system)
+[Furox-Art/scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system)
 and remains available. v2 is an independent project that trades that
 constraint for the speed and breadth of the scientific Python ecosystem.
 

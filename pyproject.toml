@@ -11,7 +11,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [
-    {name = "Furox88", email = "furkanarkn1451@gmail.com"},
+    {name = "Furox-Art", email = "furkanarkn1451@gmail.com"},
 ]
 keywords = [
     "scientific-computing",

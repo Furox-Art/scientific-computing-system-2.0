@@ -229,7 +229,7 @@ cds2 plot 1,3,2,5,4 --file out.png
 ## Relationship to CDS v1.x
 
 The original zero-dependency line remains at
-[Furox88/cognitive-discovery-system](https://github.com/Furox88/cognitive-discovery-system).
+[Furox-Art/scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system).
 v2 intentionally trades that constraint for the speed of the scientific stack;
 the module layout stays familiar so migration is mostly changing `cds.` to
 `cds2.`.

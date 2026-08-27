@@ -3,7 +3,7 @@
 **scientific-computing-system-2.0** is a scientific computing platform built on
 the scientific Python stack - NumPy, SciPy, pandas and matplotlib. The
 algorithms proven in the pure-Python
-[cognitive-discovery-system](https://github.com/Furox88/cognitive-discovery-system)
+[scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system)
 (v1.x) form its foundation; v2 rebuilds them for speed and adds new domain
 modules on top.
 
