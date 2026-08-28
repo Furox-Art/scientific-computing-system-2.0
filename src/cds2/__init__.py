@@ -39,6 +39,7 @@ from . import (
     reliability,
     rl,
     scientific,
+    sde,
     signals,
     sparse,
     spatial,
@@ -384,6 +385,12 @@ from .scientific import (
     vacuum_permeability,
     vacuum_permittivity,
 )
+from .sde import (
+    SdeEnsemble,
+    ensemble_stats,
+    sde_euler_maruyama,
+    sde_milstein,
+)
 from .signals import (
     PeakResult,
     SpectrogramResult,
@@ -580,6 +587,7 @@ __all__ = [
     "quantum",
     "rl",
     "scientific",
+    "sde",
     "signals",
     "special",
     "sparse",
@@ -849,6 +857,11 @@ __all__ = [
     "minimize_scalar",
     "newton_root",
     "root",
+    # sde
+    "SdeEnsemble",
+    "ensemble_stats",
+    "sde_euler_maruyama",
+    "sde_milstein",
     # signals
     "PeakResult",
     "SpectrogramResult",
