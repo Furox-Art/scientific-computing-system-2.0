@@ -162,7 +162,7 @@ def parallel_mc_integrate(
     import os
     from concurrent.futures import ProcessPoolExecutor
 
-    worker_count = workers or os.cpu_count() or 2
+    worker_count = workers if workers is not None else min(os.cpu_count() or 2, 4)
     if b <= a:
         msg = "b must be greater than a"
         raise ValueError(msg)
@@ -180,6 +180,11 @@ def parallel_mc_integrate(
     ]
     # Subprocess bodies are invisible to the coverage tracer by design;
     # correctness of this block is asserted functionally by its tests.
-    with ProcessPoolExecutor(max_workers=worker_count) as pool:  # pragma: no cover
-        estimates = list(pool.map(_integrate_chunk, jobs))
+    try:
+        with ProcessPoolExecutor(max_workers=worker_count) as pool:  # pragma: no cover
+            estimates = list(pool.map(_integrate_chunk, jobs))
+    except (
+        Exception
+    ):  # pragma: no cover - fallback for constrained environments (e.g. low pagefile)
+        estimates = [_integrate_chunk(job) for job in jobs]
     return float(np.sum(estimates))

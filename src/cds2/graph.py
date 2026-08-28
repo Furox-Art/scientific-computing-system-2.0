@@ -245,7 +245,6 @@ def pagerank(
             tol,
         )
         rank_vec = np.frombuffer(rank_buffer, dtype=np.float64).copy()
-        rank_vec = np.frombuffer(rank_buffer, dtype=np.float64).copy()
         return np.asarray(rank_vec / rank_vec.sum(), dtype=float)
 
     rank_vec = np.full(n, 1.0 / n)
