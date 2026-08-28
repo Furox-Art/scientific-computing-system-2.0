@@ -1,0 +1,32 @@
+# Line-ending normalization. Store all text as LF in the repo so the same blob
+# checks out identically on every platform; git still hands the working copy the
+# OS-preferred ending via core.autocrlf where configured. Without this, editing
+# on Windows produced "LF will be replaced by CRLF" warnings and threatened
+# whole-file diffs that are nothing but line-ending flips.
+* text=auto eol=lf
+
+# Windows-only scripts keep their native CRLF.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# C sources for the accelerators are text; keep them LF like everything else.
+*.c     text eol=lf
+*.h     text eol=lf
+
+# Binary assets — never normalize, never diff as text.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.pdf   binary
+*.mp4   binary
+*.webm  binary
+*.zip   binary
+*.gz    binary
+*.whl   binary
+*.so    binary
+*.pyd   binary
+*.sqlite binary
