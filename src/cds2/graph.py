@@ -216,7 +216,11 @@ def pagerank(
         raise ValueError(msg)
     source_nodes = coo.row.astype(np.int64, copy=False)
     weights = coo.data.astype(np.float64, copy=False)
-    out_degree = np.bincount(source_nodes, minlength=n).astype(float)
+    # Weighted out-degree: sum of outgoing weights, not count of edges. Using
+    # counts makes the transition matrix non-stochastic and the ranking wrong
+    # on any graph with non-unit weights (e.g. [[0,9,1],[1,0,0],[1,0,0]] ranked
+    # node 1 first instead of node 0).
+    out_degree = np.bincount(source_nodes, weights=weights, minlength=n).astype(float)
 
     # Transposed normalized CSR built with plain numpy: row j lists the
     # incoming links of node j (sources), so one sweep per iteration runs
@@ -327,10 +331,21 @@ def betweenness_centrality(adj: object, normalized: bool = True) -> FloatArray:
             if target != source:
                 betweenness[target] += dependencies[target]
 
-    scale_denominator = (n - 1) * (n - 2) if n > 2 else 1
+    # Undirected graphs are counted twice (s->t and t->s), so halve once.
+    # Normalized scale is (n-1)(n-2)/2 for undirected, (n-1)(n-2) for directed.
+    # The old code used (n-1)(n-2) for both and then halved again, capping an
+    # undirected star centre at 0.5 where the standard definition gives 1.0.
+    is_undirected = not directed_flag(matrix)
+    if is_undirected:
+        betweenness /= 2.0
     if normalized:
-        betweenness /= scale_denominator
-    betweenness /= 2.0 if not directed_flag(matrix) else 1.0
+        if n <= 2:
+            scale = 1.0
+        elif is_undirected:
+            scale = (n - 1) * (n - 2) / 2.0
+        else:
+            scale = (n - 1) * (n - 2)
+        betweenness /= scale
     return np.asarray(betweenness, dtype=float)
 
 

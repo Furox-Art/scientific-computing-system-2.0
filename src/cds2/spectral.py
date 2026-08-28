@@ -20,10 +20,11 @@ FloatArray = NDArray[np.float64]
 
 def laplacian(adj: object, normalized: bool = False) -> sparse.csr_matrix:
     """Graph Laplacian ``L = D - W`` (combinatorial or symmetric-normalized)."""
-    matrix = sparse.coo_matrix(adj)
-    binary = sparse.csr_matrix(matrix)
-    binary.data = np.ones_like(binary.data)
-    degree = np.asarray(binary.sum(axis=1)).ravel().astype(float)
+    # Degree is the weighted degree (row sum of W), not the binary degree
+    # (count of neighbours). Using the binary degree made L = D_binary - W
+    # and rows summed to -8 instead of 0 on [[0,9,1],[9,0,0],[1,0,0]].
+    matrix = sparse.coo_matrix(adj).tocsr()
+    degree = np.asarray(matrix.sum(axis=1)).ravel().astype(float)
     degree_matrix = sparse.diags(degree)
     combinatorial = (degree_matrix - matrix).tocsr()
     if not normalized:
