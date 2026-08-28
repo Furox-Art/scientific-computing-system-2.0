@@ -22,7 +22,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -35,7 +35,7 @@ jobs:
           python -m build --sdist
           python -m build --wheel
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sdist-and-pure-wheel
           path: dist/*
@@ -49,13 +49,13 @@ jobs:
         python: ["310", "311", "312", "313"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build compiled wheel
         uses: pypa/cibuildwheel@v4.2
         env:
           CIBW_BUILD: "cp${{ matrix.python }}-*"
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wheel-${{ matrix.os }}-${{ matrix.python }}
           path: wheelhouse/*.whl
@@ -68,7 +68,7 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Skip when the version is already on PyPI
         id: gate
         run: |
@@ -90,7 +90,7 @@ jobs:
           fi
       - name: Download all distributions
         if: steps.gate.outputs.skip != 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
