@@ -8,10 +8,12 @@ from __future__ import annotations
 
 from . import (
     bayes,
+    bayesopt,
     calculus,
     chaos,
     cli,
     combinatorial,
+    data_analysis,
     design,
     distributions,
     epidemiology,
@@ -34,6 +36,7 @@ from . import (
     montecarlo,
     nlp,
     optimize,
+    pde,
     quality,
     quantum,
     reliability,
@@ -62,6 +65,13 @@ from .bayes import (
     gamma_poisson_update,
     normal_normal_update,
     posterior_interval,
+)
+from .bayesopt import (
+    GaussianProcess,
+    OptimizeResult,
+    bayes_opt,
+    expected_improvement,
+    upper_confidence_bound,
 )
 from .calculus import (
     ErrorPropagationResult,
@@ -93,6 +103,14 @@ from .combinatorial import (
     longest_common_subsequence,
     nearest_neighbor_tsp,
     two_opt,
+)
+from .data_analysis import (
+    DataGroup,
+    DataSet,
+    Row,
+    Scalar,
+    from_dataframe,
+    to_dataframe,
 )
 from .design import (
     DesignResult,
@@ -334,6 +352,18 @@ from .optimize import (
     newton_root,
     root,
 )
+from .pde import (
+    Heat2DResult,
+    HeatResult,
+    Wave2DResult,
+    WaveResult,
+    heat_equation_1d,
+    heat_equation_2d,
+    solve_heat,
+    solve_wave,
+    wave_equation_1d,
+    wave_equation_2d,
+)
 from .quality import (
     CapabilityResult,
     ControlChartResult,
@@ -549,13 +579,16 @@ from .timeseries import (
 )
 
 __all__ = [
+    "bayesopt",
     "combinatorial",
+    "data_analysis",
     "design",
     "epidemiology",
     "finance",
     "game_theory",
     "genetics",
     "image",
+    "pde",
     "quality",
     "reliability",
     "spatial",
@@ -563,6 +596,17 @@ __all__ = [
     "wavelets",
     "__version__",
     "bayes",
+    "GaussianProcess",
+    "OptimizeResult",
+    "bayes_opt",
+    "expected_improvement",
+    "upper_confidence_bound",
+    "DataGroup",
+    "DataSet",
+    "Row",
+    "Scalar",
+    "from_dataframe",
+    "to_dataframe",
     "calculus",
     "chaos",
     "design",
@@ -1056,4 +1100,15 @@ __all__ = [
     "moving_average",
     "pacf",
     "seasonal_decompose",
+    # pde
+    "HeatResult",
+    "WaveResult",
+    "Heat2DResult",
+    "Wave2DResult",
+    "heat_equation_1d",
+    "heat_equation_2d",
+    "wave_equation_1d",
+    "wave_equation_2d",
+    "solve_heat",
+    "solve_wave",
 ]
