@@ -1,4 +1,4 @@
-"""Numerical integration and ODE solving built on scipy.integrate."""
+"""Quadrature and ODE — convenience re-export of scipy.integrate; see cds2.sde for SDE companion."""
 
 from __future__ import annotations
 

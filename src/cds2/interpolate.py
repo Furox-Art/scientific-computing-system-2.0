@@ -1,4 +1,4 @@
-"""Interpolation built on scipy.interpolate and numpy."""
+"""Interpolation — convenience re-export of scipy.interpolate / numpy.interp."""
 
 from __future__ import annotations
 

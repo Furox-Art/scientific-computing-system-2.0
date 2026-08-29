@@ -1,4 +1,4 @@
-"""Pandas-backed data I/O with optional Excel/Parquet bridges."""
+"""I/O — convenience re-export of pandas read/write; native value is summarize/iter_csv."""
 
 from __future__ import annotations
 

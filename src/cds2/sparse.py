@@ -1,4 +1,4 @@
-"""Large-scale sparse linear algebra built on scipy.sparse.linalg."""
+"""Sparse linear algebra — thin wrapper with CDS-native preconditioners jacobi/ilu."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Optimization and root finding built on scipy.optimize."""
+"""Optimization — convenience re-export of scipy.optimize with normalized result types; see cds2.metaheuristics and cds2.bayesopt for CDS-native global search."""
 
 from __future__ import annotations
 

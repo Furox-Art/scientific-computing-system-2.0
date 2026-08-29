@@ -1,4 +1,4 @@
-"""Physical constants and formula helpers."""
+"""Physical constants and formulas — CDS-native, not a wrapper (CODATA)."""
 
 from __future__ import annotations
 

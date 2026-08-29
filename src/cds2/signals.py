@@ -1,4 +1,4 @@
-"""Signal processing built on scipy.signal and numpy.fft."""
+"""Signal processing — convenience re-export of scipy.signal/numpy.fft with uniform result types; see cds2.wavelets/cds2.spectral for CDS-native."""
 
 from __future__ import annotations
 

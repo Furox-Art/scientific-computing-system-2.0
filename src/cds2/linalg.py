@@ -1,4 +1,4 @@
-"""Dense linear algebra built on NumPy."""
+"""Dense linear algebra — convenience re-export of numpy.linalg/scipy.linalg with typed dataclass results."""
 
 from __future__ import annotations
 
