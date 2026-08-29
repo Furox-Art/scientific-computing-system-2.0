@@ -124,6 +124,31 @@ q_values, returns = cds2.rl.q_learn(cds2.rl.GridWorld(4, 4), episodes=300, seed=
 | `cds2.nlp` | NumPy | scalar autograd, BPE tokenizer, multi-head attention, mini-GPT forward pass |
 | `cds2.cli` | argparse | `cds2` console entry point (info/stats/integrate/linsolve/entropy/units/solve/plot) |
 
+## Facade vs Real Capability
+
+Some `cds2.*` modules are thin convenience wrappers that only coerce args and unify return types; others contain CDS-native science with no SciPy equivalent. Knowing which is which tells you when `cds2` saves time and when to import upstream directly.
+
+| Class | What it means | Modules | Guidance |
+|---|---|---|---|
+| **Convenience re-export** | Thin `numpy`/`scipy`/`pandas` wrappers that only coerce args / unify return types. No new math; lags upstream by one release. | `cds2.special`¹, `cds2.distributions`¹ | **Prefer upstream.** `from scipy import special, stats` |
+| **Convenience re-export, kept** | Same pattern, but the typed `dataclass` DX justifies the import. | `cds2.linalg`, `cds2.interpolate`, `cds2.io` (thin part), `cds2.scientific`² | Use `cds2` for uniform result types; docs state `Convenience re-export — see SciPy/pandas for full API.` |
+| **Thin + CDS companion** | Module keeps its wrappers but its reason to exist is a companion with no SciPy equivalent. | `cds2.integrate` + `cds2.sde`, `cds2.optimize` + `cds2.metaheuristics`, `cds2.signals` + `cds2.wavelets`/`cds2.spectral`/`cds2.chaos`, `cds2.sparse`³ | Keep `cds2`. Deterministic `integrate` pairs with SDE ensembles; `optimize` pairs with global search. |
+| **Native** | Pure CDS — constants, formulas, C kernels, ML, etc. | `cds2.graph` (C kernel), `cds2.ml`, `cds2.sde`, `cds2.quality`, … | Always use `cds2`. |
+
+¹ Deprecated since `4.3.0`, removed in `5.0.0` — `DeprecationWarning`. ² `cds2.scientific` is 100% native (CODATA `CONSTANTS`, physics formulas, `convert_units`). ³ `cds2.sparse` already has real value: `jacobi_preconditioner`/`ilu_preconditioner` → `LinearOperator`, `residual_norm` diagnostics.
+
+```python
+# Convenience re-export — use SciPy
+from scipy import special as sps
+from scipy import stats
+sps.gamma([0.5, 1, 2])
+stats.norm.pdf(0.0, loc=0, scale=1)
+
+# CDS-native — use cds2
+from cds2 import sde
+ens = sde.sde_milstein(lambda y,t: 0.05*y, lambda y,t: 0.20*y, y0=[100.0], t_span=(0,1), dt=1e-3, n_paths=8192, seed=0)
+```
+
 ## CLI
 
 ```bash

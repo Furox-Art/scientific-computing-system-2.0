@@ -2,9 +2,21 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 from numpy.typing import NDArray
 from scipy import stats as sps
+
+warnings.warn(
+    "cds2.distributions is deprecated since 4.3.0 and will be removed in 5.0.0: "
+    "it re-exports scipy.stats distribution methods as pdf/cdf/ppf aliases with "
+    "divergent parameter names and without the frozen-distribution, rvs, fit, or "
+    "interval API. Use `from scipy import stats` directly (e.g. stats.norm.pdf, "
+    "stats.t.cdf, stats.binom.ppf) or frozen `stats.norm(loc=mu, scale=sigma)`.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 __all__ = [
     "student_t_pdf",

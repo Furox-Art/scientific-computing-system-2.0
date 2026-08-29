@@ -2,9 +2,20 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 from numpy.typing import NDArray
 from scipy import special as sps
+
+warnings.warn(
+    "cds2.special is deprecated since 4.3.0 and will be removed in 5.0.0: "
+    "it is a thin convenience wrapper around scipy.special that coerces scalars to "
+    "atleast_1d and lags upstream releases. Use `from scipy import special as sps` "
+    "directly (e.g. sps.gamma, sps.erf, sps.jv).",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 __all__ = [
     "gamma_fn",
