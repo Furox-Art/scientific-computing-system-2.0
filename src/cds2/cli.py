@@ -89,11 +89,18 @@ def cmd_linsolve(args: argparse.Namespace) -> int:
     matrix_rows = [row for row in args.a.split(";") if row.strip()]
     a_values = [_parse_numbers(row) for row in matrix_rows]
     widths = {len(row) for row in a_values}
-    if len(widths) != 1 or len(a_values) != next(iter(widths)):
+    if not a_values or len(widths) != 1 or len(a_values) != next(iter(widths)):
         print("error: --a must be square, rows separated by ';'", file=sys.stderr)
         return 1
     b_values = _parse_numbers(args.b)
-    solution = solve(np.array(a_values, dtype=float), np.array(b_values, dtype=float))
+    if len(b_values) != len(a_values):
+        print("error: --b must have one value for each row in --a", file=sys.stderr)
+        return 1
+    try:
+        solution = solve(np.array(a_values, dtype=float), np.array(b_values, dtype=float))
+    except np.linalg.LinAlgError:
+        print("error: --a must be non-singular", file=sys.stderr)
+        return 1
     print("solution  " + "  ".join(f"{value:.6g}" for value in np.atleast_1d(solution)))
     return 0
 
@@ -145,7 +152,7 @@ def cmd_solve(args: argparse.Namespace) -> int:
     import numpy as np
 
     coefficients = _parse_numbers(args.coeffs)
-    if len(coefficients) < 2 or abs(coefficients[-1]) < 1e-15:
+    if len(coefficients) < 2 or abs(coefficients[0]) < 1e-15:
         print(
             "error: --coeffs needs descending powers with a nonzero leading term",
             file=sys.stderr,

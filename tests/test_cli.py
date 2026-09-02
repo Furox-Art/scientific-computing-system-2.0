@@ -47,6 +47,15 @@ class TestLinsolveCommand:
     def test_non_square_rejected(self) -> None:
         assert main(["linsolve", "--a", "1,2,3;4,5,6", "--b", "1,2"]) == 1
 
+    def test_empty_matrix_rejected(self) -> None:
+        assert main(["linsolve", "--a", ";", "--b", "1"]) == 1
+
+    def test_mismatched_right_hand_side_rejected(self) -> None:
+        assert main(["linsolve", "--a", "3,1;1,2", "--b", "9"]) == 1
+
+    def test_singular_matrix_rejected(self) -> None:
+        assert main(["linsolve", "--a", "1,2;2,4", "--b", "3,6"]) == 1
+
 
 class TestPlotCommand:
     def test_ascii_output(self, capsys: pytest.CaptureFixture[str]) -> None:
@@ -127,4 +136,10 @@ class TestSolveCommand:
         assert "complex" in out
 
     def test_zero_leading_coefficient_fails(self) -> None:
-        assert main(["solve", "--coeffs", "1,0,0,0"]) == 1
+        assert main(["solve", "--coeffs", "0,1,-5,6"]) == 1
+
+    def test_zero_constant_term_is_allowed(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["solve", "--coeffs", "1,0,0,0"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "real      0" in out
