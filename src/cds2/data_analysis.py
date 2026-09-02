@@ -169,7 +169,7 @@ class DataSet:
         returns an empty :class:`DataFrame` for an empty dataset.
         """
         if self._df.empty:
-            return pd.DataFrame()
+            return cast(pd.DataFrame, pd.DataFrame())
         result = cast(pd.DataFrame, self._df.describe(include="all"))
         return result
 
@@ -182,18 +182,21 @@ class DataSet:
         ``unique``, ``mean``, ``std``, ``min``, ``max``.
         """
         if self._df.empty and len(self._df.columns) == 0:
-            return pd.DataFrame(
-                columns=[
-                    "column",
-                    "dtype",
-                    "non_null",
-                    "nulls",
-                    "unique",
-                    "mean",
-                    "std",
-                    "min",
-                    "max",
-                ]
+            return cast(
+                pd.DataFrame,
+                pd.DataFrame(
+                    columns=[
+                        "column",
+                        "dtype",
+                        "non_null",
+                        "nulls",
+                        "unique",
+                        "mean",
+                        "std",
+                        "min",
+                        "max",
+                    ]
+                ),
             )
         df = self._df
         non_null = df.notna().sum()
@@ -230,7 +233,7 @@ class DataSet:
                     "max": max_value,
                 }
             )
-        return pd.DataFrame(rows)
+        return cast(pd.DataFrame, pd.DataFrame(rows))
 
     def __repr__(self) -> str:
         """Return a compact summary."""

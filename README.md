@@ -141,12 +141,22 @@ Some `cds2.*` modules are thin convenience wrappers that only coerce args and un
 # Convenience re-export — use SciPy
 from scipy import special as sps
 from scipy import stats
+
 sps.gamma([0.5, 1, 2])
 stats.norm.pdf(0.0, loc=0, scale=1)
 
 # CDS-native — use cds2
 from cds2 import sde
-ens = sde.sde_milstein(lambda y,t: 0.05*y, lambda y,t: 0.20*y, y0=[100.0], t_span=(0,1), dt=1e-3, n_paths=8192, seed=0)
+
+ens = sde.sde_milstein(
+    lambda y, t: 0.05 * y,
+    lambda y, t: 0.20 * y,
+    y0=[100.0],
+    t_span=(0, 1),
+    dt=1e-3,
+    n_paths=8192,
+    seed=0,
+)
 ```
 
 ## CLI
