@@ -94,9 +94,15 @@ jobs:
         with:
           path: dist
           merge-multiple: true
-      - name: Publish to PyPI
-        if: steps.gate.outputs.skip != 'true'
+      - name: Publish to PyPI (trusted publishing)
+        if: steps.gate.outputs.skip != 'true' && env.PYPI_TOKEN == ''
         uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Publish to PyPI (API token fallback)
+        if: steps.gate.outputs.skip != 'true' && env.PYPI_TOKEN != ''
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
