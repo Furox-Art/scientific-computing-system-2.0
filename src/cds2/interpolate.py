@@ -35,13 +35,15 @@ def pchip_interpolator(x: Sequence[float], y: Sequence[float]) -> spi.PchipInter
     return spi.PchipInterpolator(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
 
 
-def lagrange_poly(x: Sequence[float], y: Sequence[float]) -> np.poly1d:
-    """Lagrange polynomial passing exactly through all given points."""
-    poly = spi.lagrange(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
-    if isinstance(poly, np.ndarray):
-        msg = "lagrange returned an unexpected array result"
-        raise TypeError(msg)
-    return np.poly1d(poly)
+def lagrange_poly(x: Sequence[float], y: Sequence[float]) -> spi.BarycentricInterpolator:
+    """Lagrange polynomial passing exactly through all given points.
+
+    Uses :class:`scipy.interpolate.BarycentricInterpolator` — the
+    recommended replacement for the deprecated :func:`scipy.interpolate.lagrange`
+    (removed in SciPy 1.20). The returned interpolator is callable and
+    evaluates the unique interpolating polynomial at any point.
+    """
+    return spi.BarycentricInterpolator(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
 
 
 def grid_interp(

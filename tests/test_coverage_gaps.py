@@ -72,10 +72,10 @@ class TestGraphGaps:
 
 # ---------------------------------------------------------- interpolate ----
 class TestInterpolateGaps:
-    def test_lagrange_unexpected_array_guard(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(spi, "lagrange", lambda x, y: np.array([1.0, 2.0]))
-        with pytest.raises(TypeError, match="unexpected array"):
-            interpolate.lagrange_poly([0.0, 1.0], [1.0, 2.0])
+    def test_lagrange_returns_interpolator(self) -> None:
+        poly = interpolate.lagrange_poly([0.0, 1.0, 2.0], [1.0, 3.0, 7.0])
+        assert isinstance(poly, spi.BarycentricInterpolator)
+        assert np.allclose(poly([0.0, 1.0, 2.0]), [1.0, 3.0, 7.0])
 
 
 # ------------------------------------------------------------------ io ----

@@ -25,6 +25,7 @@ if os.environ.get("CDS_PURE") != "1":
             sources=["src/cds2/src/_fast_kmeans.c"],
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
+            optional=True,
         )
     )
     extensions.append(
@@ -33,6 +34,7 @@ if os.environ.get("CDS_PURE") != "1":
             sources=["src/cds2/src/_fast_pagerank.c"],
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
+            optional=True,
         )
     )
 

@@ -101,6 +101,8 @@ q_values, returns = cds2.rl.q_learn(cds2.rl.GridWorld(4, 4), episodes=300, seed=
 | `cds2.infotheory` | NumPy | Shannon/joint/conditional entropy, KL & Jensen-Shannon divergence, mutual information, permutation entropy |
 | `cds2.chaos` | NumPy | delay embedding, false nearest neighbours, Lyapunov exponent, correlation dimension, sample entropy, Hurst exponent, bifurcation scans |
 | `cds2.bayes` | scipy.stats | Beta-Binomial / Normal-Normal / Gamma-Poisson conjugate updates, credible intervals, naive Bayes, Metropolis posteriors |
+| `cds2.bayesopt` | scipy.optimize | Gaussian Process, expected improvement, UCB, Bayesian optimization |
+| `cds2.data_analysis` | pandas | DataSet / DataFrame bridge, describe/summarize, group-by, NaN-aware |
 | `cds2.metaheuristics` | NumPy | real-coded genetic algorithm, particle swarm optimization, simulated annealing |
 | `cds2.geometry` | scipy.spatial | convex hull, closest pair, point-in-polygon, polygon area/perimeter, line-segment intersection, rotations |
 | `cds2.rl` | NumPy | Bernoulli bandits (epsilon-greedy, UCB1), tabular Q-learning, grid-world environment |
@@ -119,6 +121,8 @@ q_values, returns = cds2.rl.q_learn(cds2.rl.GridWorld(4, 4), episodes=300, seed=
 | `cds2.modeling` | pure Python | expression trees, symbolic diff/integral, polynomial solving, MathModel |
 | `cds2.hypothesis` | pure Python | heuristic hypothesis generation: trend, periodicity, outlier, correlation |
 | `cds2.knowledge` | pure Python | knowledge graph with typed relations, notebook, ranked search |
+| `cds2.pde` | NumPy | heat/wave 1D/2D FTCS/leapfrog, CFL-guarded, Dirichlet/Neumann |
+| `cds2.sde` | NumPy | Euler-Maruyama / Milstein ensembles, ensemble statistics |
 | `cds2.scientific` | pure Python | CODATA constants, mechanics/EM/thermo formulas, unit conversion |
 | `cds2.quantum` | NumPy | statevector circuit simulator up to 16 qubits |
 | `cds2.nlp` | NumPy | scalar autograd, BPE tokenizer, multi-head attention, mini-GPT forward pass |

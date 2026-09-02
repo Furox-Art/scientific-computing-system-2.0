@@ -55,6 +55,10 @@ nav:
       - cds2.infotheory: api/infotheory.md
       - cds2.chaos: api/chaos.md
       - cds2.bayes: api/bayes.md
+      - cds2.bayesopt: api/bayesopt.md
+      - cds2.data_analysis: api/data_analysis.md
+      - cds2.pde: api/pde.md
+      - cds2.sde: api/sde.md
       - cds2.metaheuristics: api/metaheuristics.md
       - cds2.geometry: api/geometry.md
       - cds2.rl: api/rl.md

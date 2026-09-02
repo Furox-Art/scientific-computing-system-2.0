@@ -127,4 +127,10 @@ class TestSolveCommand:
         assert "complex" in out
 
     def test_zero_leading_coefficient_fails(self) -> None:
-        assert main(["solve", "--coeffs", "1,0,0,0"]) == 1
+        assert main(["solve", "--coeffs", "0,1,-1"]) == 1
+
+    def test_trailing_zeros_allowed(self, capsys: pytest.CaptureFixture[str]) -> None:
+        code = main(["solve", "--coeffs", "1,0,0"])
+        out = capsys.readouterr().out
+        assert code == 0
+        assert "real" in out

@@ -145,7 +145,7 @@ def cmd_solve(args: argparse.Namespace) -> int:
     import numpy as np
 
     coefficients = _parse_numbers(args.coeffs)
-    if len(coefficients) < 2 or abs(coefficients[-1]) < 1e-15:
+    if len(coefficients) < 2 or abs(coefficients[0]) < 1e-15:
         print(
             "error: --coeffs needs descending powers with a nonzero leading term",
             file=sys.stderr,
