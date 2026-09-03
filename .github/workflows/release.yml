@@ -99,7 +99,11 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         continue-on-error: true
       - name: Publish to PyPI (API token fallback)
-        if: steps.gate.outputs.skip != 'true' && secrets.PYPI_API_TOKEN != ''
+        # NOTE: `secrets` cannot be used in `if:` expressions (workflow file
+        # error) - expose presence via env instead.
+        if: steps.gate.outputs.skip != 'true' && env.HAS_PYPI_TOKEN == 'true'
+        env:
+          HAS_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN != '' }}
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
