@@ -48,7 +48,7 @@ class BaseEstimator:
 
     @staticmethod
     def _check_X(X: Any) -> np.ndarray:
-        X = np.asarray(X, dtype=float)
-        if X.ndim != 2:
+        arr: np.ndarray = np.asarray(X, dtype=float)
+        if arr.ndim != 2:
             raise ValueError("X must be 2-D (n_samples, n_features)")
-        return X
+        return arr

@@ -40,15 +40,15 @@ def _ensure_cupy() -> Any:
                 "  pip install cds2[gpu]\n"
                 f"(original error: {exc})"
             ) from exc
-        _cupy = cp
-    return _cupy
+        _cupy = cp  # pragma: no cover - requires CuPy
+    return _cupy  # pragma: no cover - requires CuPy
 
 
 def is_available() -> bool:
     """Return True if CuPy is importable (does not check GPU visibility)."""
     try:
         _ensure_cupy()
-        return True
+        return True  # pragma: no cover - requires CuPy
     except RuntimeError:
         return False
 
@@ -62,6 +62,6 @@ def synchronize() -> None:
     """Synchronize the default CuPy stream (no-op if CuPy is unavailable)."""
     try:
         cp = _ensure_cupy()
-        cp.cuda.Stream.null.synchronize()
+        cp.cuda.Stream.null.synchronize()  # pragma: no cover - requires CuPy
     except RuntimeError:
         pass

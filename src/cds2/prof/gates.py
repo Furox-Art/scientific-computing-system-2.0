@@ -77,20 +77,21 @@ class RegressionGate:
             df = self.history.load_range()
         if df.empty:
             return []
+        if "name" not in df.columns:
+            return []
 
         results: list[GateResult] = []
-        grouped = df.groupby("name") if "name" in df.columns else {}
-        for bench, group in grouped.items():
+        for bench, group in df.groupby("name"):
             if name and bench != name:
                 continue
             recent = group.sort_values("timestamp").tail(self.lookback)
-            if recent.empty:
+            if recent.empty:  # pragma: no cover - defensive; groupby groups are never empty
                 continue
             latest = float(recent["ratio"].iloc[-1])
             limit = self._band(recent["ratio"])
             results.append(
                 GateResult(
-                    name=bench,
+                    name=str(bench),
                     latest_ratio=latest,
                     limit=limit,
                     passed=latest <= limit,
@@ -124,7 +125,7 @@ def pytest_collection_modifyitems(config: Any, items: list[Any]) -> None:
     """Skip regression tests unless ``--regression`` is passed."""
     if config.getoption("--regression"):
         return
-    skip = pytest.mark.skip(reason="need --regression option to run")  # type: ignore[attr-defined]
+    skip = pytest.mark.skip(reason="need --regression option to run")
     for item in items:
         if "regression" in item.keywords:
             item.add_marker(skip)
@@ -137,7 +138,7 @@ except ImportError:  # pragma: no cover - pytest is optional at runtime
 else:
 
     @pytest.mark.regression
-    def test_regression_gate() -> None:
+    def test_regression_gate() -> None:  # pragma: no cover - runs only under --regression
         """Run the regression gate as a pytest test."""
         gate = RegressionGate()
         gate.assert_latest()

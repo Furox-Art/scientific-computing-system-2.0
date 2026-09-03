@@ -71,10 +71,12 @@ class KMeansSKL(BaseEstimator):
     def predict(self, X: Any) -> np.ndarray:
         if self.cluster_centers_ is None:
             raise RuntimeError("model not fitted")
-        X = self._check_X(X)
-        dists = np.linalg.norm(X[:, None] - self.cluster_centers_[None, :], axis=2)
-        return np.argmin(dists, axis=1)
+        Xc = self._check_X(X)
+        dists = np.linalg.norm(Xc[:, None] - self.cluster_centers_[None, :], axis=2)
+        labels: np.ndarray = np.argmin(dists, axis=1)
+        return labels
 
     def fit_predict(self, X: Any, y: Any = None) -> np.ndarray:
         self.fit(X)
+        assert self.labels_ is not None
         return self.labels_

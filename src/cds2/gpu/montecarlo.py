@@ -5,6 +5,7 @@ Each function mirrors its CPU counterpart in ``cds2.montecarlo``.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from . import _ensure_cupy
@@ -22,7 +23,7 @@ def pi_estimate(n_samples: int = 1_000_000, seed: int | None = None) -> float:
 
 
 def mc_integrate(
-    f: callable,
+    f: Callable[..., Any],
     a: float,
     b: float,
     n_samples: int = 1_000_000,
@@ -42,7 +43,7 @@ def mc_integrate(
 
 
 def metropolis_hastings(
-    log_pdf: callable,
+    log_pdf: Callable[..., Any],
     x0: float,
     n_samples: int = 10_000,
     proposal_scale: float = 1.0,

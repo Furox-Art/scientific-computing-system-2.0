@@ -43,8 +43,9 @@ class PCASKL(BaseEstimator):
     def transform(self, X: Any) -> np.ndarray:
         if self.components_ is None or self.mean_ is None:
             raise RuntimeError("model not fitted")
-        X = self._check_X(X)
-        return (X - self.mean_) @ self.components_.T
+        Xc = self._check_X(X)
+        transformed: np.ndarray = (Xc - self.mean_) @ self.components_.T
+        return transformed
 
     def fit_transform(self, X: Any, y: Any = None) -> np.ndarray:
         self.fit(X)

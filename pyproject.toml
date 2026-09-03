@@ -71,6 +71,8 @@ dev = [
     "scikit-learn>=1.4",
 ]
 test = [
+    "pytest>=8.0",
+    "pytest-cov",
     "hypothesis>=6.0",
     "scikit-learn>=1.4",
 ]
@@ -127,6 +129,12 @@ files = ["src/cds2"]
 module = ["scipy.*", "matplotlib.*", "openpyxl.*"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+# Optional soft dependencies: imported lazily inside functions so the
+# package works without them. No stubs exist for these modules.
+module = ["cupy", "cupy.*", "array_api_compat", "array_api_compat.*"]
+ignore_missing_imports = true
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
@@ -148,6 +156,10 @@ markers = [
 [tool.coverage.run]
 source = ["src/cds2"]
 branch = true
+# GPU submodules need CuPy + CUDA hardware, unavailable on CI runners.
+# Their CPU mirrors in cds2.linalg / cds2.signals / cds2.montecarlo carry
+# the numerical tests instead.
+omit = ["src/cds2/gpu/linalg.py", "src/cds2/gpu/montecarlo.py", "src/cds2/gpu/signal.py"]
 
 [tool.coverage.report]
 show_missing = true

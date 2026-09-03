@@ -25,7 +25,7 @@ def _repo_root() -> Path:
     for parent in [here, *here.parents]:
         if (parent / "src" / "cds2").is_dir():
             return parent
-    return here.parents[3]  # src/cds2/prof/history.py -> repo root
+    return here.parents[3]  # pragma: no cover - defensive; src/cds2 always found above
 
 
 def _git_commit() -> str:
@@ -127,7 +127,7 @@ class BenchHistory:
         if isinstance(start, date):
             start = start.isoformat()
         if isinstance(end, date):
-            end = date.isoformat()
+            end = end.isoformat()
 
         rows: list[dict[str, Any]] = []
         for path in sorted(self.history_dir.glob("*.jsonl")):
@@ -155,7 +155,7 @@ class BenchHistory:
                             }
                         )
         if not rows:
-            return pd.DataFrame(
+            empty: pd.DataFrame = pd.DataFrame(
                 columns=[
                     "timestamp",
                     "commit",
@@ -167,7 +167,8 @@ class BenchHistory:
                     "ratio",
                 ]
             )
-        df = pd.DataFrame(rows)
+            return empty
+        df: pd.DataFrame = pd.DataFrame(rows)
         if "ratio" not in df.columns:
             df["ratio"] = df["cds2_seconds"] / df["baseline_seconds"]
         return df

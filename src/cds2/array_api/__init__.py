@@ -50,9 +50,11 @@ __all__ = [
 def __array_namespace_info__() -> Any:
     """Return Array API namespace info (version, capabilities)."""
     try:
-        from array_api_compat import get_namespace  # noqa: PLC0415
+        from array_api_compat import (
+            get_namespace,  # noqa: PLC0415  # pragma: no cover - optional dep
+        )
 
-        return get_namespace(None)
+        return get_namespace(None)  # pragma: no cover - optional dep
     except ImportError:
         return SimpleNamespace(
             version="2023.12",
@@ -191,12 +193,16 @@ class _LinalgNamespace:
     def svd(self, x: Any, *, full_matrices: bool = True) -> tuple[Any, Any, Any]:
         import cds2.linalg as _linalg  # noqa: PLC0415
 
-        return _linalg.svd(x, full_matrices=full_matrices)
+        r = _linalg.svd(x, full_matrices=full_matrices)
+        # cds2 returns a dataclass; the Array API standard specifies an
+        # unpackable (U, S, Vh) triple, so convert at the boundary.
+        return (r.u, r.s, r.vh)
 
     def eigh(self, x: Any) -> tuple[Any, Any]:
         import cds2.linalg as _linalg  # noqa: PLC0415
 
-        return _linalg.eigh(x)
+        r = _linalg.eigh(x)
+        return (r.eigenvalues, r.eigenvectors)
 
 
 linalg = _LinalgNamespace()

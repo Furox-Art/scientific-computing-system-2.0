@@ -89,8 +89,8 @@ def profile(
     """
     if repeats < 1:
         raise ValueError("repeats must be >= 1")
-    name = getattr(fn, "__qualname__", None) or getattr(fn, "__name__", repr(fn))
-    bound = functools.partial(fn, *args, **kw)  # type: ignore[arg-type]
+    name = str(getattr(fn, "__qualname__", None) or getattr(fn, "__name__", repr(fn)))
+    bound = functools.partial(fn, *args, **kw)
 
     tracemalloc.start()
     try:

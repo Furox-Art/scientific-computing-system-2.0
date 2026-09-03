@@ -55,8 +55,9 @@ class LinearRegressionGD(BaseEstimator):
     def predict(self, X: Any) -> np.ndarray:
         if self.coef_ is None:
             raise RuntimeError("model not fitted")
-        X = self._check_X(X)
-        return X @ self.coef_ + self.intercept_
+        Xc = self._check_X(X)
+        result: np.ndarray = Xc @ self.coef_ + self.intercept_
+        return result
 
     def score(self, X: Any, y: Any) -> float:
         """R² coefficient of determination."""
@@ -110,8 +111,9 @@ class RidgeSGD(BaseEstimator):
     def predict(self, X: Any) -> np.ndarray:
         if self.coef_ is None:
             raise RuntimeError("model not fitted")
-        X = self._check_X(X)
-        return X @ self.coef_ + self.intercept_
+        Xc = self._check_X(X)
+        result: np.ndarray = Xc @ self.coef_ + self.intercept_
+        return result
 
     def score(self, X: Any, y: Any) -> float:
         y_pred = self.predict(X)

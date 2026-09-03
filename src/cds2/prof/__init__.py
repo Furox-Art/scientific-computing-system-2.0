@@ -22,11 +22,12 @@ from __future__ import annotations
 
 from .gates import RegressionGate
 from .history import BenchHistory
-from .profiler import ProfileResult, profile
+from .profiler import ProfileResult, profile, timed
 
 __all__ = [
     "BenchHistory",
     "ProfileResult",
     "RegressionGate",
     "profile",
+    "timed",
 ]
