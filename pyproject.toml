@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scientific-computing-system-2.0"
-version = "4.3.0"
+version = "5.0.0"
 description = "A NumPy/SciPy/Pandas/Matplotlib-powered scientific computing platform: accelerated linear algebra, statistics, optimization, integration, interpolation, signal processing, Monte Carlo, graphs (with PageRank), machine learning, time series, visualization and I/O."
 readme = "README.md"
 license = "MIT"
@@ -66,6 +66,16 @@ dev = [
     # imports networkx at runtime, it is used purely to check pagerank and
     # betweenness against a second implementation on weighted graphs.
     "networkx>=3.0",
+    # Property-based testing (hypothesis) and sklearn estimator interface.
+    "hypothesis>=6.0",
+    "scikit-learn>=1.4",
+]
+test = [
+    "hypothesis>=6.0",
+    "scikit-learn>=1.4",
+]
+gpu = [
+    "cupy-cuda12x",
 ]
 docs = [
     "mkdocs>=1.6",
@@ -85,6 +95,9 @@ all = [
     "mkdocs>=1.6",
     "mkdocs-material>=9.5",
     "mkdocstrings[python]>=0.26",
+    "hypothesis>=6.0",
+    "scikit-learn>=1.4",
+    "cupy-cuda12x",
 ]
 
 [project.scripts]
@@ -127,6 +140,10 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 pythonpath = ["src", "."]
 addopts = ["--strict-markers", "--strict-config"]
+markers = [
+    "regression: benchmark regression gate (requires --regression)",
+    "property: property-based test (hypothesis)",
+]
 
 [tool.coverage.run]
 source = ["src/cds2"]

@@ -75,3 +75,33 @@ jobs:
         run: pip install -e .[dev]
       - name: Run tests
         run: pytest --cov=cds2 --cov-report=term-missing
+
+  # Property-based tests (hypothesis) run separately with a higher example count.
+  property-tests:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install package with test extras
+        run: pip install -e .[test]
+      - name: Run property-based tests
+        run: pytest tests/property/ -v --hypothesis-seed=0
+
+  # Regression gate: after benchmarks run, assert no benchmark regressed.
+  regression:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install package
+        run: pip install -e .
+      - name: Run benchmarks
+        run: python benchmarks/run_benchmarks.py --quick
+      - name: Regression gate
+        run: python -m cds2.bench.regression --tolerance 0.10
