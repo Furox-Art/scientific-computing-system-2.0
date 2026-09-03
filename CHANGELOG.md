@@ -225,13 +225,13 @@ case studies.
 
 ### Added
 
-- **`cds2.distributions`** — 24 functions across eight probability
+- **`cds2.distributions`**: 24 functions across eight probability
   distributions (Student-t, chi-squared, F, exponential, uniform,
   lognormal, Poisson, binomial) with pdf/pmf, cdf and ppf for each.
-- **Special functions doubled** — digamma, Fresnel integrals, Airy Ai/Bi,
+- **Special functions doubled**: digamma, Fresnel integrals, Airy Ai/Bi,
   Legendre polynomials, complete elliptic integrals K/E, exponential
   integral E1, Gauss hypergeometric 2F1, spherical Bessels j0/j1.
-- **`examples/`** — four runnable end-to-end case studies:
+- **`examples/`**: four runnable end-to-end case studies:
   - signal denoising (Butterworth + Welch verification)
   - Michaelis-Menten experiment fitting with residual inference
   - Bayesian sensor-bias MCMC vs analytic conjugate posterior
@@ -249,10 +249,10 @@ No API or behavior changes; 265 -> 344 tests.
 
 ### Added
 
-- **mypy `--strict` gate** — zero errors across all 19 source files,
+- **mypy `--strict` gate**: zero errors across all 19 source files,
   enforced by a dedicated CI job (`types`). SciPy/Matplotlib/openpyxl
   handled via documented module overrides; pandas typed through stubs.
-- **100% blended coverage gate** — statement + branch coverage at 100%
+- **100% blended coverage gate**: statement + branch coverage at 100%
   enforced via `--cov-fail-under=100` on the reference cell. Coverage rose
   from 88%: ~80 gap-closing tests including forced NumPy-fallback KMeans
   paths, pagerank fallback arcs, empty-cluster rescue and every validation
@@ -272,19 +272,19 @@ upgrades across the platform. Module count now 16 + CLI, ~165 flat exports,
 
 ### Added
 
-- **`cds2.sparse`** — large-scale sparse linear algebra: conjugate gradient,
+- **`cds2.sparse`**: large-scale sparse linear algebra: conjugate gradient,
   GMRES (with restart) and BiCGSTAB iterative solvers, Lanczos eigenpairs
   (`largest_eigenpairs` / `smallest_eigenpairs`) and truncated SVD.
-- **`cds2.spectral`** — spectral graph theory: combinatorial and
+- **`cds2.spectral`**: spectral graph theory: combinatorial and
   normalized Laplacians, Fiedler vectors, algebraic connectivity and
   spectral clustering (eigendecomposition embedding + k-means).
-- **`cds2.montecarlo.metropolis_hastings`** — seeded random-walk MH sampler
+- **`cds2.montecarlo.metropolis_hastings`**: seeded random-walk MH sampler
   with burn-in, thinning and acceptance-rate diagnostics.
-- **`cds2.optimize.minimize_constrained`** — SLSQP-based constrained
+- **`cds2.optimize.minimize_constrained`**: SLSQP-based constrained
   minimization with SciPy-dict equality/inequality constraints.
-- **`cds2.calculus.propagate_error`** — first-order uncertainty propagation
+- **`cds2.calculus.propagate_error`**: first-order uncertainty propagation
   through arbitrary functions via the Jacobian.
-- **`cds2.integrate.solve_bvp`** — two-point boundary value problems via
+- **`cds2.integrate.solve_bvp`**: two-point boundary value problems via
   4th-order collocation.
 
 ### Changed
@@ -299,15 +299,15 @@ event detection, stiff solvers and global optimization.
 
 ### Added
 
-- **`cds2.interpolate.rbf_interp`** — radial-basis-function interpolation
+- **`cds2.interpolate.rbf_interp`**: radial-basis-function interpolation
   for scattered N-D data (thin-plate-spline default), with `smoothing` for
   approximating fits and `neighbors` kNN mode for large problems.
-- **ODE events** — `cds2.integrate.solve_ivp` now accepts `events`
+- **ODE events**: `cds2.integrate.solve_ivp` now accepts `events`
   (zero-crossing callables, `terminal = True` honored) and returns
   `t_events` / `y_events` on the result.
-- **Stiff-solver documentation path** — `method="Radau" | "BDF" | "LSODA"`
+- **Stiff-solver documentation path**: `method="Radau" | "BDF" | "LSODA"`
   documented and tested with a stiff decay system.
-- **`cds2.optimize.differential_evolution`** — stochastic global minimizer
+- **`cds2.optimize.differential_evolution`**: stochastic global minimizer
   over box constraints returning `GlobalResult` (x, fun, nit, nfev).
 - 9 new tests (236 total).
 
@@ -318,18 +318,18 @@ inference.
 
 ### Added
 
-- **`cds2.calculus`** — numerical differentiation: `derivative` (central /
+- **`cds2.calculus`**: numerical differentiation: `derivative` (central /
   forward / backward with adaptive steps), `complex_step_gradient`
   (machine-precision gradients via the complex-step trick), `jacobian`
   (finite-difference, R^n -> R^m) and `hessian` (central differences with
   exact-symmetric mixed partials).
-- **`cds2.special`** — special functions: gamma/gammaln, erf/erfc/erfinv,
+- **`cds2.special`**: special functions: gamma/gammaln, erf/erfc/erfinv,
   beta/betaln, Bessel j0/j1/y0, Riemann-Hurwitz zeta.
-- **`cds2.stats.bootstrap_ci`** — percentile bootstrap confidence intervals
+- **`cds2.stats.bootstrap_ci`**: percentile bootstrap confidence intervals
   for arbitrary statistics, seeded and vectorized.
-- **`cds2.stats.permutation_test`** — two-sided permutation test on mean
+- **`cds2.stats.permutation_test`**: two-sided permutation test on mean
   differences with the +1 corrected p-value.
-- **`cds2.linalg.expm/logm/sqrtm`** — matrix exponential, logarithm and
+- **`cds2.linalg.expm/logm/sqrtm`**: matrix exponential, logarithm and
   principal square root.
 - 40+ new tests (227 total); docs pages for both new modules.
 
@@ -344,7 +344,7 @@ and the specialist win column widens.
 
 ### Added
 
-- **`cds2._fast_pagerank`** — C extension running the full power iteration
+- **`cds2._fast_pagerank`**: C extension running the full power iteration
   over transposed-CSR arrays (buffer protocol, no build-time deps). The
   Python side now builds that structure with plain vectorized NumPy
   (argsort + searchsorted) instead of SciPy multiply/transpose round-trips.
@@ -352,7 +352,7 @@ and the specialist win column widens.
 
 ### Changed
 
-- **PageRank vs NetworkX: 1.35x slower -> 0.18x — about 5x faster** than
+- **PageRank vs NetworkX: 1.35x slower -> 0.18x: about 5x faster** than
   NetworkX on the benchmark graph.
 - KMeans vs scikit-learn improved further with kernel-path tuning:
   0.79x -> **0.72x faster**.
@@ -371,10 +371,10 @@ they beat the wrapped libraries, with graceful NumPy fallback everywhere.
 
 ### Added
 
-- **`cds2._fast_kmeans`** — a from-scratch C extension (buffer-protocol API,
+- **`cds2._fast_kmeans`**: a from-scratch C extension (buffer-protocol API,
   no build-time NumPy headers) implementing the Lloyd iteration loop:
   fused assignment/update, empty-cluster relocation, convergence tracking.
-- **Compiled-wheel release pipeline** — cibuildwheel builds wheels for
+- **Compiled-wheel release pipeline**: cibuildwheel builds wheels for
   Linux/Windows/macOS x Python 3.10-3.13; a pure-Python fallback wheel and
   sdist are published alongside so compiler-less installs keep working.
 - `KMeans._run_c_lloyd` / `_run_numpy_lloyd` split: identical results either
@@ -404,37 +404,37 @@ new domain modules on top.
 ### Added
 
 - **Accelerated core** (NumPy / SciPy backed):
-  - `cds2.linalg` — solve, det, inv, pinv, eig/eigh, SVD, least squares,
+  - `cds2.linalg`: solve, det, inv, pinv, eig/eigh, SVD, least squares,
     cholesky, norms, trace, matrix power, rank, condition number
-  - `cds2.stats` — descriptive statistics, t-tests (one-sample, independent,
+  - `cds2.stats`: descriptive statistics, t-tests (one-sample, independent,
     Welch, paired), ANOVA, Kruskal-Wallis, Mann-Whitney U, Wilcoxon,
     normality test, Pearson/Spearman/Kendall correlations, chi-square
     independence, effect sizes (Cohen's d, eta-squared, Cramer's V),
     percentiles, z-scores, normal pdf/cdf/ppf
-  - `cds2.optimize` — minimize, scalar minimization, root finding
+  - `cds2.optimize`: minimize, scalar minimization, root finding
     (brentq/newton/systems), linear programming, nonlinear least squares,
     curve fitting
-  - `cds2.integrate` — quad/dblquad/triple integration, ODE solving via
+  - `cds2.integrate`: quad/dblquad/triple integration, ODE solving via
     `solve_ivp`, trapezoid/simpson rules, cumulative integration
-  - `cds2.interpolate` — linear/cubic/pchip interpolation, Lagrange
+  - `cds2.interpolate`: linear/cubic/pchip interpolation, Lagrange
     polynomials, scattered-data gridding, regular-grid interpolation
-  - `cds2.signals` — FFT family, periodogram/Welch/spectrogram, Butterworth
+  - `cds2.signals`: FFT family, periodogram/Welch/spectrogram, Butterworth
     low/high/band-pass filters, peak finding, convolution/correlation,
     Hilbert envelope, resampling, detrending
-  - `cds2.montecarlo` — seeded pi estimation, 1-D Monte Carlo integration,
+  - `cds2.montecarlo`: seeded pi estimation, 1-D Monte Carlo integration,
     expectation estimation, hit-or-miss area estimation
-  - `cds2.graph` — adjacency builders, connected components, Dijkstra /
+  - `cds2.graph`: adjacency builders, connected components, Dijkstra /
     Bellman-Ford / Floyd-Warshall shortest paths, minimum spanning tree,
     degrees, topological order, and **PageRank** (power iteration)
 - **New domain modules**:
-  - `cds2.ml` — LinearRegression, LogisticRegression, KMeans (k-means++
+  - `cds2.ml`: LinearRegression, LogisticRegression, KMeans (k-means++
     seeding), PCA, KNeighborsClassifier, StandardScaler, train/test split,
     synthetic data generators, classification/regression metrics
-  - `cds2.timeseries` — moving average, exponential smoothing, differencing,
+  - `cds2.timeseries`: moving average, exponential smoothing, differencing,
     classical seasonal decomposition, ACF/PACF, Ljung-Box test
-  - `cds2.viz` — matplotlib helpers: series, histogram, scatter, heatmap,
+  - `cds2.viz`: matplotlib helpers: series, histogram, scatter, heatmap,
     spectrum, regression overlay, confusion matrix
-  - `cds2.io` — pandas-backed CSV/JSON readers/writers plus optional
+  - `cds2.io`: pandas-backed CSV/JSON readers/writers plus optional
     Excel/Parquet bridges and a DataFrame summarizer
 - **CLI**: `cds2 info | stats | integrate | linsolve | plot`
 - **CI**: GitHub Actions matrix (Ubuntu/Windows/macOS x Python 3.10-3.13)

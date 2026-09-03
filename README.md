@@ -11,7 +11,7 @@
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-261230.svg)](https://github.com/astral-sh/ruff)
 
 **CDS v2** is a scientific computing platform built on the scientific Python
-stack — NumPy, SciPy, pandas and matplotlib. The algorithms proven in the
+stack: NumPy, SciPy, pandas and matplotlib. The algorithms proven in the
 pure-Python [scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system)
 (v1.x) form its foundation; v2 rebuilds them for speed and adds new domain
 modules on top.
@@ -137,9 +137,9 @@ Some `cds2.*` modules are thin convenience wrappers that only coerce args and un
 | **Convenience re-export** | Thin `numpy`/`scipy`/`pandas` wrappers that only coerce args / unify return types. No new math; lags upstream by one release. | `cds2.special`¹, `cds2.distributions`¹ | **Prefer upstream.** `from scipy import special, stats` |
 | **Convenience re-export, kept** | Same pattern, but the typed `dataclass` DX justifies the import. | `cds2.linalg`, `cds2.interpolate`, `cds2.io` (thin part), `cds2.scientific`² | Use `cds2` for uniform result types; docs state `Convenience re-export — see SciPy/pandas for full API.` |
 | **Thin + CDS companion** | Module keeps its wrappers but its reason to exist is a companion with no SciPy equivalent. | `cds2.integrate` + `cds2.sde`, `cds2.optimize` + `cds2.metaheuristics`, `cds2.signals` + `cds2.wavelets`/`cds2.spectral`/`cds2.chaos`, `cds2.sparse`³ | Keep `cds2`. Deterministic `integrate` pairs with SDE ensembles; `optimize` pairs with global search. |
-| **Native** | Pure CDS — constants, formulas, C kernels, ML, etc. | `cds2.graph` (C kernel), `cds2.ml`, `cds2.sde`, `cds2.quality`, … | Always use `cds2`. |
+| **Native** | Pure CDS: constants, formulas, C kernels, ML, etc. | `cds2.graph` (C kernel), `cds2.ml`, `cds2.sde`, `cds2.quality`, … | Always use `cds2`. |
 
-¹ Deprecated since `4.3.0`, removed in `5.0.0` — `DeprecationWarning`. ² `cds2.scientific` is 100% native (CODATA `CONSTANTS`, physics formulas, `convert_units`). ³ `cds2.sparse` already has real value: `jacobi_preconditioner`/`ilu_preconditioner` → `LinearOperator`, `residual_norm` diagnostics.
+¹ Deprecated since `4.3.0`, removed in `5.0.0`: `DeprecationWarning`. ² `cds2.scientific` is 100% native (CODATA `CONSTANTS`, physics formulas, `convert_units`). ³ `cds2.sparse` already has real value: `jacobi_preconditioner`/`ilu_preconditioner` → `LinearOperator`, `residual_norm` diagnostics.
 
 ```python
 # Convenience re-export — use SciPy
@@ -187,7 +187,7 @@ Runnable case studies live in [examples/](examples/) - see the docs page for det
 
 ## Benchmarks
 
-cds2 races the scientific stack head-to-head — and ships its own **compiled C
+cds2 races the scientific stack head-to-head, and ships its own **compiled C
 kernels** where they help. Current scoreboard (full methodology in
 [docs/benchmarks.md](docs/benchmarks.md)):
 
@@ -220,4 +220,4 @@ ruff check .      # lint
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT: see [LICENSE](LICENSE).
