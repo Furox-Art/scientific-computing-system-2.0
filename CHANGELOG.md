@@ -1,3 +1,76 @@
+## [v5.0.0] - 2026-09-03
+
+Performance, GPU, testing and ecosystem release: profiling/benchmark
+infrastructure, compiled C kernels, an optional GPU backend,
+property-based/fuzz/oracle tests, NumPy Array API compliance and
+scikit-learn estimator interfaces join the library.
+
+### Added
+
+- **`cds2.prof`** - wall-clock, memory and CPU-time profiling with a
+  `@timed` decorator, append-only JSONL benchmark history and
+  tolerance-based regression gates (`pytest --regression`).
+- **`cds2.bench`** - CLI report generator for CI regression runs.
+- **C kernel extensions** (`src/cds2/src/`) - `solve_triangular` and
+  `eigh_tridiag` (`_fast_linop`), RK4 step and batched trapezoid rule
+  (`_fast_integrate`), 1-D convolution and SOS IIR filtering
+  (`_fast_signal`); OpenMP on Linux, ARM64 NEON paths, serial fallback
+  elsewhere.
+- **`cds2.gpu`** (optional `gpu` extra) - lazy CuPy backend for linalg
+  (solve, eigh, SVD, Cholesky), signal (FFT family, power spectrum)
+  and Monte Carlo (pi estimate, MC integration, Metropolis-Hastings).
+- **`cds2.array_api`** - NumPy Array API 2023.12 compliant namespace
+  (reductions, elementwise math, FFT, linalg).
+- **`cds2.estimator`** - scikit-learn compatible estimators
+  (LinearRegressionGD, RidgeSGD, KMeansSKL, PCASKL).
+- **Testing** - hypothesis property-based tests (`tests/property/`),
+  CLI and API fuzz tests (`tests/fuzz/`), SciPy/NumPy ground-truth
+  oracle comparisons (`tests/oracles/`); CI gains property-tests and
+  regression-gate jobs.
+
+### Changed
+
+- Version 4.3.0 -> 5.0.0; new optional extras `test` (hypothesis,
+  scikit-learn) and `gpu` (cupy-cuda12x).
+- Test count ~1200 -> 1596; 100% blended coverage, mypy strict and
+  ruff clean maintained.
+
+## [v4.3.0] - 2026-09-03
+
+Domain and audit release: Bayesian optimization and SDE ensembles join
+the library, PDE and data-analysis ports land, facade modules are
+documented and thin wrappers deprecated.
+
+### Added
+
+- **`cds2.bayesopt`** - Gaussian Process surrogate, expected
+  improvement and UCB acquisition, Bayesian optimization loop.
+- **`cds2.sde`** - Euler-Maruyama and Milstein SDE ensembles with
+  ensemble statistics.
+- **`cds2.pde`** - heat/wave 1-D/2-D solvers (FTCS/leapfrog,
+  CFL-guarded, Dirichlet/Neumann) ported from v1 and accelerated.
+- **`cds2.data_analysis`** - DataSet/DataFrame bridge with
+  describe/summarize, group-by and NaN-aware helpers.
+- **`tools/consistency_audit.py`** - automated facade-vs-native audit
+  used to keep wrapper docs honest.
+
+### Changed
+
+- Docs: facade vs real-capability guidance added; `cds2.special` and
+  `cds2.distributions` documented as convenience re-exports kept for
+  their typed dataclass DX.
+- `cds2.interpolate`: deprecated `scipy.interpolate.lagrange`
+  replaced with `BarycentricInterpolator`.
+
+### Fixed
+
+- CLI polynomial solver checked the leading coefficient instead of
+  the trailing one, accepting degenerate input.
+- Three wrong results on weighted graphs corrected; oracle tests
+  against networkx added.
+- Extension modules marked `optional=True` so compiler-less installs
+  fall back to pure NumPy/SciPy.
+
 ## [v4.2.0] - 2026-08-24
 
 Ten-domain expansion release built with parallel agent orchestration:
