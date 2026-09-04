@@ -87,13 +87,26 @@ def cmd_linsolve(args: argparse.Namespace) -> int:
     from .linalg import solve
 
     matrix_rows = [row for row in args.a.split(";") if row.strip()]
+    if not matrix_rows:
+        print("error: --a must contain at least one matrix row", file=sys.stderr)
+        return 1
     a_values = [_parse_numbers(row) for row in matrix_rows]
+    if any(not row for row in a_values):
+        print("error: --a contains an empty matrix row", file=sys.stderr)
+        return 1
     widths = {len(row) for row in a_values}
     if len(widths) != 1 or len(a_values) != next(iter(widths)):
         print("error: --a must be square, rows separated by ';'", file=sys.stderr)
         return 1
     b_values = _parse_numbers(args.b)
-    solution = solve(np.array(a_values, dtype=float), np.array(b_values, dtype=float))
+    if len(b_values) != len(a_values):
+        print("error: --b length must match the matrix dimension", file=sys.stderr)
+        return 1
+    try:
+        solution = solve(np.array(a_values, dtype=float), np.array(b_values, dtype=float))
+    except (ValueError, np.linalg.LinAlgError) as exc:
+        print(f"error: could not solve system: {exc}", file=sys.stderr)
+        return 1
     print("solution  " + "  ".join(f"{value:.6g}" for value in np.atleast_1d(solution)))
     return 0
 
@@ -102,6 +115,9 @@ def cmd_plot(args: argparse.Namespace) -> int:
     from .viz import plot_series, save_figure
 
     numbers = _parse_numbers(args.numbers)
+    if not numbers:
+        print("error: plot needs at least one number", file=sys.stderr)
+        return 1
     fig = plot_series(numbers, title=args.title or "cds2 plot")
     if args.file:
         target = save_figure(fig, args.file)
@@ -120,9 +136,18 @@ def cmd_entropy(args: argparse.Namespace) -> int:
     from .infotheory import entropy
 
     probabilities = _parse_numbers(args.probabilities)
+    if not probabilities:
+        print("error: entropy needs at least one probability", file=sys.stderr)
+        return 1
+    if any(value < 0 for value in probabilities):
+        print("error: probabilities must be non-negative", file=sys.stderr)
+        return 1
     total = sum(probabilities)
     if total <= 0:
         print("error: probabilities must sum to a positive value", file=sys.stderr)
+        return 1
+    if args.base <= 0 or abs(args.base - 1.0) < 1e-15:
+        print("error: --base must be positive and not equal to 1", file=sys.stderr)
         return 1
     normalized = [value / total for value in probabilities]
     print(f"entropy   {entropy(normalized, base=args.base):.6f}")
