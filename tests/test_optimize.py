@@ -76,6 +76,71 @@ class TestLeastSquaresAndFit:
         fit = optimize.curve_fit(model, x, y, p0=[1.0, 1.0])
         assert fit.params[0] == pytest.approx(3.0, rel=1e-4)
         assert fit.params[1] == pytest.approx(1.7, rel=1e-3)
+        assert fit.covariance is not None
+        assert fit.parameter_std is not None
+        assert fit.predictions is not None
+        assert fit.residuals is not None
+        assert np.allclose(fit.predictions, y, atol=1e-12)
+        assert np.allclose(fit.residuals, 0.0, atol=1e-12)
+        assert fit.rss == pytest.approx(0.0, abs=1e-20)
+        assert fit.rmse == pytest.approx(0.0, abs=1e-12)
+        assert fit.r_squared == pytest.approx(1.0)
+        assert fit.dof == 23
+
+    def test_curve_fit_weighted_bounds_and_jacobian(self) -> None:
+        x = np.linspace(0.0, 4.0, 9)
+        noise = np.array([0.10, -0.05, 0.08, -0.02, 0.00, 0.04, -0.07, 0.03, -0.01])
+        y = 2.5 * x + 1.2 + noise
+        sigma = np.linspace(0.5, 1.5, x.size)
+
+        def model(t, slope, intercept):
+            return slope * t + intercept
+
+        def jacobian(t, slope, intercept):
+            del slope, intercept
+            return np.column_stack((t, np.ones_like(t)))
+
+        fit = optimize.curve_fit(
+            model,
+            x,
+            y,
+            p0=[1.0, 0.0],
+            sigma=sigma,
+            absolute_sigma=True,
+            bounds=([0.0, -5.0], [5.0, 5.0]),
+            method="trf",
+            jac=jacobian,
+        )
+        assert fit.params[0] == pytest.approx(2.48, abs=0.05)
+        assert fit.params[1] == pytest.approx(1.26, abs=0.08)
+        assert fit.parameter_std is not None
+        assert np.all(np.isfinite(fit.parameter_std))
+        assert fit.rss is not None and fit.rss > 0.0
+        assert fit.rmse is not None and fit.rmse > 0.0
+        assert fit.r_squared is not None and fit.r_squared > 0.99
+        assert fit.dof == 7
+
+    def test_curve_fit_constant_target_has_undefined_r_squared(self) -> None:
+        x = np.arange(5.0)
+        y = np.full_like(x, 3.0)
+
+        def model(t, level):
+            return np.full_like(t, level, dtype=float)
+
+        fit = optimize.curve_fit(model, x, y, p0=[2.0])
+        assert fit.params[0] == pytest.approx(3.0)
+        assert fit.r_squared is None
+        assert fit.dof == 4
+
+    def test_fit_result_defaults_preserve_legacy_construction(self) -> None:
+        fit = optimize.FitResult(params=np.array([1.0]), covariance=None)
+        assert fit.parameter_std is None
+        assert fit.predictions is None
+        assert fit.residuals is None
+        assert fit.rss is None
+        assert fit.rmse is None
+        assert fit.r_squared is None
+        assert fit.dof is None
 
 
 class TestConstrainedMinimization:
