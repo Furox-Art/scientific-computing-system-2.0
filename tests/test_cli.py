@@ -100,14 +100,20 @@ class TestEntropyCommand:
         code = main(["entropy", "0.5,0.5", "--base", "2.718281828459045"])
         assert code == 0
 
+    def test_empty_input_fails(self) -> None:
+        assert main(["entropy", ""]) == 1
+
     def test_nonpositive_total_fails(self) -> None:
         assert main(["entropy", "0,0"]) == 1
 
     def test_negative_probability_fails(self) -> None:
         assert main(["entropy", "1,-0.2,0.2"]) == 1
 
-    def test_invalid_log_base_fails(self) -> None:
+    def test_invalid_log_base_one_fails(self) -> None:
         assert main(["entropy", "0.5,0.5", "--base", "1"]) == 1
+
+    def test_invalid_log_base_zero_fails(self) -> None:
+        assert main(["entropy", "0.5,0.5", "--base", "0"]) == 1
 
 
 class TestUnitsCommand:
