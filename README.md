@@ -1,7 +1,7 @@
 # scientific-computing-system-2.0
 
 <p align="center">
-  <img src="docs/assets/promo_hero.png" alt="scientific-computing-system-2.0 - 42 modules, one import" width="100%">
+  <img src="docs/assets/promo_hero.png" alt="scientific-computing-system-2.0 scientific computing platform" width="100%">
 </p>
 
 [![CI](https://github.com/Furox-Art/scientific-computing-system-2.0/actions/workflows/tests.yml/badge.svg)](https://github.com/Furox-Art/scientific-computing-system-2.0/actions/workflows/tests.yml)
@@ -15,6 +15,13 @@ stack: NumPy, SciPy, pandas and matplotlib. The algorithms proven in the
 pure-Python [scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system)
 (v1.x) form its foundation; v2 rebuilds them for speed and adds new domain
 modules on top.
+
+For data/model fitting, CDS also includes a guided scientific workflow that
+recommends one candidate model while keeping model choice, missing-data
+treatment and outlier handling under explicit user control. It records
+reproducibility metadata, cross-checks fits numerically, reports uncertainty
+and held-out validation metrics, and can generate PNG/PDF plots plus
+PDF/HTML/Markdown reports.
 
 ## Installation
 
@@ -126,7 +133,8 @@ q_values, returns = cds2.rl.q_learn(cds2.rl.GridWorld(4, 4), episodes=300, seed=
 | `cds2.scientific` | pure Python | CODATA constants, mechanics/EM/thermo formulas, unit conversion |
 | `cds2.quantum` | NumPy | statevector circuit simulator up to 16 qubits |
 | `cds2.nlp` | NumPy | scalar autograd, BPE tokenizer, multi-head attention, mini-GPT forward pass |
-| `cds2.cli` | argparse | `cds2` console entry point (info/stats/integrate/linsolve/entropy/units/solve/plot) |
+| `cds2.guided_fit` | NumPy/SciPy/pandas/matplotlib | user-controlled model recommendation, uncertainty, held-out validation, cross-checks, outlier/missing-data handling, reproducible manifests, plots and reports |
+| `cds2.cli` | argparse | `cds2` console entry point, including `guided-fit` and `guided-fit-rerun` |
 
 ## Facade vs Real Capability
 
@@ -139,7 +147,7 @@ Some `cds2.*` modules are thin convenience wrappers that only coerce args and un
 | **Thin + CDS companion** | Module keeps its wrappers but its reason to exist is a companion with no SciPy equivalent. | `cds2.integrate` + `cds2.sde`, `cds2.optimize` + `cds2.metaheuristics`, `cds2.signals` + `cds2.wavelets`/`cds2.spectral`/`cds2.chaos`, `cds2.sparse`³ | Keep `cds2`. Deterministic `integrate` pairs with SDE ensembles; `optimize` pairs with global search. |
 | **Native** | Pure CDS: constants, formulas, C kernels, ML, etc. | `cds2.graph` (C kernel), `cds2.ml`, `cds2.sde`, `cds2.quality`, … | Always use `cds2`. |
 
-¹ Deprecated since `4.3.0`, removed in `5.0.0`: `DeprecationWarning`. ² `cds2.scientific` is 100% native (CODATA `CONSTANTS`, physics formulas, `convert_units`). ³ `cds2.sparse` already has real value: `jacobi_preconditioner`/`ilu_preconditioner` → `LinearOperator`, `residual_norm` diagnostics.
+¹ Deprecated since `4.3.0`; retained for compatibility in the 5.x line and may be removed in a future major release: `DeprecationWarning`. ² `cds2.scientific` is 100% native (CODATA `CONSTANTS`, physics formulas, `convert_units`). ³ `cds2.sparse` already has real value: `jacobi_preconditioner`/`ilu_preconditioner` → `LinearOperator`, `residual_norm` diagnostics.
 
 ```python
 # Convenience re-export — use SciPy
@@ -165,6 +173,8 @@ ens = sde.sde_milstein(
 
 ## CLI
 
+General commands:
+
 ```bash
 cds2 info
 cds2 stats 1,2,3,4,5
@@ -175,6 +185,31 @@ cds2 units 5 --from-unit km --to-unit mile
 cds2 solve --coeffs "1,-5,6"
 cds2 plot 1,3,2,5,4 --file out.png
 ```
+
+Guided scientific fitting:
+
+```bash
+# Interactive: the CLI recommends one model and asks before user-facing choices.
+cds2 guided-fit data.csv --x time --y response
+
+# Multiple datasets, measurement uncertainty and an explicit report format.
+cds2 guided-fit experiment-a.csv experiment-b.csv \
+  --x time --y response --sigma uncertainty \
+  --report pdf --output-dir guided-fit-results
+
+# Repeat the same analysis from its saved manifest.
+cds2 guided-fit-rerun guided-fit-results/guided_fit_manifest.json
+```
+
+`guided-fit` supports `linear`, `quadratic`, `exponential`, `power` and
+`logistic` models. By default it asks before missing-data treatment, model
+choice, outlier exclusion and report generation. Non-interactive runs can set
+`--model`, `--missing`, `--outliers` and `--report` explicitly.
+
+Each completed fit reports RMSE, held-out cross-validation RMSE, R² when
+defined, parameter uncertainty and an overall `reliable` / `caution` /
+`unreliable` verdict. It also writes a reproducibility manifest and saves each
+fit plot as both PNG and PDF; reports are available as PDF, HTML or Markdown.
 
 ## Relationship to CDS v1.x
 
