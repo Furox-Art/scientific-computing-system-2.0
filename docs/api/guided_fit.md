@@ -9,13 +9,15 @@ The workflow:
 3. explains the recommendation with speed, expected fit behaviour and complexity;
 4. leaves final model selection to the user;
 5. includes measurement uncertainty when a `sigma` column is supplied;
-6. detects suspicious residual outliers and asks before excluding them;
+6. detects suspicious residual outliers, quantifies their estimated RMSE effect and asks before excluding them;
 7. fits the selected model, calculates parameter uncertainty and 95% confidence intervals;
 8. checks held-out performance with repeated 5-fold cross-validation;
 9. cross-checks the fitted result with an independent numerical method;
-10. produces Matplotlib PNG/PDF figures, a reproducibility manifest and an optional PDF/HTML/Markdown report;
+10. produces Matplotlib fit and residual PNG/PDF figures, a reproducibility manifest and an optional PDF/HTML/Markdown report;
 11. labels the overall result `reliable`, `caution` or `unreliable`;
-12. recommends a different model when the selected fit is weak.
+12. recommends a different model when the selected fit is weak;
+13. recommends dataset-specific models when a single common model is materially weaker;
+14. compares manifest reruns with the saved analysis and warns when inputs, fit parameters, RMSE or the reliability label change materially.
 
 ## CLI
 
@@ -54,7 +56,7 @@ Repeat an analysis from its saved manifest:
 cds2 guided-fit-rerun results/guided_fit_manifest.json
 ```
 
-The manifest stores the selected model, policies, seed, data hashes, input source metadata and NumPy/SciPy/pandas/Matplotlib/Python versions.
+The manifest stores the selected model, policies, seed, data hashes, input source metadata and NumPy/SciPy/pandas/Matplotlib/Python versions. Reruns compare those saved results with the new calculation and surface material instability instead of silently replacing the prior result.
 
 ## API
 

@@ -247,6 +247,10 @@ def cmd_guided_fit(args: argparse.Namespace) -> int:
             )
             if recommendation.common_model_warning:
                 print("warning   one common model is weaker for at least one dataset")
+                separate = "; ".join(
+                    f"{name}={candidate}" for name, candidate in recommendation.separate_models
+                )
+                print(f"separate  {separate}")
             if _ask_yes_no("Use this model?"):
                 model = recommendation.model
             else:
@@ -263,6 +267,12 @@ def cmd_guided_fit(args: argparse.Namespace) -> int:
             seed=args.seed,
         )
         outlier_total = sum(item.outlier_indices.size for item in preliminary.datasets)
+        for item in preliminary.datasets:
+            if item.outlier_indices.size:
+                print(
+                    f"effect    {item.name}: estimated RMSE reduction without suspicious points="
+                    f"{item.outlier_rmse_reduction_pct:.2f}%"
+                )
         outlier_policy = args.outliers
         if outlier_policy == "ask":
             if outlier_total:
@@ -337,6 +347,12 @@ def cmd_guided_fit_rerun(args: argparse.Namespace) -> int:
     print(f"verdict   {result.trust}: {result.comment}")
     for item in result.datasets:
         print(f"dataset   {item.name}: rmse={item.rmse:.6g}; cv_rmse={item.cv_rmse:.6g}")
+    if result.stability_warning:
+        print("warning   rerun differs materially from the saved analysis")
+        for detail in result.stability_details:
+            print(f"detail    {detail}")
+    else:
+        print("stability consistent with the saved analysis")
     return 0
 
 
