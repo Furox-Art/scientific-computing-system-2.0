@@ -1,3 +1,21 @@
+## [v5.2.0] - 2026-09-05
+
+Guided-fit scientific validation release: stronger diagnostics, rerun stability checks and dataset-specific guidance extend the 5.1 workflow without changing its user-controlled decision model.
+
+### Added
+
+- Dedicated residual diagnostic plots in PNG and PDF for every guided fit.
+- Quantified detected-outlier influence using the estimated percentage RMSE reduction from a diagnostic refit; detected points are still never removed silently.
+- Manifest rerun stability checks that flag material changes in input hashes, fit RMSE, parameters or reliability labels.
+- Dataset-specific model recommendations when one shared model is materially weaker for part of a multi-dataset analysis.
+- Real-world scientific validation tests using the scikit-learn Diabetes and Linnerud datasets as independent packaged test data.
+
+### Changed
+
+- Installed-wheel CLI smoke tests now require residual plot artifacts in addition to fit plots and reproducibility manifests.
+- Guided-fit CLI output, README and API documentation now expose outlier influence, residual diagnostics, stability warnings and separate-model recommendations.
+- Supported package version advances from 5.1.0 to 5.2.0.
+
 ## [v5.1.0] - 2026-09-05
 
 Guided scientific fitting release: user-controlled model recommendation, validated fitting workflows, reproducibility records, reporting and a fully tested command-line interface join the library.
