@@ -1,3 +1,20 @@
+## [v5.1.0] - 2026-09-05
+
+Guided scientific fitting release: user-controlled model recommendation, validated fitting workflows, reproducibility records, reporting and a fully tested command-line interface join the library.
+
+### Added
+
+- **`cds2.guided_fit`** - recommends one candidate model while leaving final model choice to the user; supports multiple datasets, measurement uncertainty, explicit missing-data policies and user-approved outlier handling.
+- Repeated cross-validation, independent numerical cross-checks, parameter uncertainty, 95% confidence intervals and reliability labels.
+- Matplotlib PNG/PDF fit diagnostics, reproducibility manifests and PDF/HTML/Markdown reports.
+- **CLI** - `cds2 guided-fit` and `cds2 guided-fit-rerun`, with interactive and non-interactive operation.
+- Release/package CI smoke-tests the installed wheel through fit -> artifacts/manifest -> rerun.
+
+### Changed
+
+- `cds2.optimize.curve_fit` exposes fit diagnostics and forwards weighting, bounds, solver method and Jacobian controls to SciPy.
+- Supported package version advances from 5.0.0 to 5.1.0.
+
 ## [v5.0.0] - 2026-09-03
 
 Performance, GPU, testing and ecosystem release: profiling/benchmark
