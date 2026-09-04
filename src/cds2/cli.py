@@ -6,6 +6,7 @@ import argparse
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Literal, cast
 
 FUNCS: dict[str, Callable[[float], float]] = {
     "sin": lambda x: __import__("math").sin(x),
@@ -192,13 +193,18 @@ def _ask_yes_no(prompt: str, default: bool = True) -> bool:
     return answer in {"y", "yes"}
 
 
-def _guided_report_choice(value: str) -> str:
-    if value != "ask":
-        return value
-    answer = input("Report format (pdf/html/markdown/none) [pdf]: ").strip().lower() or "pdf"
+ReportChoice = Literal["pdf", "html", "markdown", "none"]
+
+
+def _guided_report_choice(value: str) -> ReportChoice:
+    answer = (
+        input("Report format (pdf/html/markdown/none) [pdf]: ").strip().lower() or "pdf"
+        if value == "ask"
+        else value
+    )
     if answer not in {"pdf", "html", "markdown", "none"}:
         raise ValueError("report format must be pdf, html, markdown or none")
-    return answer
+    return cast(ReportChoice, answer)
 
 
 def cmd_guided_fit(args: argparse.Namespace) -> int:
@@ -216,7 +222,7 @@ def cmd_guided_fit(args: argparse.Namespace) -> int:
     try:
         datasets = tuple(load_csv_dataset(path, args.x, args.y, args.sigma) for path in args.files)
         missing_policy = args.missing
-        missing_total = sum(int(inspect_dataset(ds)["missing"]) for ds in datasets)
+        missing_total = sum(cast(int, inspect_dataset(ds)["missing"]) for ds in datasets)
         if missing_policy == "ask":
             if missing_total:
                 print(f"missing   {missing_total} values need a decision")
@@ -262,9 +268,7 @@ def cmd_guided_fit(args: argparse.Namespace) -> int:
             if outlier_total:
                 print(f"outliers  {outlier_total} suspicious points detected")
                 outlier_policy = (
-                    "exclude"
-                    if _ask_yes_no("Exclude them and refit?", default=False)
-                    else "keep"
+                    "exclude" if _ask_yes_no("Exclude them and refit?", default=False) else "keep"
                 )
             else:
                 outlier_policy = "keep"
@@ -292,13 +296,14 @@ def cmd_guided_fit(args: argparse.Namespace) -> int:
             sigma_column=args.sigma,
         )
         report_choice = _guided_report_choice(args.report)
-        report_path = None if report_choice == "none" else write_report(result, output_dir, report_choice)
+        report_path = (
+            None if report_choice == "none" else write_report(result, output_dir, report_choice)
+        )
 
         for item in result.datasets:
             r2 = "undefined" if item.r_squared is None else f"{item.r_squared:.6g}"
             print(
-                f"dataset   {item.name}: rmse={item.rmse:.6g}; "
-                f"cv_rmse={item.cv_rmse:.6g}; r2={r2}"
+                f"dataset   {item.name}: rmse={item.rmse:.6g}; cv_rmse={item.cv_rmse:.6g}; r2={r2}"
             )
         print(f"verdict   {result.trust}: {result.comment}")
         print(f"manifest  {manifest}")
@@ -403,12 +408,8 @@ def build_parser() -> argparse.ArgumentParser:
     guided_parser.add_argument(
         "--model", choices=["linear", "quadratic", "exponential", "power", "logistic"]
     )
-    guided_parser.add_argument(
-        "--missing", choices=["ask", "drop", "interpolate"], default="ask"
-    )
-    guided_parser.add_argument(
-        "--outliers", choices=["ask", "keep", "exclude"], default="ask"
-    )
+    guided_parser.add_argument("--missing", choices=["ask", "drop", "interpolate"], default="ask")
+    guided_parser.add_argument("--outliers", choices=["ask", "keep", "exclude"], default="ask")
     guided_parser.add_argument(
         "--report", choices=["ask", "pdf", "html", "markdown", "none"], default="ask"
     )

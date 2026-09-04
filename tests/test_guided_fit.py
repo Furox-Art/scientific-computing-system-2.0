@@ -14,7 +14,9 @@ import cds2.guided_fit as gf
 matplotlib.use("Agg")
 
 
-def _linear_dataset(name: str = "linear", *, outlier: bool = False, sigma: bool = False) -> gf.FitDataset:
+def _linear_dataset(
+    name: str = "linear", *, outlier: bool = False, sigma: bool = False
+) -> gf.FitDataset:
     x = np.linspace(1.0, 10.0, 60)
     y = 2.5 * x + 1.0
     if outlier:
@@ -26,9 +28,9 @@ def _linear_dataset(name: str = "linear", *, outlier: bool = False, sigma: bool 
 
 def test_load_inspect_and_validation(tmp_path) -> None:  # type: ignore[no-untyped-def]
     path = tmp_path / "data.csv"
-    pd.DataFrame(
-        {"x": [1.0, 2.0, 3.0, 4.0], "y": [2.0, np.nan, 6.0, 8.0], "s": [0.1] * 4}
-    ).to_csv(path, index=False)
+    pd.DataFrame({"x": [1.0, 2.0, 3.0, 4.0], "y": [2.0, np.nan, 6.0, 8.0], "s": [0.1] * 4}).to_csv(
+        path, index=False
+    )
     dataset = gf.load_csv_dataset(path, "x", "y", "s")
     info = gf.inspect_dataset(dataset)
     assert info["points"] == 4
@@ -78,9 +80,7 @@ def test_prepare_drop_interpolate_and_failures() -> None:
         (
             "quadratic",
             np.linspace(-2.0, 2.0, 40),
-            1.2 * np.linspace(-2.0, 2.0, 40) ** 2
-            + 0.5 * np.linspace(-2.0, 2.0, 40)
-            + 2.0,
+            1.2 * np.linspace(-2.0, 2.0, 40) ** 2 + 0.5 * np.linspace(-2.0, 2.0, 40) + 2.0,
             3,
         ),
         (

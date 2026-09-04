@@ -24,7 +24,9 @@ def fix_guided_fit() -> None:
         "import pandas as pd\nimport scipy\n",
         "import pandas as pd\nimport scipy\nfrom numpy.typing import NDArray\n",
     )
-    text = replace_once(text, "from .optimize import curve_fit\n", "from .optimize import FitResult, curve_fit\n")
+    text = replace_once(
+        text, "from .optimize import curve_fit\n", "from .optimize import FitResult, curve_fit\n"
+    )
     text = replace_once(
         text,
         'TrustLabel = Literal["reliable", "caution", "unreliable"]\n\nMODEL_NAMES',
@@ -94,7 +96,11 @@ def fix_guided_fit() -> None:
         "        _MODEL_FUNCS[model],\n        x,\n        y,\n        p0=p0,\n        sigma=sigma,",
         "        cast(Callable[..., object], _MODEL_FUNCS[model]),\n        x.tolist(),\n        y.tolist(),\n        p0=p0.tolist(),\n        sigma=None if sigma is None else sigma.tolist(),",
     )
-    text = replace_once(text, "def _outliers(residuals: np.ndarray) -> np.ndarray:", "def _outliers(residuals: FloatArray) -> IndexArray:")
+    text = replace_once(
+        text,
+        "def _outliers(residuals: np.ndarray) -> np.ndarray:",
+        "def _outliers(residuals: FloatArray) -> IndexArray:",
+    )
     text = text.replace("np.zeros(0, dtype=int)", "np.zeros(0, dtype=np.intp)")
     text = replace_once(
         text,
@@ -108,7 +114,11 @@ def fix_guided_fit() -> None:
 def fix_cli() -> None:
     path = Path("src/cds2/cli.py")
     text = path.read_text(encoding="utf-8")
-    text = replace_once(text, "from pathlib import Path\n", "from pathlib import Path\nfrom typing import Literal, cast\n")
+    text = replace_once(
+        text,
+        "from pathlib import Path\n",
+        "from pathlib import Path\nfrom typing import Literal, cast\n",
+    )
     text = replace_once(
         text,
         'def _guided_report_choice(value: str) -> str:\n    if value != "ask":\n        return value\n    answer = input("Report format (pdf/html/markdown/none) [pdf]: ").strip().lower() or "pdf"\n    if answer not in {"pdf", "html", "markdown", "none"}:\n        raise ValueError("report format must be pdf, html, markdown or none")\n    return answer',

@@ -9,23 +9,29 @@ from __future__ import annotations
 import hashlib
 import json
 import platform
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy
+from numpy.typing import NDArray
 from scipy import optimize as spo
 
-from .optimize import curve_fit
+from .optimize import FitResult, curve_fit
 
 ModelName = Literal["linear", "quadratic", "exponential", "power", "logistic"]
 MissingPolicy = Literal["drop", "interpolate"]
 OutlierPolicy = Literal["keep", "exclude"]
 TrustLabel = Literal["reliable", "caution", "unreliable"]
+FloatArray = NDArray[np.float64]
+IndexArray = NDArray[np.intp]
+ModelFunc = Callable[..., FloatArray]
+Bounds = tuple[Sequence[float] | float, Sequence[float] | float]
 
 MODEL_NAMES: tuple[ModelName, ...] = (
     "linear",
@@ -39,9 +45,9 @@ MODEL_NAMES: tuple[ModelName, ...] = (
 @dataclass(frozen=True)
 class FitDataset:
     name: str
-    x: np.ndarray
-    y: np.ndarray
-    sigma: np.ndarray | None = None
+    x: FloatArray
+    y: FloatArray
+    sigma: FloatArray | None = None
     source_path: str | None = None
 
 
@@ -59,13 +65,13 @@ class ModelRecommendation:
 @dataclass(frozen=True)
 class DatasetResult:
     name: str
-    params: np.ndarray
-    parameter_std: np.ndarray
-    confidence_95: np.ndarray
+    params: FloatArray
+    parameter_std: FloatArray
+    confidence_95: FloatArray
     rmse: float
     r_squared: float | None
     cv_rmse: float
-    outlier_indices: np.ndarray
+    outlier_indices: IndexArray
     cross_check_error: float
     n_points: int
     x_min: float
@@ -88,29 +94,30 @@ class GuidedFitResult:
     data_hashes: dict[str, str]
 
 
-def _linear(x: np.ndarray, a: float, b: float) -> np.ndarray:
-    return a * x + b
+def _linear(x: FloatArray, a: float, b: float) -> FloatArray:
+    return np.asarray(a * x + b, dtype=np.float64)
 
 
-def _quadratic(x: np.ndarray, a: float, b: float, c: float) -> np.ndarray:
-    return a * x * x + b * x + c
+def _quadratic(x: FloatArray, a: float, b: float, c: float) -> FloatArray:
+    return np.asarray(a * x * x + b * x + c, dtype=np.float64)
 
 
-def _exponential(x: np.ndarray, a: float, b: float, c: float) -> np.ndarray:
-    return a * np.exp(np.clip(b * x, -700.0, 700.0)) + c
+def _exponential(x: FloatArray, a: float, b: float, c: float) -> FloatArray:
+    values = a * np.exp(np.clip(b * x, -700.0, 700.0)) + c
+    return np.asarray(values, dtype=np.float64)
 
 
-def _power(x: np.ndarray, a: float, b: float, c: float) -> np.ndarray:
-    return a * np.power(np.maximum(x, np.finfo(float).tiny), b) + c
+def _power(x: FloatArray, a: float, b: float, c: float) -> FloatArray:
+    values = a * np.power(np.maximum(x, np.finfo(float).tiny), b) + c
+    return np.asarray(values, dtype=np.float64)
 
 
-def _logistic(x: np.ndarray, low: float, high: float, k: float, x0: float) -> np.ndarray:
-    return low + (high - low) / (
-        1.0 + np.exp(np.clip(-k * (x - x0), -700.0, 700.0))
-    )
+def _logistic(x: FloatArray, low: float, high: float, k: float, x0: float) -> FloatArray:
+    values = low + (high - low) / (1.0 + np.exp(np.clip(-k * (x - x0), -700.0, 700.0)))
+    return np.asarray(values, dtype=np.float64)
 
 
-_MODEL_FUNCS = {
+_MODEL_FUNCS: dict[ModelName, ModelFunc] = {
     "linear": _linear,
     "quadratic": _quadratic,
     "exponential": _exponential,
@@ -137,11 +144,15 @@ def load_csv_dataset(
     missing = [name for name in required if name not in frame.columns]
     if missing:
         raise ValueError(f"missing columns: {', '.join(missing)}")
-    sigma = None if sigma_column is None else frame[sigma_column].to_numpy(dtype=float)
+    sigma = (
+        None
+        if sigma_column is None
+        else np.asarray(frame[sigma_column].to_numpy(dtype=np.float64), dtype=np.float64)
+    )
     return FitDataset(
         name=Path(path).stem,
-        x=frame[x_column].to_numpy(dtype=float),
-        y=frame[y_column].to_numpy(dtype=float),
+        x=np.asarray(frame[x_column].to_numpy(dtype=np.float64), dtype=np.float64),
+        y=np.asarray(frame[y_column].to_numpy(dtype=np.float64), dtype=np.float64),
         sigma=sigma,
         source_path=str(Path(path)),
     )
@@ -165,15 +176,15 @@ def inspect_dataset(dataset: FitDataset) -> dict[str, object]:
 
 
 def _prepare(dataset: FitDataset, missing_policy: MissingPolicy) -> FitDataset:
-    x = np.asarray(dataset.x, dtype=float).copy()
-    y = np.asarray(dataset.y, dtype=float).copy()
-    sigma = None if dataset.sigma is None else np.asarray(dataset.sigma, dtype=float).copy()
+    x: FloatArray = np.asarray(dataset.x, dtype=np.float64).copy()
+    y: FloatArray = np.asarray(dataset.y, dtype=np.float64).copy()
+    sigma: FloatArray | None = (
+        None if dataset.sigma is None else np.asarray(dataset.sigma, dtype=np.float64).copy()
+    )
     valid_x = np.isfinite(x)
     valid_y = np.isfinite(y)
     valid_sigma = (
-        np.ones_like(valid_y, dtype=bool)
-        if sigma is None
-        else np.isfinite(sigma) & (sigma > 0.0)
+        np.ones_like(valid_y, dtype=bool) if sigma is None else np.isfinite(sigma) & (sigma > 0.0)
     )
     if missing_policy == "drop":
         keep = valid_x & valid_y & valid_sigma
@@ -200,9 +211,7 @@ def _prepare(dataset: FitDataset, missing_policy: MissingPolicy) -> FitDataset:
     return FitDataset(dataset.name, x, y, sigma, dataset.source_path)
 
 
-def _initial_guess(
-    model: ModelName, x: np.ndarray, y: np.ndarray
-) -> tuple[np.ndarray, tuple[object, object]]:
+def _initial_guess(model: ModelName, x: FloatArray, y: FloatArray) -> tuple[FloatArray, Bounds]:
     if model == "linear":
         p = np.polyfit(x, y, 1)
         return np.array([p[0], p[1]]), (-np.inf, np.inf)
@@ -216,26 +225,24 @@ def _initial_guess(
         )
     if model == "power":
         return np.array([1.0, 1.0, float(np.min(y))]), (-np.inf, np.inf)
-    return np.array(
-        [float(np.min(y)), float(np.max(y)), 1.0, float(np.median(x))]
-    ), (
+    return np.array([float(np.min(y)), float(np.max(y)), 1.0, float(np.median(x))]), (
         [-np.inf, -np.inf, 0.0, -np.inf],
         [np.inf, np.inf, np.inf, np.inf],
     )
 
 
 def _fit_arrays(
-    model: ModelName, x: np.ndarray, y: np.ndarray, sigma: np.ndarray | None = None
-):
+    model: ModelName, x: FloatArray, y: FloatArray, sigma: FloatArray | None = None
+) -> FitResult:
     if model == "power" and np.any(x <= 0.0):
         raise ValueError("power model requires x > 0")
     p0, bounds = _initial_guess(model, x, y)
     return curve_fit(
-        _MODEL_FUNCS[model],
-        x,
-        y,
-        p0=p0,
-        sigma=sigma,
+        cast(Callable[..., object], _MODEL_FUNCS[model]),
+        x.tolist(),
+        y.tolist(),
+        p0=p0.tolist(),
+        sigma=None if sigma is None else sigma.tolist(),
         absolute_sigma=sigma is not None,
         bounds=bounds,
         method=None,
@@ -264,11 +271,11 @@ def _cv_rmse(dataset: FitDataset, model: ModelName, seed: int, folds: int = 5) -
                 continue
             sigma_train = None if dataset.sigma is None else dataset.sigma[train]
             fit = _fit_arrays(model, dataset.x[train], dataset.y[train], sigma_train)
-            pred = np.asarray(_MODEL_FUNCS[model](dataset.x[fold], *fit.params), dtype=float)
+            pred = np.asarray(_MODEL_FUNCS[model](dataset.x[fold], *fit.params), dtype=np.float64)
             errors.extend((dataset.y[fold] - pred).tolist())
     if not errors:
         return float("inf")
-    arr = np.asarray(errors, dtype=float)
+    arr = np.asarray(errors, dtype=np.float64)
     return float(np.sqrt(np.mean(arr * arr)))
 
 
@@ -319,9 +326,7 @@ def recommend_model(
                 common_warning = True
                 break
     speed, accuracy, simplicity = _MODEL_META[model]
-    reason = (
-        f"lowest cross-validated error among supported models (score={scores[model]:.3g})"
-    )
+    reason = f"lowest cross-validated error among supported models (score={scores[model]:.3g})"
     return ModelRecommendation(
         model,
         reason,
@@ -333,24 +338,22 @@ def recommend_model(
     )
 
 
-def _outliers(residuals: np.ndarray) -> np.ndarray:
+def _outliers(residuals: FloatArray) -> IndexArray:
     median = float(np.median(residuals))
     mad = float(np.median(np.abs(residuals - median)))
     if mad == 0.0:
         std = float(np.std(residuals))
         if std == 0.0:
-            return np.zeros(0, dtype=int)
+            return np.zeros(0, dtype=np.intp)
         z_score = (residuals - float(np.mean(residuals))) / std
         return np.flatnonzero(np.abs(z_score) > 3.5)
     robust_z = 0.67448975 * (residuals - median) / mad
     return np.flatnonzero(np.abs(robust_z) > 3.5)
 
 
-def _cross_check(
-    model: ModelName, x: np.ndarray, y: np.ndarray, params: np.ndarray
-) -> float:
+def _cross_check(model: ModelName, x: FloatArray, y: FloatArray, params: FloatArray) -> float:
     f = _MODEL_FUNCS[model]
-    primary = np.asarray(f(x, *params), dtype=float)
+    primary = np.asarray(f(x, *params), dtype=np.float64)
     if model == "linear":
         p = np.polyfit(x, y, 1)
         secondary = _linear(x, p[0], p[1])
@@ -358,10 +361,8 @@ def _cross_check(
         p = np.polyfit(x, y, 2)
         secondary = _quadratic(x, p[0], p[1], p[2])
     else:
-        result = spo.least_squares(
-            lambda p: np.asarray(f(x, *p), dtype=float) - y, params
-        )
-        secondary = np.asarray(f(x, *result.x), dtype=float)
+        result = spo.least_squares(lambda p: np.asarray(f(x, *p), dtype=np.float64) - y, params)
+        secondary = np.asarray(f(x, *result.x), dtype=np.float64)
     return float(np.sqrt(np.mean((primary - secondary) ** 2)))
 
 
@@ -390,7 +391,7 @@ def run_guided_fit(
     for dataset in datasets:
         prepared = _prepare(dataset, missing_policy)
         fit = _fit_arrays(model, prepared.x, prepared.y, prepared.sigma)
-        residuals = np.asarray(fit.residuals, dtype=float)
+        residuals = np.asarray(fit.residuals, dtype=np.float64)
         outlier_indices = _outliers(residuals)
         used = prepared
         if outlier_policy == "exclude" and outlier_indices.size:
@@ -406,18 +407,17 @@ def run_guided_fit(
             )
             fit = _fit_arrays(model, used.x, used.y, used.sigma)
         cv = _cv_rmse(used, model, seed)
-        std = np.asarray(fit.parameter_std, dtype=float)
+        rmse = cast(float, fit.rmse)
+        std = np.asarray(fit.parameter_std, dtype=np.float64)
         ci = np.column_stack((fit.params - 1.96 * std, fit.params + 1.96 * std))
-        cross_error = _cross_check(
-            model, used.x, used.y, np.asarray(fit.params, dtype=float)
-        )
+        cross_error = _cross_check(model, used.x, used.y, np.asarray(fit.params, dtype=np.float64))
         results.append(
             DatasetResult(
                 used.name,
-                np.asarray(fit.params, dtype=float),
+                np.asarray(fit.params, dtype=np.float64),
                 std,
                 ci,
-                float(fit.rmse),
+                float(rmse),
                 fit.r_squared,
                 cv,
                 outlier_indices,
@@ -447,9 +447,7 @@ def run_guided_fit(
         and max_cross <= max(1e-8, 0.1 * max(r.rmse for r in results))
     ):
         trust: TrustLabel = "reliable"
-        comment = (
-            "Fit is stable across held-out data and the independent numerical cross-check."
-        )
+        comment = "Fit is stable across held-out data and the independent numerical cross-check."
     elif (r2_values and min(r2_values) < 0.5) or max(relative_cv) > 1.0:
         trust = "unreliable"
         comment = "Fit does not generalize well; try another model or inspect data quality."
