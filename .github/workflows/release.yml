@@ -2,13 +2,8 @@ name: Release
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    tags: ["v*.*.*"]
-    paths:
-      - ".github/pypi-release-trigger"
 
-# Serialise releases globally and never cancel one. Two releases pushed close
+# Serialise releases globally and never cancel one. Two releases started close
 # together would otherwise race each other into the same PyPI project.
 concurrency:
   group: release
@@ -19,9 +14,8 @@ permissions:
 
 jobs:
   # Run an independent release preflight instead of calling tests.yml as a
-  # reusable workflow. tests.yml uses a ref-scoped cancel-in-progress group;
-  # on a marker push that collided with the normal CI run and cancelled the
-  # release before any artifacts were built.
+  # reusable workflow. Keeping release validation self-contained avoids
+  # cancellation/coordination issues with normal CI.
   preflight:
     runs-on: ubuntu-latest
     steps:
