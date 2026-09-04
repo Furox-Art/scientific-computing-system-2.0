@@ -47,6 +47,15 @@ class TestLinsolveCommand:
     def test_non_square_rejected(self) -> None:
         assert main(["linsolve", "--a", "1,2,3;4,5,6", "--b", "1,2"]) == 1
 
+    def test_empty_matrix_rejected_without_traceback(self) -> None:
+        assert main(["linsolve", "--a", "", "--b", "1"]) == 1
+
+    def test_rhs_dimension_mismatch_rejected(self) -> None:
+        assert main(["linsolve", "--a", "1,0;0,1", "--b", "1"]) == 1
+
+    def test_singular_matrix_rejected_without_traceback(self) -> None:
+        assert main(["linsolve", "--a", "1,2;2,4", "--b", "3,6"]) == 1
+
 
 class TestPlotCommand:
     def test_ascii_output(self, capsys: pytest.CaptureFixture[str]) -> None:
@@ -65,6 +74,9 @@ class TestPlotCommand:
         assert code == 0
         assert "saved" in out
         assert target.exists()
+
+    def test_empty_plot_rejected_without_traceback(self) -> None:
+        assert main(["plot", ""]) == 1
 
 
 class TestParser:
@@ -90,6 +102,12 @@ class TestEntropyCommand:
 
     def test_nonpositive_total_fails(self) -> None:
         assert main(["entropy", "0,0"]) == 1
+
+    def test_negative_probability_fails(self) -> None:
+        assert main(["entropy", "1,-0.2,0.2"]) == 1
+
+    def test_invalid_log_base_fails(self) -> None:
+        assert main(["entropy", "0.5,0.5", "--base", "1"]) == 1
 
 
 class TestUnitsCommand:
