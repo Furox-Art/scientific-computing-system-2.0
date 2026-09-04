@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Apply strict typing fixes
-        run: python tools/fix_guided_types.py
+        run: python tools/fix_guided_types_final.py
       - name: Format with repository Ruff
         run: |
           pip install ruff
