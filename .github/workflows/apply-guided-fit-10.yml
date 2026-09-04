@@ -45,7 +45,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/cds2/guided_fit.py src/cds2/cli.py tests/test_guided_fit.py tests/test_guided_cli.py docs/api/guided_fit.md README.md .github/workflows/tests.yml
+          git add src/cds2/guided_fit.py src/cds2/cli.py tests/test_guided_fit.py tests/test_guided_cli.py docs/api/guided_fit.md README.md
           git diff --cached --check
           git commit -m "Complete guided-fit scientific validation workflow"
           git push
