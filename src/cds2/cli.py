@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Callable, Sequence
+from pathlib import Path
 
 FUNCS: dict[str, Callable[[float], float]] = {
     "sin": lambda x: __import__("math").sin(x),
@@ -183,6 +184,151 @@ def cmd_solve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ask_yes_no(prompt: str, default: bool = True) -> bool:
+    suffix = " [Y/n] " if default else " [y/N] "
+    answer = input(prompt + suffix).strip().lower()
+    if not answer:
+        return default
+    return answer in {"y", "yes"}
+
+
+def _guided_report_choice(value: str) -> str:
+    if value != "ask":
+        return value
+    answer = input("Report format (pdf/html/markdown/none) [pdf]: ").strip().lower() or "pdf"
+    if answer not in {"pdf", "html", "markdown", "none"}:
+        raise ValueError("report format must be pdf, html, markdown or none")
+    return answer
+
+
+def cmd_guided_fit(args: argparse.Namespace) -> int:
+    from .guided_fit import (
+        MODEL_NAMES,
+        inspect_dataset,
+        load_csv_dataset,
+        plot_result,
+        recommend_model,
+        run_guided_fit,
+        save_manifest,
+        write_report,
+    )
+
+    try:
+        datasets = tuple(load_csv_dataset(path, args.x, args.y, args.sigma) for path in args.files)
+        missing_policy = args.missing
+        missing_total = sum(int(inspect_dataset(ds)["missing"]) for ds in datasets)
+        if missing_policy == "ask":
+            if missing_total:
+                print(f"missing   {missing_total} values need a decision")
+                print("suggest   interpolate missing y values; invalid x/sigma rows are dropped")
+                missing_policy = (
+                    "interpolate"
+                    if _ask_yes_no("Use the suggested missing-data treatment?")
+                    else "drop"
+                )
+            else:
+                missing_policy = "interpolate"
+
+        recommendation = recommend_model(datasets, missing_policy=missing_policy, seed=args.seed)
+        model = args.model
+        if model is None:
+            print(f"recommend {recommendation.model}")
+            print(f"reason    {recommendation.reason}")
+            print(
+                f"tradeoff  speed={recommendation.speed}; "
+                f"accuracy={recommendation.accuracy}; "
+                f"simplicity={recommendation.simplicity}"
+            )
+            if recommendation.common_model_warning:
+                print("warning   one common model is weaker for at least one dataset")
+            if _ask_yes_no("Use this model?"):
+                model = recommendation.model
+            else:
+                choice = input(f"Choose model ({'/'.join(MODEL_NAMES)}): ").strip().lower()
+                if choice not in MODEL_NAMES:
+                    raise ValueError(f"unknown model: {choice}")
+                model = choice
+
+        preliminary = run_guided_fit(
+            datasets,
+            model,
+            missing_policy=missing_policy,
+            outlier_policy="keep",
+            seed=args.seed,
+        )
+        outlier_total = sum(item.outlier_indices.size for item in preliminary.datasets)
+        outlier_policy = args.outliers
+        if outlier_policy == "ask":
+            if outlier_total:
+                print(f"outliers  {outlier_total} suspicious points detected")
+                outlier_policy = (
+                    "exclude"
+                    if _ask_yes_no("Exclude them and refit?", default=False)
+                    else "keep"
+                )
+            else:
+                outlier_policy = "keep"
+        result = (
+            preliminary
+            if outlier_policy == "keep"
+            else run_guided_fit(
+                datasets,
+                model,
+                missing_policy=missing_policy,
+                outlier_policy="exclude",
+                seed=args.seed,
+            )
+        )
+
+        output_dir = Path(args.output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        plot_paths = plot_result(result, datasets, output_dir)
+        manifest = save_manifest(
+            result,
+            datasets,
+            output_dir / "guided_fit_manifest.json",
+            x_column=args.x,
+            y_column=args.y,
+            sigma_column=args.sigma,
+        )
+        report_choice = _guided_report_choice(args.report)
+        report_path = None if report_choice == "none" else write_report(result, output_dir, report_choice)
+
+        for item in result.datasets:
+            r2 = "undefined" if item.r_squared is None else f"{item.r_squared:.6g}"
+            print(
+                f"dataset   {item.name}: rmse={item.rmse:.6g}; "
+                f"cv_rmse={item.cv_rmse:.6g}; r2={r2}"
+            )
+        print(f"verdict   {result.trust}: {result.comment}")
+        print(f"manifest  {manifest}")
+        print(f"plots     {len(plot_paths)} files")
+        if report_path is not None:
+            print(f"report    {report_path}")
+
+        if result.trust != "reliable" and recommendation.model != model:
+            print(f"next      consider {recommendation.model}: {recommendation.reason}")
+        return 0
+    except (OSError, ValueError, RuntimeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+
+def cmd_guided_fit_rerun(args: argparse.Namespace) -> int:
+    from .guided_fit import rerun_manifest
+
+    try:
+        result = rerun_manifest(args.manifest)
+    except (OSError, ValueError, RuntimeError, KeyError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"model     {result.model}")
+    print(f"verdict   {result.trust}: {result.comment}")
+    for item in result.datasets:
+        print(f"dataset   {item.name}: rmse={item.rmse:.6g}; cv_rmse={item.cv_rmse:.6g}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="cds2", description="scientific-computing-system-2.0 command line"
@@ -239,6 +385,36 @@ def build_parser() -> argparse.ArgumentParser:
         "--coeffs", required=True, help='descending powers, e.g. "1,-5,6" for x^2-5x+6'
     )
     solve_parser.set_defaults(handler=cmd_solve)
+
+    guided_parser = subparsers.add_parser(
+        "guided-fit",
+        help="user-controlled scientific model recommendation, fitting and reporting",
+    )
+    guided_parser.add_argument("files", nargs="+", help="CSV dataset(s)")
+    guided_parser.add_argument("--x", required=True, help="x column")
+    guided_parser.add_argument("--y", required=True, help="y column")
+    guided_parser.add_argument("--sigma", default=None, help="optional uncertainty column")
+    guided_parser.add_argument(
+        "--model", choices=["linear", "quadratic", "exponential", "power", "logistic"]
+    )
+    guided_parser.add_argument(
+        "--missing", choices=["ask", "drop", "interpolate"], default="ask"
+    )
+    guided_parser.add_argument(
+        "--outliers", choices=["ask", "keep", "exclude"], default="ask"
+    )
+    guided_parser.add_argument(
+        "--report", choices=["ask", "pdf", "html", "markdown", "none"], default="ask"
+    )
+    guided_parser.add_argument("--output-dir", default="guided-fit-results")
+    guided_parser.add_argument("--seed", type=int, default=0)
+    guided_parser.set_defaults(handler=cmd_guided_fit)
+
+    rerun_parser = subparsers.add_parser(
+        "guided-fit-rerun", help="repeat a guided fit from a saved manifest"
+    )
+    rerun_parser.add_argument("manifest")
+    rerun_parser.set_defaults(handler=cmd_guided_fit_rerun)
 
     return parser
 
