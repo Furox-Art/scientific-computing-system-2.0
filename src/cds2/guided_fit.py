@@ -68,6 +68,10 @@ class DatasetResult:
     outlier_indices: np.ndarray
     cross_check_error: float
     n_points: int
+    x_min: float
+    x_max: float
+    y_mean: float
+    y_std: float
 
 
 @dataclass(frozen=True)
@@ -251,16 +255,17 @@ def _cv_rmse(dataset: FitDataset, model: ModelName, seed: int, folds: int = 5) -
     n = dataset.x.size
     folds = min(max(2, folds), n)
     rng = np.random.default_rng(seed)
-    indices = rng.permutation(n)
     errors: list[float] = []
-    for fold in np.array_split(indices, folds):
-        train = np.setdiff1d(indices, fold, assume_unique=True)
-        if train.size < 4 or fold.size == 0:
-            continue
-        sigma_train = None if dataset.sigma is None else dataset.sigma[train]
-        fit = _fit_arrays(model, dataset.x[train], dataset.y[train], sigma_train)
-        pred = np.asarray(_MODEL_FUNCS[model](dataset.x[fold], *fit.params), dtype=float)
-        errors.extend((dataset.y[fold] - pred).tolist())
+    for _ in range(3):
+        indices = rng.permutation(n)
+        for fold in np.array_split(indices, folds):
+            train = np.setdiff1d(indices, fold, assume_unique=True)
+            if train.size < 4 or fold.size == 0:
+                continue
+            sigma_train = None if dataset.sigma is None else dataset.sigma[train]
+            fit = _fit_arrays(model, dataset.x[train], dataset.y[train], sigma_train)
+            pred = np.asarray(_MODEL_FUNCS[model](dataset.x[fold], *fit.params), dtype=float)
+            errors.extend((dataset.y[fold] - pred).tolist())
     if not errors:
         return float("inf")
     arr = np.asarray(errors, dtype=float)
@@ -273,14 +278,18 @@ def recommend_model(
     missing_policy: MissingPolicy = "interpolate",
     seed: int = 0,
     max_pilot_points: int = 2000,
+    exclude: tuple[ModelName, ...] = (),
 ) -> ModelRecommendation:
     prepared = tuple(
         _pilot(_prepare(ds, missing_policy), max_pilot_points, seed + i)
         for i, ds in enumerate(datasets)
     )
+    candidates = tuple(model for model in MODEL_NAMES if model not in exclude)
+    if not candidates:
+        raise ValueError("at least one candidate model is required")
     scores: dict[ModelName, float] = {}
     per_dataset: dict[ModelName, list[float]] = {}
-    for model in MODEL_NAMES:
+    for model in candidates:
         values: list[float] = []
         for i, ds in enumerate(prepared):
             try:
@@ -304,7 +313,7 @@ def recommend_model(
     common_warning = False
     if len(prepared) > 1:
         for j in range(len(prepared)):
-            best_single = min(per_dataset[m][j] for m in MODEL_NAMES)
+            best_single = min(per_dataset[m][j] for m in candidates)
             chosen = per_dataset[model][j]
             if np.isfinite(best_single) and chosen > 1.5 * max(best_single, 1e-12):
                 common_warning = True
@@ -328,7 +337,11 @@ def _outliers(residuals: np.ndarray) -> np.ndarray:
     median = float(np.median(residuals))
     mad = float(np.median(np.abs(residuals - median)))
     if mad == 0.0:
-        return np.zeros(0, dtype=int)
+        std = float(np.std(residuals))
+        if std == 0.0:
+            return np.zeros(0, dtype=int)
+        z_score = (residuals - float(np.mean(residuals))) / std
+        return np.flatnonzero(np.abs(z_score) > 3.5)
     robust_z = 0.67448975 * (residuals - median) / mad
     return np.flatnonzero(np.abs(robust_z) > 3.5)
 
@@ -410,9 +423,16 @@ def run_guided_fit(
                 outlier_indices,
                 cross_error,
                 int(used.x.size),
+                float(np.min(used.x)),
+                float(np.max(used.x)),
+                float(np.mean(used.y)),
+                float(np.std(used.y)),
             )
         )
     operations.append(f"outlier policy: {outlier_policy}")
+    operations.append("3x repeated 5-fold cross-validation completed")
+    if any(ds.sigma is not None for ds in datasets):
+        operations.append("measurement uncertainty used in weighted fitting")
     operations.append("independent numerical cross-check completed")
     r2_values = [r.r_squared for r in results if r.r_squared is not None]
     relative_cv = [
@@ -625,6 +645,8 @@ def write_report(
             [
                 f"### {item.name}",
                 f"- Points: {item.n_points}",
+                f"- x range: [{item.x_min:.6g}, {item.x_max:.6g}]",
+                f"- y mean/std: {item.y_mean:.6g} / {item.y_std:.6g}",
                 f"- RMSE: {item.rmse:.6g}",
                 f"- CV RMSE: {item.cv_rmse:.6g}",
                 f"- R²: {'undefined' if item.r_squared is None else f'{item.r_squared:.6g}'}",
