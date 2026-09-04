@@ -1,0 +1,71 @@
+name: Prepare 5.2.0 release metadata
+
+on:
+  push:
+    branches: [release/5.2.0]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Update version and changelog
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          pyproject = Path("pyproject.toml")
+          text = pyproject.read_text(encoding="utf-8")
+          old = 'version = "5.1.0"'
+          new = 'version = "5.2.0"'
+          if text.count(old) != 1:
+              raise SystemExit(f"expected exactly one {old!r}")
+          pyproject.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          version_file = Path("src/cds2/_version.py")
+          text = version_file.read_text(encoding="utf-8")
+          old = '__version__ = "5.1.0"'
+          new = '__version__ = "5.2.0"'
+          if text.count(old) != 1:
+              raise SystemExit(f"expected exactly one {old!r}")
+          version_file.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          changelog = Path("CHANGELOG.md")
+          current = changelog.read_text(encoding="utf-8")
+          if current.startswith("## [v5.2.0]"):
+              raise SystemExit("5.2.0 changelog entry already exists")
+          entry = '''## [v5.2.0] - 2026-09-05
+
+Guided-fit scientific validation release: stronger diagnostics, rerun stability checks and dataset-specific guidance extend the 5.1 workflow without changing its user-controlled decision model.
+
+### Added
+
+- Dedicated residual diagnostic plots in PNG and PDF for every guided fit.
+- Quantified detected-outlier influence using the estimated percentage RMSE reduction from a diagnostic refit; detected points are still never removed silently.
+- Manifest rerun stability checks that flag material changes in input hashes, fit RMSE, parameters or reliability labels.
+- Dataset-specific model recommendations when one shared model is materially weaker for part of a multi-dataset analysis.
+- Real-world scientific validation tests using the scikit-learn Diabetes and Linnerud datasets as independent packaged test data.
+
+### Changed
+
+- Installed-wheel CLI smoke tests now require residual plot artifacts in addition to fit plots and reproducibility manifests.
+- Guided-fit CLI output, README and API documentation now expose outlier influence, residual diagnostics, stability warnings and separate-model recommendations.
+- Supported package version advances from 5.1.0 to 5.2.0.
+
+'''
+          changelog.write_text(entry + current, encoding="utf-8")
+          PY
+          git diff --check
+      - name: Commit release metadata
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml src/cds2/_version.py CHANGELOG.md
+          git commit -m "Prepare release 5.2.0"
+          git push
