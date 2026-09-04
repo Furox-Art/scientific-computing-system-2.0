@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from scipy import special as sps
 
 warnings.warn(
-    "cds2.special is deprecated since 4.3.0 and will be removed in 5.0.0: "
+    "cds2.special is deprecated since 4.3.0 and may be removed in a future major release: "
     "it is a thin convenience wrapper around scipy.special that coerces scalars to "
     "atleast_1d and lags upstream releases. Use `from scipy import special as sps` "
     "directly (e.g. sps.gamma, sps.erf, sps.jv).",
