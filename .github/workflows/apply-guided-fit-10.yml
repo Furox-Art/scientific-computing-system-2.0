@@ -1,0 +1,41 @@
+name: Apply guided-fit scientific validation
+
+on:
+  push:
+    branches: [feature/guided-fit-scientific-validation]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Apply source and test changes
+        run: python tools/apply_guided_fit_10.py
+      - name: Format and lint changed Python files
+        run: |
+          pip install ruff
+          ruff format src/cds2/guided_fit.py src/cds2/cli.py tests/test_guided_fit.py tests/test_guided_cli.py
+          ruff check src/cds2/guided_fit.py src/cds2/cli.py tests/test_guided_fit.py tests/test_guided_cli.py
+      - name: Install pure-Python development environment
+        env:
+          CDS_PURE: "1"
+        run: pip install -e .[dev]
+      - name: Strict type check
+        run: mypy
+      - name: Guided-fit tests
+        run: pytest -q tests/test_guided_fit.py tests/test_guided_cli.py
+      - name: Commit validated changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/cds2/guided_fit.py src/cds2/cli.py tests/test_guided_fit.py tests/test_guided_cli.py docs/api/guided_fit.md README.md .github/workflows/tests.yml
+          git diff --cached --check
+          git commit -m "Complete guided-fit scientific validation workflow"
+          git push
