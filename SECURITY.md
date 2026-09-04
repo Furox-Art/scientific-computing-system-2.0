@@ -4,6 +4,7 @@
 
 | Version | Supported |
 |---|---|
+| 5.x | yes |
 | 4.x | yes |
 | < 4.0 | no - the project was renamed; please upgrade |
 
