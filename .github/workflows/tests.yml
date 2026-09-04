@@ -80,6 +80,22 @@ jobs:
           .wheel-smoke/bin/python -m pip install --upgrade pip
           .wheel-smoke/bin/python -m pip install dist/*.whl
           .wheel-smoke/bin/python -c "import importlib.metadata as metadata, cds2; assert cds2.__version__ == metadata.version('scientific-computing-system-2.0')"
+      - name: Smoke-test installed CLI and guided fit
+        run: |
+          .wheel-smoke/bin/cds2 info
+          .wheel-smoke/bin/python - <<'PY'
+          import csv
+          with open("cli-smoke.csv", "w", newline="", encoding="utf-8") as handle:
+              writer = csv.writer(handle)
+              writer.writerow(["x", "y", "sigma"])
+              for x in range(1, 21):
+                  writer.writerow([x, 2.0 * x + 1.0, 0.2])
+          PY
+          .wheel-smoke/bin/cds2 guided-fit cli-smoke.csv --x x --y y --sigma sigma --model linear --missing interpolate --outliers keep --report none --output-dir cli-smoke-output
+          test -f cli-smoke-output/guided_fit_manifest.json
+          test -f cli-smoke-output/cli-smoke_fit.png
+          test -f cli-smoke-output/cli-smoke_fit.pdf
+          .wheel-smoke/bin/cds2 guided-fit-rerun cli-smoke-output/guided_fit_manifest.json
 
   test:
     needs: lint
