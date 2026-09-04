@@ -35,6 +35,7 @@ nav:
       - cds2.linalg: api/linalg.md
       - cds2.stats: api/stats.md
       - cds2.optimize: api/optimize.md
+      - cds2.guided_fit: api/guided_fit.md
       - cds2.integrate: api/integrate.md
       - cds2.interpolate: api/interpolate.md
       - cds2.signals: api/signals.md

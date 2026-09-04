@@ -49,10 +49,22 @@ class LinprogResult:
 
 @dataclass(frozen=True)
 class FitResult:
-    """Fitted parameters and covariance from ``curve_fit``."""
+    """Non-linear least-squares fit and residual diagnostics.
+
+    The first two fields preserve the pre-5.x construction API. Additional
+    diagnostics default to ``None`` so existing manual ``FitResult``
+    construction remains valid.
+    """
 
     params: np.ndarray
     covariance: np.ndarray | None
+    parameter_std: np.ndarray | None = None
+    predictions: np.ndarray | None = None
+    residuals: np.ndarray | None = None
+    rss: float | None = None
+    rmse: float | None = None
+    r_squared: float | None = None
+    dof: int | None = None
 
 
 def minimize(
@@ -179,10 +191,58 @@ def curve_fit(
     xdata: Sequence[float],
     ydata: Sequence[float],
     p0: Sequence[float] | None = None,
+    *,
+    sigma: Sequence[float] | Sequence[Sequence[float]] | np.ndarray | None = None,
+    absolute_sigma: bool = False,
+    bounds: tuple[Sequence[float] | float, Sequence[float] | float] = (-np.inf, np.inf),
+    method: str | None = None,
+    jac: Callable[..., object] | str | None = None,
 ) -> FitResult:
-    """Fit model parameters by non-linear least squares."""
-    params, covariance = spo.curve_fit(f, np.asarray(xdata), np.asarray(ydata), p0=p0)
-    return FitResult(params=np.asarray(params, dtype=float), covariance=covariance)
+    """Fit model parameters by non-linear least squares.
+
+    Parameters mirror the highest-value controls from :func:`scipy.optimize.curve_fit`:
+    measurement uncertainty, absolute/relative uncertainty semantics, parameter
+    bounds, solver selection and an optional Jacobian. The returned diagnostics
+    are computed on the original (unweighted) residuals for easy model checking.
+    """
+    x_values = np.asarray(xdata, dtype=float)
+    y_values = np.asarray(ydata, dtype=float)
+    sigma_values = None if sigma is None else np.asarray(sigma, dtype=float)
+    params, covariance = spo.curve_fit(
+        f,
+        x_values,
+        y_values,
+        p0=p0,
+        sigma=sigma_values,
+        absolute_sigma=absolute_sigma,
+        bounds=bounds,
+        method=method,
+        jac=jac,
+    )
+    params_array = np.asarray(params, dtype=float)
+    covariance_array = np.asarray(covariance, dtype=float)
+    predictions = np.asarray(f(x_values, *params_array), dtype=float)
+    residuals = y_values - predictions
+    squared_residuals = residuals * residuals
+    rss = float(np.sum(squared_residuals))
+    rmse = float(np.sqrt(np.mean(squared_residuals)))
+    centered = y_values - float(np.mean(y_values))
+    total_sum_squares = float(np.sum(centered * centered))
+    r_squared = None if total_sum_squares == 0.0 else float(1.0 - rss / total_sum_squares)
+    with np.errstate(invalid="ignore"):
+        parameter_std = np.sqrt(np.diag(covariance_array))
+
+    return FitResult(
+        params=params_array,
+        covariance=covariance_array,
+        parameter_std=np.asarray(parameter_std, dtype=float),
+        predictions=predictions,
+        residuals=np.asarray(residuals, dtype=float),
+        rss=rss,
+        rmse=rmse,
+        r_squared=r_squared,
+        dof=int(y_values.size - params_array.size),
+    )
 
 
 def minimize_constrained(
