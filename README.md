@@ -20,8 +20,8 @@ For data/model fitting, CDS also includes a guided scientific workflow that
 recommends one candidate model while keeping model choice, missing-data
 treatment and outlier handling under explicit user control. It records
 reproducibility metadata, cross-checks fits numerically, reports uncertainty
-and held-out validation metrics, and can generate PNG/PDF plots plus
-PDF/HTML/Markdown reports.
+and held-out validation metrics, and can generate PNG/PDF fit and residual
+plots plus PDF/HTML/Markdown reports.
 
 ## Installation
 
@@ -209,7 +209,9 @@ choice, outlier exclusion and report generation. Non-interactive runs can set
 Each completed fit reports RMSE, held-out cross-validation RMSE, R² when
 defined, parameter uncertainty and an overall `reliable` / `caution` /
 `unreliable` verdict. It also writes a reproducibility manifest and saves each
-fit plot as both PNG and PDF; reports are available as PDF, HTML or Markdown.
+fit and residual plots as both PNG and PDF; reports are available as PDF, HTML or Markdown.
+Reruns warn when saved results change materially, and multi-dataset analysis can
+recommend separate models when a single common model is a poor compromise.
 
 ## Relationship to CDS v1.x
 

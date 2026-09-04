@@ -10,7 +10,7 @@ import hashlib
 import json
 import platform
 from collections.abc import Callable, Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Literal, cast
 
@@ -60,6 +60,7 @@ class ModelRecommendation:
     simplicity: str
     score: float
     common_model_warning: bool
+    separate_models: tuple[tuple[str, ModelName], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -78,6 +79,7 @@ class DatasetResult:
     x_max: float
     y_mean: float
     y_std: float
+    outlier_rmse_reduction_pct: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -92,6 +94,8 @@ class GuidedFitResult:
     operations: tuple[str, ...]
     package_versions: dict[str, str]
     data_hashes: dict[str, str]
+    stability_warning: bool = False
+    stability_details: tuple[str, ...] = ()
 
 
 def _linear(x: FloatArray, a: float, b: float) -> FloatArray:
@@ -296,6 +300,13 @@ def recommend_model(
         raise ValueError("at least one candidate model is required")
     scores: dict[ModelName, float] = {}
     per_dataset: dict[ModelName, list[float]] = {}
+    complexity_penalty: dict[ModelName, float] = {
+        "linear": 0.0,
+        "quadratic": 0.01,
+        "exponential": 0.02,
+        "power": 0.02,
+        "logistic": 0.03,
+    }
     for model in candidates:
         values: list[float] = []
         for i, ds in enumerate(prepared):
@@ -306,25 +317,23 @@ def recommend_model(
             except (ValueError, RuntimeError, FloatingPointError, OverflowError):
                 values.append(float("inf"))
         per_dataset[model] = values
-        complexity = {
-            "linear": 0.0,
-            "quadratic": 0.01,
-            "exponential": 0.02,
-            "power": 0.02,
-            "logistic": 0.03,
-        }[model]
-        scores[model] = float(np.mean(values)) + complexity
+        scores[model] = float(np.mean(values)) + complexity_penalty[model]
     model = min(scores, key=scores.__getitem__)
     if not np.isfinite(scores[model]):
         raise RuntimeError("no supported model could be fitted to the data")
     common_warning = False
+    separate_models: list[tuple[str, ModelName]] = []
     if len(prepared) > 1:
-        for j in range(len(prepared)):
-            best_single = min(per_dataset[m][j] for m in candidates)
+        for j, dataset in enumerate(prepared):
+            best_model = min(
+                candidates,
+                key=lambda candidate: per_dataset[candidate][j] + complexity_penalty[candidate],
+            )
+            separate_models.append((dataset.name, best_model))
+            best_single = per_dataset[best_model][j]
             chosen = per_dataset[model][j]
             if np.isfinite(best_single) and chosen > 1.5 * max(best_single, 1e-12):
                 common_warning = True
-                break
     speed, accuracy, simplicity = _MODEL_META[model]
     reason = f"lowest cross-validated error among supported models (score={scores[model]:.3g})"
     return ModelRecommendation(
@@ -335,6 +344,7 @@ def recommend_model(
         simplicity,
         scores[model],
         common_warning,
+        tuple(separate_models),
     )
 
 
@@ -394,18 +404,28 @@ def run_guided_fit(
         residuals = np.asarray(fit.residuals, dtype=np.float64)
         outlier_indices = _outliers(residuals)
         used = prepared
-        if outlier_policy == "exclude" and outlier_indices.size:
+        outlier_rmse_reduction_pct = 0.0
+        if outlier_indices.size:
             keep = np.ones(prepared.x.size, dtype=bool)
             keep[outlier_indices] = False
             sigma = None if prepared.sigma is None else prepared.sigma[keep]
-            used = FitDataset(
+            diagnostic_used = FitDataset(
                 prepared.name,
                 prepared.x[keep],
                 prepared.y[keep],
                 sigma,
                 prepared.source_path,
             )
-            fit = _fit_arrays(model, used.x, used.y, used.sigma)
+            diagnostic_fit = _fit_arrays(
+                model, diagnostic_used.x, diagnostic_used.y, diagnostic_used.sigma
+            )
+            baseline_rmse = cast(float, fit.rmse)
+            diagnostic_rmse = cast(float, diagnostic_fit.rmse)
+            scale = max(abs(baseline_rmse), np.finfo(float).eps)
+            outlier_rmse_reduction_pct = 100.0 * (baseline_rmse - diagnostic_rmse) / scale
+            if outlier_policy == "exclude":
+                used = diagnostic_used
+                fit = diagnostic_fit
         cv = _cv_rmse(used, model, seed)
         rmse = cast(float, fit.rmse)
         std = np.asarray(fit.parameter_std, dtype=np.float64)
@@ -427,9 +447,11 @@ def run_guided_fit(
                 float(np.max(used.x)),
                 float(np.mean(used.y)),
                 float(np.std(used.y)),
+                float(outlier_rmse_reduction_pct),
             )
         )
     operations.append(f"outlier policy: {outlier_policy}")
+    operations.append("outlier influence quantified by refit comparison")
     operations.append("3x repeated 5-fold cross-validation completed")
     if any(ds.sigma is not None for ds in datasets):
         operations.append("measurement uncertainty used in weighted fitting")
@@ -485,6 +507,9 @@ def plot_result(
     paths: list[Path] = []
     for ds, item in zip(datasets, result.datasets, strict=True):
         prepared = _prepare(ds, result.missing_policy)
+        order = np.argsort(prepared.x)
+        y_fit = _MODEL_FUNCS[result.model](prepared.x[order], *item.params)
+
         fig, ax = plt.subplots()
         ax.scatter(prepared.x, prepared.y, label="data")
         if item.outlier_indices.size:
@@ -494,8 +519,6 @@ def plot_result(
                 marker="x",
                 label="outlier",
             )
-        order = np.argsort(prepared.x)
-        y_fit = _MODEL_FUNCS[result.model](prepared.x[order], *item.params)
         ax.plot(prepared.x[order], y_fit, label=f"{result.model} fit")
         if prepared.sigma is not None:
             ax.errorbar(
@@ -512,6 +535,30 @@ def plot_result(
             fig.savefig(path, bbox_inches="tight")
             paths.append(path)
         plt.close(fig)
+
+        predictions = np.asarray(
+            _MODEL_FUNCS[result.model](prepared.x, *item.params), dtype=np.float64
+        )
+        residuals = prepared.y - predictions
+        residual_fig, residual_ax = plt.subplots()
+        residual_ax.scatter(prepared.x, residuals, label="residual")
+        if item.outlier_indices.size:
+            residual_ax.scatter(
+                prepared.x[item.outlier_indices],
+                residuals[item.outlier_indices],
+                marker="x",
+                label="outlier",
+            )
+        residual_ax.axhline(0.0, linewidth=1.0)
+        residual_ax.set_xlabel("x")
+        residual_ax.set_ylabel("residual")
+        residual_ax.set_title(f"{item.name}: residuals")
+        residual_ax.legend()
+        for suffix in ("png", "pdf"):
+            path = target / f"{item.name}_residuals.{suffix}"
+            residual_fig.savefig(path, bbox_inches="tight")
+            paths.append(path)
+        plt.close(residual_fig)
     return paths
 
 
@@ -534,6 +581,8 @@ def manifest_dict(
             "operations": list(result.operations),
             "package_versions": result.package_versions,
             "data_hashes": result.data_hashes,
+            "stability_warning": result.stability_warning,
+            "stability_details": list(result.stability_details),
             "datasets": [
                 {
                     **{
@@ -609,12 +658,43 @@ def rerun_manifest(path: str | Path) -> GuidedFitResult:
                 item["sigma_column"],
             )
         )
-    return run_guided_fit(
+    rerun = run_guided_fit(
         tuple(datasets),
         cfg["model"],
         missing_policy=cfg["missing_policy"],
         outlier_policy=cfg["outlier_policy"],
         seed=int(cfg["seed"]),
+    )
+
+    details: list[str] = []
+    previous_hashes = cast(dict[str, str], cfg["data_hashes"])
+    for name, digest in rerun.data_hashes.items():
+        if previous_hashes.get(name) != digest:
+            details.append(f"input data changed: {name}")
+
+    previous_results = {
+        cast(str, item["name"]): item for item in cast(list[dict[str, object]], cfg["datasets"])
+    }
+    for item in rerun.datasets:
+        previous = previous_results[item.name]
+        old_rmse = float(cast(float, previous["rmse"]))
+        rmse_change = abs(item.rmse - old_rmse) / max(abs(old_rmse), 1e-12)
+        old_params = np.asarray(cast(list[float], previous["params"]), dtype=np.float64)
+        param_scale = max(float(np.linalg.norm(old_params)), 1e-12)
+        param_change = float(np.linalg.norm(item.params - old_params)) / param_scale
+        if max(rmse_change, param_change) > 0.05:
+            details.append(
+                f"fit changed materially for {item.name}: "
+                f"rmse={rmse_change:.1%}, parameters={param_change:.1%}"
+            )
+
+    if cast(str, cfg["trust"]) != rerun.trust:
+        details.append(f"reliability label changed: {cfg['trust']} -> {rerun.trust}")
+
+    return replace(
+        rerun,
+        stability_warning=bool(details),
+        stability_details=tuple(details),
     )
 
 
@@ -650,6 +730,7 @@ def write_report(
                 f"- R²: {'undefined' if item.r_squared is None else f'{item.r_squared:.6g}'}",
                 f"- Cross-check error: {item.cross_check_error:.6g}",
                 f"- Outliers detected: {item.outlier_indices.tolist()}",
+                f"- Estimated RMSE reduction without detected outliers: {item.outlier_rmse_reduction_pct:.2f}%",
                 f"- Parameters: {item.params.tolist()}",
                 f"- 95% confidence intervals: {item.confidence_95.tolist()}",
             ]

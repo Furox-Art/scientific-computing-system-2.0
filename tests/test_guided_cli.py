@@ -66,10 +66,21 @@ def test_noninteractive_guided_fit_and_rerun(tmp_path, capsys) -> None:  # type:
     assert "verdict   reliable" in out
     assert (output / "linear_fit.png").exists()
     assert (output / "linear_fit.pdf").exists()
+    assert (output / "linear_residuals.png").exists()
+    assert (output / "linear_residuals.pdf").exists()
     manifest = output / "guided_fit_manifest.json"
     assert manifest.exists()
     assert (output / "guided_fit_report.md").exists()
     assert main(["guided-fit-rerun", str(manifest)]) == 0
+    stable_out = capsys.readouterr().out
+    assert "stability consistent" in stable_out
+
+    frame = pd.read_csv(csv_path)
+    frame["y"] = 5.0 * frame["x"] + 4.0
+    frame.to_csv(csv_path, index=False)
+    assert main(["guided-fit-rerun", str(manifest)]) == 0
+    changed_out = capsys.readouterr().out
+    assert "rerun differs materially" in changed_out
 
 
 def test_interactive_missing_model_outlier_and_report(tmp_path, monkeypatch, capsys) -> None:  # type: ignore[no-untyped-def]
@@ -101,6 +112,7 @@ def test_interactive_missing_model_outlier_and_report(tmp_path, monkeypatch, cap
     assert "missing" in out
     assert "recommend" in out
     assert "outliers" in out
+    assert "effect" in out
     assert (output / "guided_fit_report.html").exists()
 
 
@@ -230,6 +242,7 @@ def test_common_model_warning_is_printed(tmp_path, monkeypatch, capsys) -> None:
             rec.simplicity,
             rec.score,
             True,
+            (("first", "linear"), ("second", "quadratic")),
         )
 
     monkeypatch.setattr(gf, "recommend_model", fake_recommend)
@@ -254,7 +267,9 @@ def test_common_model_warning_is_printed(tmp_path, monkeypatch, capsys) -> None:
         ]
     )
     assert code == 0
-    assert "one common model" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "one common model" in out
+    assert "separate  first=linear; second=quadratic" in out
 
 
 def test_interactive_no_outlier_defaults_to_keep(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]

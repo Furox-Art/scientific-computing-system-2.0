@@ -124,6 +124,7 @@ def test_pilot_and_recommendation() -> None:
     assert rec.model == "linear"
     assert rec.speed == "fastest"
     assert rec.common_model_warning is False
+    assert rec.separate_models == ()
 
 
 def test_recommendation_handles_candidate_failure_and_multiple_datasets() -> None:
@@ -164,6 +165,8 @@ def test_run_guided_fit_reliable_weighted_and_outlier_exclusion() -> None:
     assert kept.datasets[0].outlier_indices.size >= 1
     assert excluded.datasets[0].n_points < kept.datasets[0].n_points
     assert excluded.datasets[0].rmse < kept.datasets[0].rmse
+    assert kept.datasets[0].outlier_rmse_reduction_pct > 0.0
+    assert excluded.datasets[0].outlier_rmse_reduction_pct > 0.0
 
 
 def test_run_guided_fit_unreliable_or_caution() -> None:
@@ -184,6 +187,9 @@ def test_plot_manifest_reports_and_rerun(tmp_path) -> None:  # type: ignore[no-u
 
     paths = gf.plot_result(result, (dataset,), tmp_path)
     assert {path.suffix for path in paths} == {".png", ".pdf"}
+    assert len(paths) == 4
+    assert (tmp_path / "weighted_residuals.png").exists()
+    assert (tmp_path / "weighted_residuals.pdf").exists()
 
     manifest = gf.save_manifest(
         result,
@@ -195,12 +201,70 @@ def test_plot_manifest_reports_and_rerun(tmp_path) -> None:  # type: ignore[no-u
     )
     payload = json.loads(manifest.read_text(encoding="utf-8"))
     assert payload["result"]["model"] == "linear"
-    assert gf.rerun_manifest(manifest).model == "linear"
+    rerun = gf.rerun_manifest(manifest)
+    assert rerun.model == "linear"
+    assert rerun.stability_warning is False
+    assert rerun.stability_details == ()
 
     for report_format, suffix in [("markdown", ".md"), ("html", ".html"), ("pdf", ".pdf")]:
         report = gf.write_report(result, tmp_path, report_format)
         assert report.suffix == suffix
         assert report.exists()
+
+
+def test_rerun_manifest_warns_on_changed_data_and_saved_verdict(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    csv_path = tmp_path / "stable.csv"
+    x = np.linspace(1.0, 8.0, 40)
+    frame = pd.DataFrame({"x": x, "y": 3.0 * x + 2.0})
+    frame.to_csv(csv_path, index=False)
+    dataset = gf.load_csv_dataset(csv_path, "x", "y")
+    result = gf.run_guided_fit((dataset,), "linear")
+    manifest = gf.save_manifest(
+        result,
+        (dataset,),
+        tmp_path / "rerun.json",
+        x_column="x",
+        y_column="y",
+    )
+
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["result"]["trust"] = "unreliable"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    changed_verdict = gf.rerun_manifest(manifest)
+    assert changed_verdict.stability_warning is True
+    assert any(
+        "reliability label changed" in detail for detail in changed_verdict.stability_details
+    )
+
+    payload["result"]["trust"] = result.trust
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    frame["y"] = 7.0 * x + 5.0
+    frame.to_csv(csv_path, index=False)
+    changed_data = gf.rerun_manifest(manifest)
+    assert changed_data.stability_warning is True
+    assert any("input data changed" in detail for detail in changed_data.stability_details)
+    assert any("fit changed materially" in detail for detail in changed_data.stability_details)
+
+
+@pytest.mark.parametrize("dataset_name", ["diabetes", "linnerud"])
+def test_packaged_real_world_scientific_data(dataset_name: str) -> None:
+    from sklearn.datasets import load_diabetes, load_linnerud
+
+    if dataset_name == "diabetes":
+        bunch = load_diabetes()
+        x = np.asarray(bunch.data[:, 2], dtype=np.float64)
+        y = np.asarray(bunch.target, dtype=np.float64)
+    else:
+        bunch = load_linnerud()
+        x = np.asarray(bunch.data[:, 0], dtype=np.float64)
+        y = np.asarray(bunch.target[:, 2], dtype=np.float64)
+    result = gf.run_guided_fit((gf.FitDataset(dataset_name, x, y),), "linear", seed=11)
+    item = result.datasets[0]
+    assert np.isfinite(item.rmse)
+    assert np.isfinite(item.cv_rmse)
+    assert item.r_squared is not None
+    assert np.isfinite(item.r_squared)
+    assert np.isfinite(item.cross_check_error)
 
 
 def test_manifest_without_source_metadata_cannot_rerun(tmp_path) -> None:  # type: ignore[no-untyped-def]
@@ -253,9 +317,10 @@ def test_additional_branches(monkeypatch, tmp_path) -> None:  # type: ignore[no-
     second = gf.FitDataset("second", np.arange(1.0, 9.0), np.arange(1.0, 9.0))
     rec = gf.recommend_model((first, second))
     assert rec.common_model_warning is True
+    assert dict(rec.separate_models) == {"first": "linear", "second": "quadratic"}
     monkeypatch.undo()
 
     contaminated = _linear_dataset("plot-outlier", outlier=True)
     result = gf.run_guided_fit((contaminated,), "linear", outlier_policy="keep")
     paths = gf.plot_result(result, (contaminated,), tmp_path)
-    assert len(paths) == 2
+    assert len(paths) == 4
