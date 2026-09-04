@@ -8,7 +8,7 @@ on:
     paths:
       - ".github/pypi-release-trigger"
 
-# Serialise releases globally and never cancel one. Two tags pushed close
+# Serialise releases globally and never cancel one. Two releases pushed close
 # together would otherwise race each other into the same PyPI project.
 concurrency:
   group: release
@@ -18,11 +18,38 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    uses: ./.github/workflows/tests.yml
+  # Run an independent release preflight instead of calling tests.yml as a
+  # reusable workflow. tests.yml uses a ref-scoped cancel-in-progress group;
+  # on a marker push that collided with the normal CI run and cancelled the
+  # release before any artifacts were built.
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install package and release test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,test]"
+      - name: Lint
+        run: ruff check .
+      - name: Format check
+        run: ruff format --check .
+      - name: Type check
+        run: mypy
+      - name: Coverage gate
+        run: pytest --cov=cds2 --cov-report=term-missing --cov-fail-under=100
+      - name: Property tests
+        run: python -m pytest tests/property/ -v --hypothesis-seed=0
+      - name: Benchmark regression gate
+        run: |
+          python benchmarks/run_benchmarks.py --quick
+          python -m cds2.bench.regression --tolerance 0.10
 
   build_sdist_and_pure_wheel:
-    needs: test
+    needs: preflight
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -44,7 +71,7 @@ jobs:
           path: dist/*
 
   build_wheels:
-    needs: test
+    needs: preflight
     strategy:
       fail-fast: false
       matrix:
@@ -149,8 +176,6 @@ jobs:
           exit 1
 
       - name: Create GitHub Release
-        # This runs only after PyPI is either confirmed already present or the
-        # freshly published version has been independently verified above.
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.meta.outputs.version }}
