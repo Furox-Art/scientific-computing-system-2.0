@@ -95,6 +95,8 @@ jobs:
           test -f cli-smoke-output/guided_fit_manifest.json
           test -f cli-smoke-output/cli-smoke_fit.png
           test -f cli-smoke-output/cli-smoke_fit.pdf
+          test -f cli-smoke-output/cli-smoke_residuals.png
+          test -f cli-smoke-output/cli-smoke_residuals.pdf
           .wheel-smoke/bin/cds2 guided-fit-rerun cli-smoke-output/guided_fit_manifest.json
 
   test:
