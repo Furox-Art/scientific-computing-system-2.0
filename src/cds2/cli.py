@@ -306,8 +306,14 @@ def cmd_guided_fit(args: argparse.Namespace) -> int:
         if report_path is not None:
             print(f"report    {report_path}")
 
-        if result.trust != "reliable" and recommendation.model != model:
-            print(f"next      consider {recommendation.model}: {recommendation.reason}")
+        if result.trust != "reliable":
+            alternative = recommend_model(
+                datasets,
+                missing_policy=missing_policy,
+                seed=args.seed,
+                exclude=(model,),
+            )
+            print(f"next      consider {alternative.model}: {alternative.reason}")
         return 0
     except (OSError, ValueError, RuntimeError) as exc:
         print(f"error: {exc}", file=sys.stderr)
