@@ -17,7 +17,17 @@ jobs:
         with:
           python-version: "3.12"
       - name: Apply source and test changes
-        run: python tools/apply_guided_fit_10.py
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tools/apply_guided_fit_10.py")
+          text = path.read_text(encoding="utf-8")
+          text = text.replace('"def rerun_manifest(\\n"', '"def rerun_manifest("')
+          text = text.replace('"def cmd_guided_fit_rerun(\\n"', '"def cmd_guided_fit_rerun("')
+          path.write_text(text, encoding="utf-8")
+          PY
+          python tools/apply_guided_fit_10.py
       - name: Format and lint changed Python files
         run: |
           pip install ruff
