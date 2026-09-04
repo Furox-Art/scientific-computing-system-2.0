@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from scipy import stats as sps
 
 warnings.warn(
-    "cds2.distributions is deprecated since 4.3.0 and will be removed in 5.0.0: "
+    "cds2.distributions is deprecated since 4.3.0 and may be removed in a future major release: "
     "it re-exports scipy.stats distribution methods as pdf/cdf/ppf aliases with "
     "divergent parameter names and without the frozen-distribution, rvs, fit, or "
     "interval API. Use `from scipy import stats` directly (e.g. stats.norm.pdf, "
