@@ -91,9 +91,6 @@ def cmd_linsolve(args: argparse.Namespace) -> int:
         print("error: --a must contain at least one matrix row", file=sys.stderr)
         return 1
     a_values = [_parse_numbers(row) for row in matrix_rows]
-    if any(not row for row in a_values):
-        print("error: --a contains an empty matrix row", file=sys.stderr)
-        return 1
     widths = {len(row) for row in a_values}
     if len(widths) != 1 or len(a_values) != next(iter(widths)):
         print("error: --a must be square, rows separated by ';'", file=sys.stderr)
