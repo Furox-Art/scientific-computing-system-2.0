@@ -5,8 +5,7 @@ on:
     tags: ["v*.*.*"]
 
 # Serialise releases globally and never cancel one. Two tags pushed close
-# together would otherwise race each other into the same PyPI project, and a
-# publish interrupted halfway leaves artifacts uploaded but no GitHub release.
+# together would otherwise race each other into the same PyPI project.
 concurrency:
   group: release
   cancel-in-progress: false
@@ -69,46 +68,85 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v7
-      - name: Skip when the version is already on PyPI
-        id: gate
+
+      - name: Resolve release metadata
+        id: meta
+        shell: bash
         run: |
-          VERSION=$(python -c "
+          python - <<'PY' >> "$GITHUB_OUTPUT"
           import pathlib, tomllib
-          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
-          print(data['project']['version'])
-          ")
-          NAME=$(python -c "
-          import pathlib, tomllib
-          data = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
-          print(data['project']['name'])
-          ")
-          if curl -sfL "https://pypi.org/pypi/${NAME}/${VERSION}/json" > /dev/null; then
-            echo "Version ${VERSION} of ${NAME} already published - skipping upload."
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text())
+          print(f"name={data['project']['name']}")
+          print(f"version={data['project']['version']}")
+          PY
+
+      - name: Check whether version already exists on PyPI
+        id: gate
+        shell: bash
+        run: |
+          if curl -sfL "https://pypi.org/pypi/${{ steps.meta.outputs.name }}/${{ steps.meta.outputs.version }}/json" > /dev/null; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Version already exists on PyPI."
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Detect API token fallback availability
+        id: auth
+        if: steps.gate.outputs.skip != 'true'
+        shell: bash
+        env:
+          PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          if [ -n "$PYPI_TOKEN" ]; then
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Download all distributions
         if: steps.gate.outputs.skip != 'true'
         uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
+
       - name: Publish to PyPI (trusted publishing)
+        id: trusted_publish
         if: steps.gate.outputs.skip != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         continue-on-error: true
+
       - name: Publish to PyPI (API token fallback)
-        # NOTE: `secrets` cannot be used in `if:` expressions (workflow file
-        # error) - expose presence via env instead.
-        if: steps.gate.outputs.skip != 'true' && env.HAS_PYPI_TOKEN == 'true'
-        env:
-          HAS_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN != '' }}
+        id: token_publish
+        if: steps.gate.outputs.skip != 'true' && steps.trusted_publish.outcome != 'success' && steps.auth.outputs.has_token == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
         continue-on-error: true
+
+      - name: Verify PyPI publication
+        if: steps.gate.outputs.skip != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://pypi.org/pypi/${{ steps.meta.outputs.name }}/${{ steps.meta.outputs.version }}/json"
+          for attempt in 1 2 3 4 5 6; do
+            if curl -sfL "$url" > /dev/null; then
+              echo "Verified PyPI publication: $url"
+              exit 0
+            fi
+            echo "PyPI metadata not visible yet (attempt $attempt/6); retrying..."
+            sleep 10
+          done
+          echo "ERROR: release artifacts were not verified on PyPI."
+          echo "Trusted publishing outcome: ${{ steps.trusted_publish.outcome }}"
+          echo "Token fallback outcome: ${{ steps.token_publish.outcome }}"
+          exit 1
+
       - name: Create GitHub Release
+        # This runs only after PyPI is either confirmed already present or the
+        # freshly published version has been independently verified above.
         uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
