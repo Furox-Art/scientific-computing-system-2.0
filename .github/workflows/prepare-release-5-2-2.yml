@@ -1,0 +1,74 @@
+name: Prepare release 5.2.2
+
+on:
+  push:
+    branches:
+      - release/5.2.2
+    paths:
+      - .github/workflows/prepare-release-5-2-2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: release/5.2.2
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Update release metadata
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          pyproject = Path("pyproject.toml")
+          text = pyproject.read_text(encoding="utf-8")
+          old = 'version = "5.2.1"'
+          new = 'version = "5.2.2"'
+          if text.count(old) != 1:
+              raise SystemExit("expected exactly one pyproject 5.2.1 version")
+          pyproject.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          version_file = Path("src/cds2/_version.py")
+          text = version_file.read_text(encoding="utf-8")
+          old = '__version__ = "5.2.1"'
+          new = '__version__ = "5.2.2"'
+          if text.count(old) != 1:
+              raise SystemExit("expected exactly one _version.py 5.2.1 version")
+          version_file.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          changelog = Path("CHANGELOG.md")
+          current = changelog.read_text(encoding="utf-8")
+          if current.startswith("## [v5.2.2]"):
+              raise SystemExit("v5.2.2 changelog already exists")
+          entry = '''## [v5.2.2] - 2026-09-05
+
+Guided-fit reporting patch: long PDF reports are now paginated without silently truncating scientific results or report text.
+
+### Changed
+
+- Guided-fit PDF reports wrap long lines and automatically span as many pages as required.
+- The previous fixed 12,000-character PDF report slice has been removed.
+- Regression coverage verifies that content from the beginning, middle and end of long reports is preserved.
+
+### Fixed
+
+- Prevented long guided-fit PDF reports from silently dropping content beyond the previous single-page character limit.
+
+'''
+          changelog.write_text(entry + current, encoding="utf-8")
+          PY
+      - name: Commit release metadata
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml src/cds2/_version.py CHANGELOG.md
+          git diff --cached --check
+          git commit -m "Prepare 5.2.2 release"
+          git push origin HEAD:release/5.2.2
