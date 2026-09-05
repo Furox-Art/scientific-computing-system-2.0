@@ -103,16 +103,11 @@ jobs:
           from pathlib import Path
           path = Path('tests/test_coverage_gaps.py')
           text = path.read_text(encoding='utf-8')
-          old = '''    def test_numpy_lloyd_zero_iterations_returns_init(
-              self, monkeypatch: pytest.MonkeyPatch
-          ) -> None:
-              monkeypatch.setattr(ml_module, "_HAS_C_KERNEL", False)
-              separated = np.vstack([np.zeros((5, 1)), np.full((5, 1), 10.0)])
-              model = ml_module.KMeans(n_clusters=2, max_iter=0, seed=0).fit(separated)
-              assert model.labels_ is not None
-              assert model.cluster_centers_ is not None
-          '''
-          new = '''    def test_numpy_lloyd_rejects_zero_iterations(
+          marker = '    def test_numpy_lloyd_zero_iterations_returns_init('
+          start = text.find(marker)
+          if start < 0:
+              raise SystemExit('obsolete KMeans test marker not found')
+          replacement = '''    def test_numpy_lloyd_rejects_zero_iterations(
               self, monkeypatch: pytest.MonkeyPatch
           ) -> None:
               monkeypatch.setattr(ml_module, "_HAS_C_KERNEL", False)
@@ -120,9 +115,7 @@ jobs:
               with pytest.raises(ValueError, match="max_iter"):
                   ml_module.KMeans(n_clusters=2, max_iter=0, seed=0).fit(separated)
           '''
-          if old not in text:
-              raise SystemExit('obsolete KMeans test marker not found')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          path.write_text(text[:start] + replacement, encoding='utf-8')
           PY
       - name: Install validation dependencies
         run: |
