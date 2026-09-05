@@ -20,9 +20,71 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Require release from main
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "ERROR: releases must be dispatched from main; got $GITHUB_REF"
+            exit 1
+          fi
+
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+
+      - name: Verify release metadata consistency
+        shell: bash
+        run: |
+          python - <<'PY'
+          import pathlib
+          import re
+          import tomllib
+
+          root = pathlib.Path(".")
+          project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+          version = project["project"]["version"]
+
+          version_text = (root / "src/cds2/_version.py").read_text(encoding="utf-8")
+          match = re.search(r'^__version__\s*=\s*"([^"]+)"', version_text, re.MULTILINE)
+          if match is None or match.group(1) != version:
+              raise SystemExit("ERROR: pyproject.toml and src/cds2/_version.py are out of sync")
+
+          changelog = (root / "CHANGELOG.md").read_text(encoding="utf-8")
+          heading = re.search(r"^## \[v([^\]]+)\]", changelog, re.MULTILINE)
+          if heading is None or heading.group(1) != version:
+              raise SystemExit("ERROR: CHANGELOG.md does not start with the package version")
+
+          print(f"Release metadata is consistent for {project['project']['name']} {version}")
+          PY
+
+      - name: Refuse an already-published version or existing tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          readarray -t META < <(python - <<'PY'
+          import pathlib, tomllib
+          data = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
+          print(data["project"]["name"])
+          print(data["project"]["version"])
+          PY
+          )
+          PACKAGE="${META[0]}"
+          VERSION="${META[1]}"
+
+          if curl -sfL "https://pypi.org/pypi/${PACKAGE}/${VERSION}/json" > /dev/null; then
+            echo "ERROR: ${PACKAGE} ${VERSION} already exists on PyPI. Bump the version before releasing."
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" > /dev/null 2>&1; then
+            echo "ERROR: tag v${VERSION} already exists. Bump the version before releasing."
+            exit 1
+          fi
+
       - name: Install package and release test dependencies
         run: |
           python -m pip install --upgrade pip
@@ -88,8 +150,11 @@ jobs:
     needs: [build_sdist_and_pure_wheel, build_wheels]
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
       id-token: write
+    outputs:
+      package_name: ${{ steps.meta.outputs.name }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v7
 
@@ -104,20 +169,21 @@ jobs:
           print(f"version={data['project']['version']}")
           PY
 
-      - name: Check whether version already exists on PyPI
-        id: gate
+      # Re-check immediately before upload to close the race between preflight
+      # and publication. Existing versions are fatal: silently skipping them can
+      # make a GitHub tag point at code that is not the code on PyPI.
+      - name: Refuse an already-published version
         shell: bash
         run: |
-          if curl -sfL "https://pypi.org/pypi/${{ steps.meta.outputs.name }}/${{ steps.meta.outputs.version }}/json" > /dev/null; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "Version already exists on PyPI."
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          url="https://pypi.org/pypi/${{ steps.meta.outputs.name }}/${{ steps.meta.outputs.version }}/json"
+          if curl -sfL "$url" > /dev/null; then
+            echo "ERROR: version already exists on PyPI: $url"
+            exit 1
           fi
 
       - name: Detect API token fallback availability
         id: auth
-        if: steps.gate.outputs.skip != 'true'
         shell: bash
         env:
           PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
@@ -129,7 +195,6 @@ jobs:
           fi
 
       - name: Download all distributions
-        if: steps.gate.outputs.skip != 'true'
         uses: actions/download-artifact@v8
         with:
           path: dist
@@ -137,20 +202,18 @@ jobs:
 
       - name: Publish to PyPI (trusted publishing)
         id: trusted_publish
-        if: steps.gate.outputs.skip != 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         continue-on-error: true
 
       - name: Publish to PyPI (API token fallback)
         id: token_publish
-        if: steps.gate.outputs.skip != 'true' && steps.trusted_publish.outcome != 'success' && steps.auth.outputs.has_token == 'true'
+        if: steps.trusted_publish.outcome != 'success' && steps.auth.outputs.has_token == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
         continue-on-error: true
 
       - name: Verify PyPI publication
-        if: steps.gate.outputs.skip != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -168,9 +231,110 @@ jobs:
           echo "Token fallback outcome: ${{ steps.token_publish.outcome }}"
           exit 1
 
+  # Install the exact version back from public PyPI on all supported operating
+  # systems. The GitHub Release is not created until these real-world CLI smoke
+  # tests pass, so a green release means the public package itself was tested.
+  verify_published:
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install exact release from public PyPI
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE="${{ needs.publish.outputs.package_name }}"
+          VERSION="${{ needs.publish.outputs.version }}"
+          python -m pip install --upgrade pip
+
+          installed=false
+          for attempt in 1 2 3 4 5 6; do
+            if python -m pip install --no-cache-dir --index-url https://pypi.org/simple "${PACKAGE}==${VERSION}"; then
+              installed=true
+              break
+            fi
+            echo "Published distribution not installable yet (attempt $attempt/6); retrying..."
+            sleep 10
+          done
+          if [ "$installed" != "true" ]; then
+            echo "ERROR: could not install ${PACKAGE}==${VERSION} from public PyPI"
+            exit 1
+          fi
+
+          VERSION="$VERSION" PACKAGE="$PACKAGE" python - <<'PY'
+          import importlib.metadata as metadata
+          import os
+          import cds2
+
+          expected = os.environ["VERSION"]
+          package = os.environ["PACKAGE"]
+          assert cds2.__version__ == expected, (cds2.__version__, expected)
+          assert metadata.version(package) == expected, (metadata.version(package), expected)
+          print(f"Verified installed package version: {package} {expected}")
+          PY
+
+      - name: Smoke-test published CLI and guided fit
+        shell: bash
+        run: |
+          set -euo pipefail
+          cds2 info
+          python - <<'PY'
+          import csv
+          with open("published-cli-smoke.csv", "w", newline="", encoding="utf-8") as handle:
+              writer = csv.writer(handle)
+              writer.writerow(["x", "y", "sigma"])
+              for x in range(1, 21):
+                  writer.writerow([x, 2.0 * x + 1.0, 0.2])
+          PY
+          cds2 guided-fit published-cli-smoke.csv --x x --y y --sigma sigma --model linear --missing interpolate --outliers keep --report none --output-dir published-cli-smoke-output
+          test -f published-cli-smoke-output/guided_fit_manifest.json
+          test -f published-cli-smoke-output/published-cli-smoke_fit.png
+          test -f published-cli-smoke-output/published-cli-smoke_fit.pdf
+          test -f published-cli-smoke-output/published-cli-smoke_residuals.png
+          test -f published-cli-smoke-output/published-cli-smoke_residuals.pdf
+          cds2 guided-fit-rerun published-cli-smoke-output/guided_fit_manifest.json
+
+  github_release:
+    needs: [publish, verify_published]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: v${{ steps.meta.outputs.version }}
+          tag_name: v${{ needs.publish.outputs.version }}
           target_commitish: ${{ github.sha }}
           generate_release_notes: true
+
+      - name: Verify GitHub release identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.publish.outputs.version }}"
+          git fetch --force origin "refs/tags/v${VERSION}:refs/tags/v${VERSION}"
+          TAG_COMMIT="$(git rev-list -n 1 "v${VERSION}")"
+          if [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then
+            echo "ERROR: v${VERSION} resolves to $TAG_COMMIT but release workflow ran at $GITHUB_SHA"
+            exit 1
+          fi
+          gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" > /dev/null
+          echo "Verified GitHub Release v${VERSION} at commit $GITHUB_SHA"
