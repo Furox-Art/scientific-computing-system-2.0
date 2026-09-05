@@ -21,6 +21,18 @@ jobs:
           python-version: '3.12'
       - name: Apply hardening patch
         run: python tools/apply_correctness_hardening_1.py
+      - name: Fix generated strict typing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/cds2/estimator/cluster.py')
+          text = path.read_text(encoding='utf-8')
+          old = '        labels: np.ndarray = np.argmin(squared, axis=1)\n        return labels\n'
+          new = '        labels = np.argmin(squared, axis=1)\n        return np.asarray(labels, dtype=np.int64)\n'
+          if old not in text:
+              raise SystemExit('cluster return marker not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
       - name: Install validation dependencies
         run: |
           python -m pip install --upgrade pip
