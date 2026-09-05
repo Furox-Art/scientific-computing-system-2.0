@@ -1,3 +1,17 @@
+## [v5.2.2] - 2026-09-05
+
+Guided-fit reporting patch: long PDF reports are now paginated without silently truncating scientific results or report text.
+
+### Changed
+
+- Guided-fit PDF reports wrap long lines and automatically span as many pages as required.
+- The previous fixed 12,000-character PDF report slice has been removed.
+- Regression coverage verifies that content from the beginning, middle and end of long reports is preserved.
+
+### Fixed
+
+- Prevented long guided-fit PDF reports from silently dropping content beyond the previous single-page character limit.
+
 ## [v5.2.1] - 2026-09-05
 
 Release-integrity patch: the cross-platform installed-wheel CLI validation merged after v5.2.0 is now part of a distinct release commit, and the release pipeline is fail-closed against tag/PyPI drift.
