@@ -17,10 +17,11 @@ import pytest
 import scipy
 
 from cds2 import epidemiology as epi
-from cds2 import graph, guided_fit as gf, linalg, ml, montecarlo as mc, reliability, stats
+from cds2 import graph, linalg, ml, reliability, stats
+from cds2 import guided_fit as gf
+from cds2 import montecarlo as mc
 from cds2.estimator import KMeansSKL, LinearRegressionGD, RidgeSGD
 from cds2.estimator._base import BaseEstimator
-
 
 # ---------------------------------------------------------------------------
 # Estimator input contracts and gradient-descent guards
@@ -95,7 +96,9 @@ def test_svd_rejects_non_matrix() -> None:
         linalg.svd([1.0, 2.0, 3.0])
 
 
-def test_pagerank_rejects_invalid_native_probability_vector(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_pagerank_rejects_invalid_native_probability_vector(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     class BrokenKernel:
         @staticmethod
         def iterate(*args):  # type: ignore[no-untyped-def]
@@ -211,13 +214,13 @@ def test_guided_dataset_key_and_file_stem_fallbacks() -> None:
 def test_guided_confidence_interval_guard_paths() -> None:
     no_std = SimpleNamespace(params=np.array([1.0, 2.0]), parameter_std=None, dof=3)
     assert np.isnan(gf._confidence_interval(no_std)).all()
-    no_dof = SimpleNamespace(
-        params=np.array([1.0, 2.0]), parameter_std=np.array([0.1, 0.2]), dof=0
-    )
+    no_dof = SimpleNamespace(params=np.array([1.0, 2.0]), parameter_std=np.array([0.1, 0.2]), dof=0)
     assert np.isnan(gf._confidence_interval(no_dof)).all()
 
 
-def test_guided_run_and_plot_contract_guards(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_guided_run_and_plot_contract_guards(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     with pytest.raises(ValueError, match="at least one dataset"):
         gf.run_guided_fit((), "linear")
     with pytest.raises(ValueError, match="unsupported"):
@@ -288,7 +291,9 @@ def test_guided_manifest_rerun_defensive_branches(tmp_path: Path) -> None:
     material.write_text(json.dumps(material_payload), encoding="utf-8")
     material_result = gf.rerun_manifest(material)
     assert any("fit changed materially" in detail for detail in material_result.stability_details)
-    assert any("reliability label changed" in detail for detail in material_result.stability_details)
+    assert any(
+        "reliability label changed" in detail for detail in material_result.stability_details
+    )
 
 
 def test_guided_manifest_hash_fallbacks(tmp_path: Path) -> None:
@@ -365,7 +370,9 @@ def test_logistic_input_prediction_and_divergence_guards() -> None:
             ml.LogisticRegression(learning_rate=1e308, max_iter=2).fit(huge_x, [1, 0])
 
 
-def test_kmeans_core_validation_empty_cluster_and_identical_init(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_kmeans_core_validation_empty_cluster_and_identical_init(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     with pytest.raises(ValueError, match="non-empty"):
         ml.KMeans().fit(np.empty((0, 1)))
     with pytest.raises(ValueError, match="n_clusters"):
@@ -472,7 +479,9 @@ def test_monte_carlo_integrator_validation_and_scalar_paths() -> None:
 
 
 def test_mc_expectation_validation_branches() -> None:
-    sampler = lambda rng, n: rng.normal(size=n)
+    def sampler(rng, n):  # type: ignore[no-untyped-def]
+        return rng.normal(size=n)
+
     with pytest.raises(ValueError, match="positive integer"):
         mc.mc_expectation(lambda x: x, sampler, n=0)
     with pytest.raises(ValueError, match="return n samples"):
@@ -675,9 +684,13 @@ def test_stats_bootstrap_permutation_matrix_and_streaming_guards() -> None:
             raise TypeError("scalar sample only")
         return float(np.mean(sample))
 
-    assert np.isfinite(stats.bootstrap_ci([1.0, 2.0, 3.0], scalar_stat, n_resamples=10, seed=1).estimate)
+    assert np.isfinite(
+        stats.bootstrap_ci([1.0, 2.0, 3.0], scalar_stat, n_resamples=10, seed=1).estimate
+    )
     with pytest.raises(ValueError, match="one finite scalar"):
-        stats.bootstrap_ci([1.0, 2.0], lambda sample, axis=1: np.array([np.nan, np.nan]), n_resamples=2)
+        stats.bootstrap_ci(
+            [1.0, 2.0], lambda sample, axis=1: np.array([np.nan, np.nan]), n_resamples=2
+        )
     with pytest.raises(ValueError, match="point estimate"):
         stats.bootstrap_ci([1.0, 2.0], lambda sample, **kwargs: np.nan, n_resamples=2)
     with pytest.raises(ValueError, match="n_permutations"):
