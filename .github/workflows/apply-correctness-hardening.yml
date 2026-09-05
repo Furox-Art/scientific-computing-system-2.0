@@ -27,11 +27,17 @@ jobs:
           from pathlib import Path
           path = Path('src/cds2/estimator/cluster.py')
           text = path.read_text(encoding='utf-8')
-          old = '        labels: np.ndarray = np.argmin(squared, axis=1)\n        return labels\n'
-          new = '        labels = np.argmin(squared, axis=1)\n        return np.asarray(labels, dtype=np.int64)\n'
-          if old not in text:
-              raise SystemExit('cluster return marker not found')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          replacements = {
+              '        labels: np.ndarray = np.argmin(squared, axis=1)\n        return labels\n':
+                  '        return np.asarray(np.argmin(squared, axis=1), dtype=np.int64)\n',
+              '        assert self.labels_ is not None\n        return self.labels_.copy()\n':
+                  '        assert self.labels_ is not None\n        return np.asarray(self.labels_, dtype=np.int64).copy()\n',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'cluster typing marker not found: {old!r}')
+              text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
           PY
       - name: Install validation dependencies
         run: |
