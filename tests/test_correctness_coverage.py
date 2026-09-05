@@ -580,7 +580,7 @@ def test_metropolis_all_validation_and_infinite_density_paths() -> None:
     )
     assert result.samples.shape == (4, 1)
 
-    with pytest.raises(ValueError, match="NaN or \+inf"):
+    with pytest.raises(ValueError, match=r"NaN or \+inf"):
         mc.metropolis_hastings(
             lambda v: 0.0 if v[0] == 0.0 else float("inf"),
             [0.0],
