@@ -10,11 +10,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-261230.svg)](https://github.com/astral-sh/ruff)
 
-**CDS v2** is a scientific computing platform built on the scientific Python
-stack: NumPy, SciPy, pandas and matplotlib. The algorithms proven in the
+**scientific-computing-system-2.0 (CDS2)** is a scientific computing platform built on the scientific Python
+stack: NumPy, SciPy, pandas and matplotlib. The algorithms and scientific foundations developed in the
 pure-Python [scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system)
-(v1.x) form its foundation; v2 rebuilds them for speed and adds new domain
-modules on top.
+line form its foundation; CDS2 rebuilds and extends them for speed, broader domain coverage and production-oriented scientific Python workflows.
 
 For data/model fitting, CDS also includes a guided scientific workflow that
 recommends one candidate model while keeping model choice, missing-data
@@ -213,12 +212,12 @@ fit and residual plots as both PNG and PDF; reports are available as PDF, HTML o
 Reruns warn when saved results change materially, and multi-dataset analysis can
 recommend separate models when a single common model is a poor compromise.
 
-## Relationship to CDS v1.x
+## Relationship to the pure-Python CDS line
 
-The original zero-dependency pure-Python line lives at
+The zero-runtime-dependency pure-Python line lives at
 [Furox-Art/scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system)
-and remains available. v2 is an independent project that trades that
-constraint for the speed and breadth of the scientific Python ecosystem.
+and continues as an independent project. CDS2 deliberately trades the zero-runtime-dependency constraint
+for the speed, acceleration options and breadth of the scientific Python ecosystem.
 
 Runnable case studies live in [examples/](examples/) - see the docs page for details.
 
