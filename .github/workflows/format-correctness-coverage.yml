@@ -1,0 +1,45 @@
+name: Format correctness coverage tests
+
+on:
+  push:
+    branches:
+      - hardening/full-correctness-audit
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: hardening/full-correctness-audit
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: pip install ruff
+      - name: Normalize test source
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tests/test_correctness_coverage.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              '    sampler = lambda rng, n: rng.normal(size=n)\n',
+              '    def sampler(rng, n):  # type: ignore[no-untyped-def]\n        return rng.normal(size=n)\n',
+              1,
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
+          ruff check tests/test_correctness_coverage.py --fix
+          ruff format tests/test_correctness_coverage.py
+          ruff check tests/test_correctness_coverage.py
+      - name: Commit formatting
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add tests/test_correctness_coverage.py
+          git commit -m 'Normalize correctness coverage tests'
+          git push origin HEAD:hardening/full-correctness-audit
