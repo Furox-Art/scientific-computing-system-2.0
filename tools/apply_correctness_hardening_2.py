@@ -56,7 +56,7 @@ replace_once(
 replace_function(
     "src/cds2/guided_fit.py",
     "inspect_dataset",
-    r'''
+    r"""
 def inspect_dataset(dataset: FitDataset) -> dict[str, object]:
     x = np.asarray(dataset.x)
     y = np.asarray(dataset.y)
@@ -79,13 +79,13 @@ def inspect_dataset(dataset: FitDataset) -> dict[str, object]:
         "missing": missing_count,
         "suggested_missing_policy": "interpolate" if missing_count else "none",
     }
-''',
+""",
 )
 
 replace_function(
     "src/cds2/guided_fit.py",
     "_prepare",
-    r'''
+    r"""
 def _prepare(dataset: FitDataset, missing_policy: MissingPolicy) -> FitDataset:
     if missing_policy not in {"drop", "interpolate"}:
         raise ValueError("missing_policy must be 'drop' or 'interpolate'")
@@ -131,13 +131,13 @@ def _prepare(dataset: FitDataset, missing_policy: MissingPolicy) -> FitDataset:
     if not bool(np.all(np.isfinite(x))) or not bool(np.all(np.isfinite(y))):
         raise ValueError("prepared x and y must be finite")
     return FitDataset(dataset.name, x, y, sigma, dataset.source_path)
-''',
+""",
 )
 
 replace_function(
     "src/cds2/guided_fit.py",
     "recommend_model",
-    r'''
+    r"""
 def recommend_model(
     datasets: tuple[FitDataset, ...],
     *,
@@ -207,7 +207,7 @@ def recommend_model(
         common_warning,
         tuple(separate_models),
     )
-''',
+""",
 )
 
 replace_function(
@@ -332,7 +332,7 @@ def _prediction_rmse(model: ModelName, dataset: FitDataset, params: FloatArray) 
 replace_function(
     "src/cds2/guided_fit.py",
     "run_guided_fit",
-    r'''
+    r"""
 def run_guided_fit(
     datasets: tuple[FitDataset, ...],
     model: ModelName,
@@ -467,13 +467,13 @@ def run_guided_fit(
         versions,
         {key: _hash_dataset(ds) for key, ds in zip(keys, datasets, strict=True)},
     )
-''',
+""",
 )
 
 replace_function(
     "src/cds2/guided_fit.py",
     "plot_result",
-    r'''
+    r"""
 def plot_result(
     result: GuidedFitResult,
     datasets: tuple[FitDataset, ...],
@@ -534,13 +534,13 @@ def plot_result(
             paths.append(path)
         plt.close(residual_fig)
     return paths
-''',
+""",
 )
 
 replace_function(
     "src/cds2/guided_fit.py",
     "manifest_dict",
-    r'''
+    r"""
 def manifest_dict(
     result: GuidedFitResult,
     datasets: tuple[FitDataset, ...],
@@ -593,13 +593,13 @@ def manifest_dict(
             for key, ds in zip(keys, datasets, strict=True)
         ],
     }
-''',
+""",
 )
 
 replace_function(
     "src/cds2/guided_fit.py",
     "rerun_manifest",
-    r'''
+    r"""
 def rerun_manifest(path: str | Path) -> GuidedFitResult:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     cfg = payload["result"]
@@ -662,7 +662,7 @@ def rerun_manifest(path: str | Path) -> GuidedFitResult:
         details.append(f"reliability label changed: {cfg['trust']} -> {rerun.trust}")
 
     return replace(rerun, stability_warning=bool(details), stability_details=tuple(details))
-''',
+""",
 )
 
 # ---------------------------------------------------------------------------
@@ -1095,7 +1095,7 @@ def parallel_mc_integrate(
 replace_function(
     "src/cds2/stats.py",
     "_as_1d",
-    r'''
+    r"""
 def _as_1d(x: object, *, min_size: int = 1) -> np.ndarray:
     arr = np.asarray(x, dtype=float)
     if arr.ndim != 1 or arr.size < min_size:
@@ -1138,7 +1138,7 @@ def _matrix_observations(data: object) -> np.ndarray:
     if not bool(np.all(np.isfinite(values))):
         raise ValueError("data must contain only finite values")
     return values
-''',
+""",
 )
 
 replace_function(
@@ -1429,7 +1429,7 @@ def correlation_matrix(data: object) -> np.ndarray:
 replace_once(
     "src/cds2/stats.py",
     "        if batch.size == 0:\n            return self\n        batch_count = batch.size\n",
-    "        if batch.size == 0:\n            return self\n        if not bool(np.all(np.isfinite(batch))):\n            raise ValueError(\"chunk must contain only finite values\")\n        batch_count = batch.size\n",
+    '        if batch.size == 0:\n            return self\n        if not bool(np.all(np.isfinite(batch))):\n            raise ValueError("chunk must contain only finite values")\n        batch_count = batch.size\n',
 )
 
 # ---------------------------------------------------------------------------
@@ -1471,18 +1471,18 @@ def _validate_common(
 # Initial-state NaN checks are otherwise bypassed by chained comparisons.
 replace_once(
     "src/cds2/epidemiology.py",
-    "    if not 0.0 <= i0 <= population:\n        msg = \"initial infections must lie within the population\"\n        raise ValueError(msg)\n",
-    "    if not np.isfinite(i0) or not 0.0 <= i0 <= population:\n        msg = \"initial infections must lie within the population\"\n        raise ValueError(msg)\n",
+    '    if not 0.0 <= i0 <= population:\n        msg = "initial infections must lie within the population"\n        raise ValueError(msg)\n',
+    '    if not np.isfinite(i0) or not 0.0 <= i0 <= population:\n        msg = "initial infections must lie within the population"\n        raise ValueError(msg)\n',
 )
 replace_once(
     "src/cds2/epidemiology.py",
-    "    if sigma <= 0.0:\n        msg = \"sigma must be positive\"\n        raise ValueError(msg)\n    if not 0.0 <= i0 <= population:\n",
-    "    if not np.isfinite(sigma) or sigma <= 0.0:\n        msg = \"sigma must be positive\"\n        raise ValueError(msg)\n    if not np.isfinite(i0) or not 0.0 <= i0 <= population:\n",
+    '    if sigma <= 0.0:\n        msg = "sigma must be positive"\n        raise ValueError(msg)\n    if not 0.0 <= i0 <= population:\n',
+    '    if not np.isfinite(sigma) or sigma <= 0.0:\n        msg = "sigma must be positive"\n        raise ValueError(msg)\n    if not np.isfinite(i0) or not 0.0 <= i0 <= population:\n',
 )
 replace_once(
     "src/cds2/epidemiology.py",
-    "    if e0 < 0.0:\n        msg = \"initial exposures must be non-negative\"\n        raise ValueError(msg)\n",
-    "    if not np.isfinite(e0) or e0 < 0.0:\n        msg = \"initial exposures must be non-negative\"\n        raise ValueError(msg)\n",
+    '    if e0 < 0.0:\n        msg = "initial exposures must be non-negative"\n        raise ValueError(msg)\n',
+    '    if not np.isfinite(e0) or e0 < 0.0:\n        msg = "initial exposures must be non-negative"\n        raise ValueError(msg)\n',
 )
 
 replace_function(
@@ -1553,20 +1553,20 @@ def final_size_iteration(r0: float, tol: float = 1e-10, max_iter: int = 200) -> 
 # ---------------------------------------------------------------------------
 replace_once(
     "tests/test_reliability.py",
-    '''    def test_mask_excludes_censored_entries(self) -> None:\n        data = sp_stats.weibull_min.rvs(c=1.5, scale=1000.0, size=400, random_state=1)\n        padded = np.concatenate([data, [10.0, 9999.0]])\n        mask = np.concatenate([np.ones(400, dtype=bool), [False, False]])\n        masked_fit = rel.weibull_fit(padded, failures_mask=mask)\n        reference = rel.weibull_fit(data)\n        assert masked_fit.shape == pytest.approx(reference.shape, rel=1e-12)\n        assert masked_fit.scale == pytest.approx(reference.scale, rel=1e-12)\n        assert masked_fit.shape == pytest.approx(1.5, rel=0.20)\n''',
-    '''    def test_mask_uses_right_censored_likelihood(self) -> None:\n        failures = np.array([100.0, 180.0, 250.0, 320.0, 400.0])\n        durations = np.concatenate([failures, [900.0, 1000.0, 1100.0]])\n        mask = np.array([True] * failures.size + [False, False, False])\n        censored_fit = rel.weibull_fit(durations, failures_mask=mask)\n        failure_only = rel.weibull_fit(failures)\n        assert censored_fit.shape > 0.0\n        assert censored_fit.scale > failure_only.scale\n''',
+    """    def test_mask_excludes_censored_entries(self) -> None:\n        data = sp_stats.weibull_min.rvs(c=1.5, scale=1000.0, size=400, random_state=1)\n        padded = np.concatenate([data, [10.0, 9999.0]])\n        mask = np.concatenate([np.ones(400, dtype=bool), [False, False]])\n        masked_fit = rel.weibull_fit(padded, failures_mask=mask)\n        reference = rel.weibull_fit(data)\n        assert masked_fit.shape == pytest.approx(reference.shape, rel=1e-12)\n        assert masked_fit.scale == pytest.approx(reference.scale, rel=1e-12)\n        assert masked_fit.shape == pytest.approx(1.5, rel=0.20)\n""",
+    """    def test_mask_uses_right_censored_likelihood(self) -> None:\n        failures = np.array([100.0, 180.0, 250.0, 320.0, 400.0])\n        durations = np.concatenate([failures, [900.0, 1000.0, 1100.0]])\n        mask = np.array([True] * failures.size + [False, False, False])\n        censored_fit = rel.weibull_fit(durations, failures_mask=mask)\n        failure_only = rel.weibull_fit(failures)\n        assert censored_fit.shape > 0.0\n        assert censored_fit.scale > failure_only.scale\n""",
 )
 
 replace_once(
     "tests/test_reliability.py",
-    '''    @pytest.mark.parametrize("mttr", [100.0, 150.0])\n    def test_availability_mttr_not_below_mtbf_raises(self, mttr: float) -> None:\n        with pytest.raises(ValueError, match="mttr must be smaller than mtbf"):\n            rel.availability(100.0, mttr)\n''',
-    '''    def test_availability_allows_long_or_zero_repair_time(self) -> None:\n        assert rel.availability(100.0, 150.0) == pytest.approx(0.4)\n        assert rel.availability(100.0, 0.0) == pytest.approx(1.0)\n''',
+    """    @pytest.mark.parametrize("mttr", [100.0, 150.0])\n    def test_availability_mttr_not_below_mtbf_raises(self, mttr: float) -> None:\n        with pytest.raises(ValueError, match="mttr must be smaller than mtbf"):\n            rel.availability(100.0, mttr)\n""",
+    """    def test_availability_allows_long_or_zero_repair_time(self) -> None:\n        assert rel.availability(100.0, 150.0) == pytest.approx(0.4)\n        assert rel.availability(100.0, 0.0) == pytest.approx(1.0)\n""",
 )
 
 replace_once(
     "tests/test_reliability.py",
-    '''        [(0.0, 1.0), (-1.0, 1.0), (100.0, 0.0), (100.0, -1.0)],\n''',
-    '''        [(0.0, 1.0), (-1.0, 1.0), (100.0, -1.0)],\n''',
+    """        [(0.0, 1.0), (-1.0, 1.0), (100.0, 0.0), (100.0, -1.0)],\n""",
+    """        [(0.0, 1.0), (-1.0, 1.0), (100.0, -1.0)],\n""",
 )
 
 # Add oracle/edge-case tests for this hardening wave.

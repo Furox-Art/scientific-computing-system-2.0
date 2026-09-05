@@ -45,15 +45,14 @@ class TestWeibullFit:
         assert fit.shape == pytest.approx(1.5, rel=0.20)
         assert fit.scale == pytest.approx(1000.0, rel=0.20)
 
-    def test_mask_excludes_censored_entries(self) -> None:
-        data = sp_stats.weibull_min.rvs(c=1.5, scale=1000.0, size=400, random_state=1)
-        padded = np.concatenate([data, [10.0, 9999.0]])
-        mask = np.concatenate([np.ones(400, dtype=bool), [False, False]])
-        masked_fit = rel.weibull_fit(padded, failures_mask=mask)
-        reference = rel.weibull_fit(data)
-        assert masked_fit.shape == pytest.approx(reference.shape, rel=1e-12)
-        assert masked_fit.scale == pytest.approx(reference.scale, rel=1e-12)
-        assert masked_fit.shape == pytest.approx(1.5, rel=0.20)
+    def test_mask_uses_right_censored_likelihood(self) -> None:
+        failures = np.array([100.0, 180.0, 250.0, 320.0, 400.0])
+        durations = np.concatenate([failures, [900.0, 1000.0, 1100.0]])
+        mask = np.array([True] * failures.size + [False, False, False])
+        censored_fit = rel.weibull_fit(durations, failures_mask=mask)
+        failure_only = rel.weibull_fit(failures)
+        assert censored_fit.shape > 0.0
+        assert censored_fit.scale > failure_only.scale
 
     @pytest.mark.parametrize(
         "durations", [[1.0], [], [0.0, 5.0]], ids=["single", "empty", "nonpositive"]
@@ -79,17 +78,16 @@ class TestMtbfAvailability:
     def test_availability_known_value(self) -> None:
         assert rel.availability(1000.0, 100.0) == pytest.approx(1000.0 / 1100.0)
 
-    @pytest.mark.parametrize("mttr", [100.0, 150.0])
-    def test_availability_mttr_not_below_mtbf_raises(self, mttr: float) -> None:
-        with pytest.raises(ValueError, match="mttr must be smaller than mtbf"):
-            rel.availability(100.0, mttr)
+    def test_availability_allows_long_or_zero_repair_time(self) -> None:
+        assert rel.availability(100.0, 150.0) == pytest.approx(0.4)
+        assert rel.availability(100.0, 0.0) == pytest.approx(1.0)
 
     @pytest.mark.parametrize(
         ("mtbf_value", "mttr"),
-        [(0.0, 1.0), (-1.0, 1.0), (100.0, 0.0), (100.0, -1.0)],
+        [(0.0, 1.0), (-1.0, 1.0), (100.0, -1.0)],
     )
     def test_availability_nonpositive_inputs_raise(self, mtbf_value: float, mttr: float) -> None:
-        with pytest.raises(ValueError, match="must be positive"):
+        with pytest.raises(ValueError, match="must be positive|non-negative"):
             rel.availability(mtbf_value, mttr)
 
 

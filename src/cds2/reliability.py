@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from numpy.typing import NDArray
+from scipy import optimize as sp_optimize
 from scipy import stats as sp_stats
 
 __all__ = [
@@ -51,7 +52,7 @@ def kaplan_meier(
     durations: Sequence[float] | FloatArray,
     events: Sequence[float] | FloatArray,
 ) -> KMResult:
-    """Kaplan-Meier product-limit estimate; events use 1 for failure, 0 for censored."""
+    """Kaplan-Meier product-limit estimate; events must be exactly 0 or 1."""
     durations_array = np.asarray(durations, dtype=float)
     events_array = np.asarray(events, dtype=float)
     if (
@@ -60,15 +61,18 @@ def kaplan_meier(
         or durations_array.size == 0
         or durations_array.size != events_array.size
     ):
-        msg = "durations and events must be equal-length non-empty series"
-        raise ValueError(msg)
+        raise ValueError("durations and events must be equal-length non-empty series")
+    if not bool(np.all(np.isfinite(durations_array))) or not bool(
+        np.all(np.isfinite(events_array))
+    ):
+        raise ValueError("durations and events must be finite")
     if np.any(durations_array < 0.0):
-        msg = "durations must be non-negative"
-        raise ValueError(msg)
-    if not np.any(events_array != 0.0):
-        msg = "at least one event is required"
-        raise ValueError(msg)
-    failure_mask = events_array != 0.0
+        raise ValueError("durations must be non-negative")
+    if not bool(np.all((events_array == 0.0) | (events_array == 1.0))):
+        raise ValueError("events must contain only 0 or 1")
+    if not np.any(events_array == 1.0):
+        raise ValueError("at least one event is required")
+    failure_mask = events_array == 1.0
     times = np.unique(durations_array[failure_mask])
     survival = 1.0
     estimates: list[float] = []
@@ -86,38 +90,67 @@ def weibull_fit(
     durations: Sequence[float] | FloatArray,
     failures_mask: Sequence[bool] | NDArray[np.bool_] | None = None,
 ) -> WeibullFit:
-    """Maximum-likelihood Weibull fit over failure times only (censored rows masked out)."""
+    """Maximum-likelihood two-parameter Weibull fit with optional right censoring."""
     data = np.asarray(durations, dtype=float)
-    if failures_mask is not None:
-        data = data[np.asarray(failures_mask, dtype=bool)]
-    failures_only = data[data > 0.0]
-    if failures_only.size < 2:
-        msg = "at least two positive durations are required"
-        raise ValueError(msg)
-    shape, _loc, scale = sp_stats.weibull_min.fit(failures_only, floc=0.0)
+    if data.ndim != 1 or data.size == 0:
+        raise ValueError("at least two positive durations are required")
+    if not bool(np.all(np.isfinite(data))) or np.any(data < 0.0):
+        raise ValueError("durations must be finite and non-negative")
+
+    if failures_mask is None:
+        failures_only = data[data > 0.0]
+        if failures_only.size < 2:
+            raise ValueError("at least two positive durations are required")
+        shape, _loc, scale = sp_stats.weibull_min.fit(failures_only, floc=0.0)
+        return WeibullFit(shape=float(shape), scale=float(scale))
+
+    mask = np.asarray(failures_mask, dtype=bool)
+    if mask.ndim != 1 or mask.shape != data.shape:
+        raise ValueError("failures_mask must match durations shape")
+    failure_times = data[mask]
+    if failure_times.size < 2 or np.any(failure_times <= 0.0):
+        raise ValueError("at least two positive failure durations are required")
+
+    initial_shape, _loc, initial_scale = sp_stats.weibull_min.fit(failure_times, floc=0.0)
+
+    def negative_log_likelihood(log_params: NDArray[np.float64]) -> float:
+        shape = float(np.exp(log_params[0]))
+        scale = float(np.exp(log_params[1]))
+        with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+            cumulative_hazard = np.power(data / scale, shape)
+            failure_log_density = (
+                np.log(shape) + (shape - 1.0) * np.log(failure_times) - shape * np.log(scale)
+            )
+            value = float(np.sum(cumulative_hazard) - np.sum(failure_log_density))
+        return value if np.isfinite(value) else float("inf")
+
+    result = sp_optimize.minimize(
+        negative_log_likelihood,
+        np.log(np.array([initial_shape, initial_scale], dtype=np.float64)),
+        method="L-BFGS-B",
+    )
+    if not result.success or not bool(np.all(np.isfinite(result.x))):
+        raise RuntimeError(f"censored Weibull fit failed: {result.message}")
+    shape, scale = np.exp(result.x)
     return WeibullFit(shape=float(shape), scale=float(scale))
 
 
 def mtbf(total_operating_time: float, failures: int) -> float:
     """Mean time between failures from cumulative operating time and failure count."""
-    if total_operating_time <= 0.0:
-        msg = "total_operating_time must be positive"
-        raise ValueError(msg)
-    if failures < 1:
-        msg = "at least one failure is required"
-        raise ValueError(msg)
-    return total_operating_time / failures
+    if not np.isfinite(total_operating_time) or total_operating_time <= 0.0:
+        raise ValueError("total_operating_time must be positive and finite")
+    if not isinstance(failures, (int, np.integer)) or isinstance(failures, bool) or failures < 1:
+        raise ValueError("at least one failure is required and failures must be an integer")
+    return float(total_operating_time / failures)
 
 
 def availability(mtbf_value: float, mttr: float) -> float:
-    """Steady-state availability mtbf / (mtbf + mttr); requires mttr < mtbf."""
-    if mtbf_value <= 0.0 or mttr <= 0.0:
-        msg = "mtbf and mttr must be positive"
-        raise ValueError(msg)
-    if mttr >= mtbf_value:
-        msg = "mttr must be smaller than mtbf"
-        raise ValueError(msg)
-    return mtbf_value / (mtbf_value + mttr)
+    """Steady-state availability ``MTBF / (MTBF + MTTR)``."""
+    if not np.isfinite(mtbf_value) or mtbf_value <= 0.0:
+        raise ValueError("mtbf must be positive and finite")
+    if not np.isfinite(mttr) or mttr < 0.0:
+        raise ValueError("mttr must be non-negative and finite")
+    return float(mtbf_value / (mtbf_value + mttr))
 
 
 def weibull_survival(
@@ -126,16 +159,13 @@ def weibull_survival(
     scale: float,
 ) -> FloatArray:
     """Weibull reliability function exp(-(t/scale)**shape) evaluated at each time."""
-    if shape <= 0.0:
-        msg = "shape must be positive"
-        raise ValueError(msg)
-    if scale <= 0.0:
-        msg = "scale must be positive"
-        raise ValueError(msg)
+    if not np.isfinite(shape) or shape <= 0.0:
+        raise ValueError("shape must be positive and finite")
+    if not np.isfinite(scale) or scale <= 0.0:
+        raise ValueError("scale must be positive and finite")
     times = np.asarray(time_values, dtype=float)
-    if np.any(times < 0.0):
-        msg = "time values must be non-negative"
-        raise ValueError(msg)
+    if not bool(np.all(np.isfinite(times))) or np.any(times < 0.0):
+        raise ValueError("time values must be finite and non-negative")
     ratio = np.asarray(times / scale, dtype=float)
     return np.asarray(np.exp(-np.power(ratio, shape)), dtype=float)
 
@@ -149,14 +179,18 @@ def bathtub_curve(
     knee_wearout: float,
 ) -> FloatArray:
     """Bathtub hazard combining early-life decay, intrinsic floor and wear-out growth."""
-    rates = (early_rate, intrinsic_rate, wearout_rate)
-    if min(rates) < 0.0:
-        msg = "rates must be non-negative"
-        raise ValueError(msg)
+    parameters = np.asarray(
+        [early_rate, intrinsic_rate, wearout_rate, knee_early, knee_wearout], dtype=float
+    )
+    if not bool(np.all(np.isfinite(parameters))):
+        raise ValueError("rates and knees must be finite")
+    if min(early_rate, intrinsic_rate, wearout_rate) < 0.0:
+        raise ValueError("rates must be non-negative")
     if knee_early <= 0.0 or knee_wearout <= 0.0:
-        msg = "knees must be positive"
-        raise ValueError(msg)
+        raise ValueError("knees must be positive")
     times = np.asarray(time_values, dtype=float)
+    if not bool(np.all(np.isfinite(times))) or np.any(times < 0.0):
+        raise ValueError("time values must be finite and non-negative")
     hazard = (
         intrinsic_rate
         + early_rate * np.exp(-times / knee_early)

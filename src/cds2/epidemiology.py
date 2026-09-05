@@ -39,7 +39,7 @@ class SIRResult:
     @property
     def r0(self) -> float:
         """Basic reproduction number ``beta / gamma``."""
-        return self.beta / self.gamma
+        return math.inf if self.gamma == 0.0 else self.beta / self.gamma
 
     @property
     def peak_day(self) -> float:
@@ -69,7 +69,7 @@ class SEIRResult:
     @property
     def r0(self) -> float:
         """Basic reproduction number ``beta / gamma``."""
-        return self.beta / self.gamma
+        return math.inf if self.gamma == 0.0 else self.beta / self.gamma
 
     @property
     def peak_day(self) -> float:
@@ -86,21 +86,20 @@ def _validate_common(
     population: float, days: int, steps_per_day: int, beta: float, gamma: float
 ) -> None:
     """Shared parameter validation for the compartmental simulators."""
-    if population <= 0.0:
-        msg = "population must be positive"
-        raise ValueError(msg)
-    if days < 1:
-        msg = "days must be at least 1"
-        raise ValueError(msg)
-    if steps_per_day < 1:
-        msg = "steps_per_day must be at least 1"
-        raise ValueError(msg)
-    if beta <= 0.0:
-        msg = "beta must be positive"
-        raise ValueError(msg)
-    if gamma < 0.0:
-        msg = "gamma must be non-negative"
-        raise ValueError(msg)
+    if not np.isfinite(population) or population <= 0.0:
+        raise ValueError("population must be positive and finite")
+    if not isinstance(days, (int, np.integer)) or isinstance(days, bool) or days < 1:
+        raise ValueError("days must be at least 1 and an integer")
+    if (
+        not isinstance(steps_per_day, (int, np.integer))
+        or isinstance(steps_per_day, bool)
+        or steps_per_day < 1
+    ):
+        raise ValueError("steps_per_day must be at least 1 and an integer")
+    if not np.isfinite(beta) or beta <= 0.0:
+        raise ValueError("beta must be positive and finite")
+    if not np.isfinite(gamma) or gamma < 0.0:
+        raise ValueError("gamma must be non-negative and finite")
 
 
 def _rk4_integrate(state: FloatArray, deriv: Derivative, dt: float, steps: int) -> FloatArray:
@@ -128,7 +127,7 @@ def simulate_sir(
     and ``dR/dt = gamma*I``; ``times`` runs from ``0`` to ``days`` inclusive.
     """
     _validate_common(population, days, steps_per_day, beta, gamma)
-    if not 0.0 <= i0 <= population:
+    if not np.isfinite(i0) or not 0.0 <= i0 <= population:
         msg = "initial infections must lie within the population"
         raise ValueError(msg)
 
@@ -182,13 +181,13 @@ def simulate_seir(
     ``0`` to ``days`` inclusive.
     """
     _validate_common(population, days, steps_per_day, beta, gamma)
-    if sigma <= 0.0:
+    if not np.isfinite(sigma) or sigma <= 0.0:
         msg = "sigma must be positive"
         raise ValueError(msg)
-    if not 0.0 <= i0 <= population:
+    if not np.isfinite(i0) or not 0.0 <= i0 <= population:
         msg = "initial infections must lie within the population"
         raise ValueError(msg)
-    if e0 < 0.0:
+    if not np.isfinite(e0) or e0 < 0.0:
         msg = "initial exposures must be non-negative"
         raise ValueError(msg)
     if e0 + i0 > population:
@@ -240,29 +239,48 @@ def simulate_seir(
 
 
 def herd_immunity_threshold(r0: float) -> float:
-    """Critical immune fraction ``1 - 1/r0`` needed to stop expansion."""
-    if r0 <= 0.0:
-        msg = "r0 must be positive"
-        raise ValueError(msg)
-    return 1.0 - 1.0 / r0
+    """Critical immune fraction; zero when transmission is already subcritical."""
+    if not np.isfinite(r0) or r0 <= 0.0:
+        raise ValueError("r0 must be positive and finite")
+    if r0 <= 1.0:
+        return 0.0
+    return float(1.0 - 1.0 / r0)
 
 
 def effective_reproduction(r0_value: float, susceptible_fraction: float) -> float:
     """Effective reproduction number ``r0 * susceptible_fraction``."""
-    return r0_value * susceptible_fraction
+    if not np.isfinite(r0_value) or r0_value < 0.0:
+        raise ValueError("r0_value must be non-negative and finite")
+    if not np.isfinite(susceptible_fraction) or not 0.0 <= susceptible_fraction <= 1.0:
+        raise ValueError("susceptible_fraction must be in [0, 1]")
+    return float(r0_value * susceptible_fraction)
 
 
 def final_size_iteration(r0: float, tol: float = 1e-10, max_iter: int = 200) -> float:
-    """Final outbreak size via the fixed point ``z = 1 - exp(-r0 * z)``.
+    """Final epidemic size solving ``z = 1 - exp(-r0*z)`` for the nonzero root."""
+    if not np.isfinite(r0) or r0 < 0.0:
+        raise ValueError("r0 must be non-negative and finite")
+    if not np.isfinite(tol) or tol <= 0.0:
+        raise ValueError("tol must be positive and finite")
+    if not isinstance(max_iter, (int, np.integer)) or isinstance(max_iter, bool) or max_iter < 1:
+        raise ValueError("max_iter must be a positive integer")
+    if r0 <= 1.0:
+        return 0.0
 
-    Starts from ``z = 0.5`` and iterates until successive updates differ by
-    less than ``tol``; raises :class:`RuntimeError` after ``max_iter`` sweeps.
-    """
-    z = 0.5
-    for _ in range(max_iter):
-        z_next = 1.0 - math.exp(-r0 * z)
-        if abs(z_next - z) < tol:
-            return z_next
-        z = z_next
-    msg = "final-size iteration did not converge"
-    raise RuntimeError(msg)
+    def objective(z: float) -> float:
+        return z - (1.0 - math.exp(-r0 * z))
+
+    epsilon = min(1e-8, 0.1 * (r0 - 1.0) / r0)
+    try:
+        return float(
+            __import__("scipy").optimize.brentq(
+                objective,
+                epsilon,
+                1.0 - np.finfo(float).eps,
+                xtol=tol,
+                rtol=max(4.0 * np.finfo(float).eps, tol),
+                maxiter=max_iter,
+            )
+        )
+    except RuntimeError as exc:
+        raise RuntimeError("final-size iteration did not converge") from exc

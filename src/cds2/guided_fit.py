@@ -22,6 +22,7 @@ import pandas as pd
 import scipy
 from numpy.typing import NDArray
 from scipy import optimize as spo
+from scipy import stats as sps
 
 from .optimize import FitResult, curve_fit
 
@@ -164,28 +165,44 @@ def load_csv_dataset(
 
 
 def inspect_dataset(dataset: FitDataset) -> dict[str, object]:
-    if dataset.x.shape != dataset.y.shape:
+    x = np.asarray(dataset.x)
+    y = np.asarray(dataset.y)
+    if x.ndim != 1 or y.ndim != 1:
+        raise ValueError("x and y must be 1-D")
+    if x.shape != y.shape:
         raise ValueError("x and y must have the same shape")
-    if dataset.sigma is not None and dataset.sigma.shape != dataset.y.shape:
-        raise ValueError("sigma and y must have the same shape")
-    missing_mask = ~np.isfinite(dataset.x) | ~np.isfinite(dataset.y)
     if dataset.sigma is not None:
-        missing_mask |= ~np.isfinite(dataset.sigma) | (dataset.sigma <= 0.0)
+        sigma = np.asarray(dataset.sigma)
+        if sigma.ndim != 1 or sigma.shape != y.shape:
+            raise ValueError("sigma and y must have the same 1-D shape")
+    missing_mask = ~np.isfinite(x) | ~np.isfinite(y)
+    if dataset.sigma is not None:
+        sigma = np.asarray(dataset.sigma, dtype=np.float64)
+        missing_mask |= ~np.isfinite(sigma) | (sigma <= 0.0)
     missing_count = int(np.count_nonzero(missing_mask))
     return {
         "name": dataset.name,
-        "points": int(dataset.y.size),
+        "points": int(y.size),
         "missing": missing_count,
         "suggested_missing_policy": "interpolate" if missing_count else "none",
     }
 
 
 def _prepare(dataset: FitDataset, missing_policy: MissingPolicy) -> FitDataset:
+    if missing_policy not in {"drop", "interpolate"}:
+        raise ValueError("missing_policy must be 'drop' or 'interpolate'")
     x: FloatArray = np.asarray(dataset.x, dtype=np.float64).copy()
     y: FloatArray = np.asarray(dataset.y, dtype=np.float64).copy()
+    if x.ndim != 1 or y.ndim != 1:
+        raise ValueError("x and y must be 1-D")
+    if x.shape != y.shape:
+        raise ValueError("x and y must have the same shape")
     sigma: FloatArray | None = (
         None if dataset.sigma is None else np.asarray(dataset.sigma, dtype=np.float64).copy()
     )
+    if sigma is not None and (sigma.ndim != 1 or sigma.shape != y.shape):
+        raise ValueError("sigma and y must have the same 1-D shape")
+
     valid_x = np.isfinite(x)
     valid_y = np.isfinite(y)
     valid_sigma = (
@@ -202,7 +219,7 @@ def _prepare(dataset: FitDataset, missing_policy: MissingPolicy) -> FitDataset:
         good = np.isfinite(y)
         if np.count_nonzero(good) < 2:
             raise ValueError("interpolation needs at least two finite y values")
-        order = np.argsort(x)
+        order = np.argsort(x, kind="stable")
         sorted_x, sorted_y = x[order], y[order]
         good_sorted = np.isfinite(sorted_y)
         sorted_y[~good_sorted] = np.interp(
@@ -213,6 +230,8 @@ def _prepare(dataset: FitDataset, missing_policy: MissingPolicy) -> FitDataset:
         y = sorted_y[inverse]
     if x.size < 4:
         raise ValueError("at least four usable points are required")
+    if not bool(np.all(np.isfinite(x))) or not bool(np.all(np.isfinite(y))):
+        raise ValueError("prepared x and y must be finite")
     return FitDataset(dataset.name, x, y, sigma, dataset.source_path)
 
 
@@ -292,6 +311,10 @@ def recommend_model(
     max_pilot_points: int = 2000,
     exclude: tuple[ModelName, ...] = (),
 ) -> ModelRecommendation:
+    if not datasets:
+        raise ValueError("at least one dataset is required")
+    if max_pilot_points < 4:
+        raise ValueError("max_pilot_points must be at least 4")
     prepared = tuple(
         _pilot(_prepare(ds, missing_policy), max_pilot_points, seed + i)
         for i, ds in enumerate(datasets)
@@ -322,15 +345,17 @@ def recommend_model(
     model = min(scores, key=scores.__getitem__)
     if not np.isfinite(scores[model]):
         raise RuntimeError("no supported model could be fitted to the data")
+
     common_warning = False
     separate_models: list[tuple[str, ModelName]] = []
+    keys = _dataset_keys(tuple(ds for ds in prepared))
     if len(prepared) > 1:
         for j, dataset in enumerate(prepared):
             best_model = min(
                 candidates,
                 key=lambda candidate: per_dataset[candidate][j] + complexity_penalty[candidate],
             )
-            separate_models.append((dataset.name, best_model))
+            separate_models.append((keys[j], best_model))
             best_single = per_dataset[best_model][j]
             chosen = per_dataset[model][j]
             if np.isfinite(best_single) and chosen > 1.5 * max(best_single, 1e-12):
@@ -362,28 +387,113 @@ def _outliers(residuals: FloatArray) -> IndexArray:
     return np.flatnonzero(np.abs(robust_z) > 3.5)
 
 
-def _cross_check(model: ModelName, x: FloatArray, y: FloatArray, params: FloatArray) -> float:
+def _cross_check(
+    model: ModelName,
+    x: FloatArray,
+    y: FloatArray,
+    params: FloatArray,
+    sigma: FloatArray | None = None,
+) -> float:
+    """Cross-check fitted predictions with an independently optimized solution.
+
+    Linear and quadratic models use NumPy's polynomial least-squares solver.
+    Nonlinear models use SciPy's derivative-free Powell minimizer on a scalar
+    weighted-SSE objective, rather than re-running the same least-squares
+    routine from the primary solution.
+    """
     f = _MODEL_FUNCS[model]
     primary = np.asarray(f(x, *params), dtype=np.float64)
     if model == "linear":
-        p = np.polyfit(x, y, 1)
+        weights = None if sigma is None else 1.0 / sigma
+        p = np.polyfit(x, y, 1, w=weights)
         secondary = _linear(x, p[0], p[1])
     elif model == "quadratic":
-        p = np.polyfit(x, y, 2)
+        weights = None if sigma is None else 1.0 / sigma
+        p = np.polyfit(x, y, 2, w=weights)
         secondary = _quadratic(x, p[0], p[1], p[2])
     else:
-        result = spo.least_squares(lambda p: np.asarray(f(x, *p), dtype=np.float64) - y, params)
-        secondary = np.asarray(f(x, *result.x), dtype=np.float64)
+        p0, _ = _initial_guess(model, x, y)
+        if np.allclose(p0, params, rtol=1e-6, atol=1e-9):
+            p0 = p0.copy()
+            p0 += 0.05 * np.maximum(np.abs(p0), 1.0)
+            if model == "logistic":
+                p0[2] = max(p0[2], 1e-6)
+
+        def objective(candidate: FloatArray) -> float:
+            prediction = np.asarray(f(x, *candidate), dtype=np.float64)
+            residual = prediction - y
+            if sigma is not None:
+                residual = residual / sigma
+            if not bool(np.all(np.isfinite(residual))):
+                return float("inf")
+            return float(residual @ residual)
+
+        bounds = None
+        if model == "logistic":
+            bounds = [(None, None), (None, None), (0.0, None), (None, None)]
+        check = spo.minimize(
+            objective,
+            np.asarray(p0, dtype=np.float64),
+            method="Powell",
+            bounds=bounds,
+            options={"maxiter": 5000, "xtol": 1e-10, "ftol": 1e-10},
+        )
+        if not check.success or not bool(np.all(np.isfinite(check.x))):
+            raise RuntimeError(f"independent cross-check failed: {check.message}")
+        secondary = np.asarray(f(x, *check.x), dtype=np.float64)
     return float(np.sqrt(np.mean((primary - secondary) ** 2)))
 
 
 def _hash_dataset(dataset: FitDataset) -> str:
+    """Hash the raw scientific input, including array structure and sigma presence."""
     digest = hashlib.sha256()
-    digest.update(np.ascontiguousarray(dataset.x).tobytes())
-    digest.update(np.ascontiguousarray(dataset.y).tobytes())
-    if dataset.sigma is not None:
-        digest.update(np.ascontiguousarray(dataset.sigma).tobytes())
+    for label, values in (("x", dataset.x), ("y", dataset.y), ("sigma", dataset.sigma)):
+        digest.update(label.encode("ascii"))
+        if values is None:
+            digest.update(b"<none>")
+            continue
+        array = np.ascontiguousarray(np.asarray(values, dtype=np.float64))
+        digest.update(str(array.shape).encode("ascii"))
+        digest.update(array.dtype.str.encode("ascii"))
+        digest.update(array.tobytes())
     return digest.hexdigest()
+
+
+def _dataset_keys(datasets: tuple[FitDataset, ...]) -> tuple[str, ...]:
+    counts: dict[str, int] = {}
+    for dataset in datasets:
+        counts[dataset.name] = counts.get(dataset.name, 0) + 1
+    seen: dict[str, int] = {}
+    keys: list[str] = []
+    for dataset in datasets:
+        if counts[dataset.name] == 1:
+            keys.append(dataset.name)
+            continue
+        ordinal = seen.get(dataset.name, 0) + 1
+        seen[dataset.name] = ordinal
+        keys.append(f"{dataset.name}#{ordinal}")
+    return tuple(keys)
+
+
+def _dataset_file_stems(datasets: tuple[FitDataset, ...]) -> tuple[str, ...]:
+    keys = _dataset_keys(datasets)
+    return tuple(key.replace("#", "_") for key in keys)
+
+
+def _confidence_interval(fit: FitResult) -> FloatArray:
+    if fit.parameter_std is None:
+        return np.full((fit.params.size, 2), np.nan, dtype=np.float64)
+    std = np.asarray(fit.parameter_std, dtype=np.float64)
+    if fit.dof is None or fit.dof <= 0:
+        return np.full((fit.params.size, 2), np.nan, dtype=np.float64)
+    critical = float(sps.t.ppf(0.975, fit.dof))
+    return np.column_stack((fit.params - critical * std, fit.params + critical * std))
+
+
+def _prediction_rmse(model: ModelName, dataset: FitDataset, params: FloatArray) -> float:
+    prediction = np.asarray(_MODEL_FUNCS[model](dataset.x, *params), dtype=np.float64)
+    residual = dataset.y - prediction
+    return float(np.sqrt(np.mean(residual * residual)))
 
 
 def run_guided_fit(
@@ -394,6 +504,15 @@ def run_guided_fit(
     outlier_policy: OutlierPolicy = "keep",
     seed: int = 0,
 ) -> GuidedFitResult:
+    if not datasets:
+        raise ValueError("at least one dataset is required")
+    if model not in MODEL_NAMES:
+        raise ValueError(f"unsupported model: {model!r}")
+    if missing_policy not in {"drop", "interpolate"}:
+        raise ValueError("missing_policy must be 'drop' or 'interpolate'")
+    if outlier_policy not in {"keep", "exclude"}:
+        raise ValueError("outlier_policy must be 'keep' or 'exclude'")
+
     results: list[DatasetResult] = []
     operations = [
         f"missing-data policy: {missing_policy}",
@@ -417,21 +536,38 @@ def run_guided_fit(
                 sigma,
                 prepared.source_path,
             )
-            diagnostic_fit = _fit_arrays(
-                model, diagnostic_used.x, diagnostic_used.y, diagnostic_used.sigma
-            )
-            baseline_rmse = cast(float, fit.rmse)
-            diagnostic_rmse = cast(float, diagnostic_fit.rmse)
-            scale = max(abs(baseline_rmse), np.finfo(float).eps)
-            outlier_rmse_reduction_pct = 100.0 * (baseline_rmse - diagnostic_rmse) / scale
-            if outlier_policy == "exclude":
-                used = diagnostic_used
-                fit = diagnostic_fit
+            if diagnostic_used.x.size < 4:
+                if outlier_policy == "exclude":
+                    raise ValueError(
+                        "excluding detected outliers leaves fewer than four usable points"
+                    )
+            else:
+                diagnostic_fit = _fit_arrays(
+                    model, diagnostic_used.x, diagnostic_used.y, diagnostic_used.sigma
+                )
+                baseline_same_set = _prediction_rmse(
+                    model,
+                    diagnostic_used,
+                    np.asarray(fit.params, dtype=np.float64),
+                )
+                diagnostic_rmse = cast(float, diagnostic_fit.rmse)
+                scale = max(abs(baseline_same_set), np.finfo(float).eps)
+                outlier_rmse_reduction_pct = 100.0 * (baseline_same_set - diagnostic_rmse) / scale
+                if outlier_policy == "exclude":
+                    used = diagnostic_used
+                    fit = diagnostic_fit
+
         cv = _cv_rmse(used, model, seed)
         rmse = cast(float, fit.rmse)
         std = np.asarray(fit.parameter_std, dtype=np.float64)
-        ci = np.column_stack((fit.params - 1.96 * std, fit.params + 1.96 * std))
-        cross_error = _cross_check(model, used.x, used.y, np.asarray(fit.params, dtype=np.float64))
+        ci = _confidence_interval(fit)
+        cross_error = _cross_check(
+            model,
+            used.x,
+            used.y,
+            np.asarray(fit.params, dtype=np.float64),
+            used.sigma,
+        )
         results.append(
             DatasetResult(
                 used.name,
@@ -452,16 +588,13 @@ def run_guided_fit(
             )
         )
     operations.append(f"outlier policy: {outlier_policy}")
-    operations.append("outlier influence quantified by refit comparison")
+    operations.append("outlier influence quantified on the same retained observations")
     operations.append("3x repeated 5-fold cross-validation completed")
     if any(ds.sigma is not None for ds in datasets):
         operations.append("measurement uncertainty used in weighted fitting")
-    operations.append("independent numerical cross-check completed")
+    operations.append("independent numerical cross-check completed with a separate optimizer")
     r2_values = [r.r_squared for r in results if r.r_squared is not None]
-    relative_cv = [
-        r.cv_rmse / (float(np.std(_prepare(ds, missing_policy).y)) or 1.0)
-        for r, ds in zip(results, datasets, strict=True)
-    ]
+    relative_cv = [r.cv_rmse / (r.y_std or 1.0) for r in results]
     max_cross = max(r.cross_check_error for r in results)
     if (
         r2_values
@@ -484,6 +617,7 @@ def run_guided_fit(
         "pandas": pd.__version__,
         "matplotlib": matplotlib.__version__,
     }
+    keys = _dataset_keys(datasets)
     return GuidedFitResult(
         model,
         tuple(results),
@@ -494,7 +628,7 @@ def run_guided_fit(
         outlier_policy,
         tuple(operations),
         versions,
-        {ds.name: _hash_dataset(_prepare(ds, missing_policy)) for ds in datasets},
+        {key: _hash_dataset(ds) for key, ds in zip(keys, datasets, strict=True)},
     )
 
 
@@ -503,10 +637,13 @@ def plot_result(
     datasets: tuple[FitDataset, ...],
     output_dir: str | Path,
 ) -> list[Path]:
+    if len(datasets) != len(result.datasets):
+        raise ValueError("datasets must match the fitted result count")
     target = Path(output_dir)
     target.mkdir(parents=True, exist_ok=True)
     paths: list[Path] = []
-    for ds, item in zip(datasets, result.datasets, strict=True):
+    stems = _dataset_file_stems(datasets)
+    for ds, item, stem in zip(datasets, result.datasets, stems, strict=True):
         prepared = _prepare(ds, result.missing_policy)
         order = np.argsort(prepared.x)
         y_fit = _MODEL_FUNCS[result.model](prepared.x[order], *item.params)
@@ -522,17 +659,11 @@ def plot_result(
             )
         ax.plot(prepared.x[order], y_fit, label=f"{result.model} fit")
         if prepared.sigma is not None:
-            ax.errorbar(
-                prepared.x,
-                prepared.y,
-                yerr=prepared.sigma,
-                fmt="none",
-                alpha=0.5,
-            )
+            ax.errorbar(prepared.x, prepared.y, yerr=prepared.sigma, fmt="none", alpha=0.5)
         ax.set_title(f"{item.name}: {result.trust}")
         ax.legend()
         for suffix in ("png", "pdf"):
-            path = target / f"{item.name}_fit.{suffix}"
+            path = target / f"{stem}_fit.{suffix}"
             fig.savefig(path, bbox_inches="tight")
             paths.append(path)
         plt.close(fig)
@@ -556,7 +687,7 @@ def plot_result(
         residual_ax.set_title(f"{item.name}: residuals")
         residual_ax.legend()
         for suffix in ("png", "pdf"):
-            path = target / f"{item.name}_residuals.{suffix}"
+            path = target / f"{stem}_residuals.{suffix}"
             residual_fig.savefig(path, bbox_inches="tight")
             paths.append(path)
         plt.close(residual_fig)
@@ -571,6 +702,9 @@ def manifest_dict(
     y_column: str | None = None,
     sigma_column: str | None = None,
 ) -> dict[str, object]:
+    if len(datasets) != len(result.datasets):
+        raise ValueError("datasets must match the fitted result count")
+    keys = _dataset_keys(datasets)
     return {
         "result": {
             "model": result.model,
@@ -589,31 +723,27 @@ def manifest_dict(
                     **{
                         k: v
                         for k, v in asdict(item).items()
-                        if k
-                        not in {
-                            "params",
-                            "parameter_std",
-                            "confidence_95",
-                            "outlier_indices",
-                        }
+                        if k not in {"params", "parameter_std", "confidence_95", "outlier_indices"}
                     },
+                    "dataset_key": key,
                     "params": item.params.tolist(),
                     "parameter_std": item.parameter_std.tolist(),
                     "confidence_95": item.confidence_95.tolist(),
                     "outlier_indices": item.outlier_indices.tolist(),
                 }
-                for item in result.datasets
+                for key, item in zip(keys, result.datasets, strict=True)
             ],
         },
         "inputs": [
             {
                 "name": ds.name,
+                "dataset_key": key,
                 "source_path": ds.source_path,
                 "x_column": x_column,
                 "y_column": y_column,
                 "sigma_column": sigma_column,
             }
-            for ds in datasets
+            for key, ds in zip(keys, datasets, strict=True)
         ],
     }
 
@@ -647,7 +777,7 @@ def save_manifest(
 def rerun_manifest(path: str | Path) -> GuidedFitResult:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     cfg = payload["result"]
-    datasets = []
+    datasets: list[FitDataset] = []
     for item in payload["inputs"]:
         if not item["source_path"] or not item["x_column"] or not item["y_column"]:
             raise ValueError("manifest does not contain reusable CSV source metadata")
@@ -669,34 +799,41 @@ def rerun_manifest(path: str | Path) -> GuidedFitResult:
 
     details: list[str] = []
     previous_hashes = cast(dict[str, str], cfg["data_hashes"])
-    for name, digest in rerun.data_hashes.items():
-        if previous_hashes.get(name) != digest:
-            details.append(f"input data changed: {name}")
+    keys = _dataset_keys(tuple(datasets))
+    for index, (key, dataset) in enumerate(zip(keys, datasets, strict=True)):
+        digest = rerun.data_hashes[key]
+        previous_digest = previous_hashes.get(key)
+        if previous_digest is None and len({item.name for item in datasets}) == len(datasets):
+            previous_digest = previous_hashes.get(dataset.name)
+        if previous_digest != digest:
+            details.append(f"input data changed: {key}")
 
-    previous_results = {
-        cast(str, item["name"]): item for item in cast(list[dict[str, object]], cfg["datasets"])
-    }
-    for item in rerun.datasets:
-        previous = previous_results[item.name]
+    saved_results = cast(list[dict[str, object]], cfg["datasets"])
+    if len(saved_results) != len(rerun.datasets):
+        details.append(f"dataset count changed: {len(saved_results)} -> {len(rerun.datasets)}")
+    for index, item in enumerate(rerun.datasets):
+        if index >= len(saved_results):
+            break
+        previous = saved_results[index]
+        key = keys[index]
         old_rmse = float(cast(float, previous["rmse"]))
         rmse_change = abs(item.rmse - old_rmse) / max(abs(old_rmse), 1e-12)
         old_params = np.asarray(cast(list[float], previous["params"]), dtype=np.float64)
+        if old_params.shape != item.params.shape:
+            details.append(f"parameter shape changed for {key}")
+            continue
         param_scale = max(float(np.linalg.norm(old_params)), 1e-12)
         param_change = float(np.linalg.norm(item.params - old_params)) / param_scale
         if max(rmse_change, param_change) > 0.05:
             details.append(
-                f"fit changed materially for {item.name}: "
+                f"fit changed materially for {key}: "
                 f"rmse={rmse_change:.1%}, parameters={param_change:.1%}"
             )
 
     if cast(str, cfg["trust"]) != rerun.trust:
         details.append(f"reliability label changed: {cfg['trust']} -> {rerun.trust}")
 
-    return replace(
-        rerun,
-        stability_warning=bool(details),
-        stability_details=tuple(details),
-    )
+    return replace(rerun, stability_warning=bool(details), stability_details=tuple(details))
 
 
 def _paginate_report_text(
