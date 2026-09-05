@@ -1,3 +1,18 @@
+## [v5.2.1] - 2026-09-05
+
+Release-integrity patch: the cross-platform installed-wheel CLI validation merged after v5.2.0 is now part of a distinct release commit, and the release pipeline is fail-closed against tag/PyPI drift.
+
+### Changed
+
+- Installed-wheel CLI smoke validation is retained on Ubuntu, Windows and macOS for `cds2 info`, `guided-fit`, fit/residual artifacts and `guided-fit-rerun`.
+- Release preflight now requires `main`, enforces lockstep package/changelog metadata, and refuses an existing PyPI version or Git tag instead of silently reusing it.
+- After publication, the exact public PyPI version is clean-installed and CLI-smoke-tested on Ubuntu, Windows and macOS before the GitHub Release is created.
+- GitHub Release creation now verifies that the resulting tag resolves to the exact workflow commit.
+
+### Fixed
+
+- Prevented a release-integrity failure mode where an already-published PyPI version could be skipped while a GitHub release/tag was created from newer repository code.
+
 ## [v5.2.0] - 2026-09-05
 
 Guided-fit scientific validation release: stronger diagnostics, rerun stability checks and dataset-specific guidance extend the 5.1 workflow without changing its user-controlled decision model.
