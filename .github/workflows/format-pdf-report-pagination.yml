@@ -1,0 +1,37 @@
+name: Format PDF report pagination
+
+on:
+  push:
+    branches:
+      - feature/pdf-report-pagination
+    paths:
+      - .github/workflows/format-pdf-report-pagination.yml
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: feature/pdf-report-pagination
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Tighten pagination test and format changed Python
+        shell: bash
+        run: |
+          echo 'CmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aAoKdGVzdHMgPSBQYXRoKCJ0ZXN0cy90ZXN0X2d1aWRlZF9maXQucHkiKQp0ZXh0ID0gdGVzdHMucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCm9sZCA9ICcnJyAgICBjb21iaW5lZCA9ICJcXG4iLmpvaW4ocGFnZXMpCiAgICBhc3NlcnQgIm1hcmtlci0wMDAwLSIgaW4gY29tYmluZWQKICAgIGFzc2VydCAibWFya2VyLTAwOTAtIiBpbiBjb21iaW5lZAogICAgYXNzZXJ0ICJtYXJrZXItMDE3OS0iIGluIGNvbWJpbmVkCicnJwpuZXcgPSAnJycgICAgY29tYmluZWQgPSAiXFxuIi5qb2luKHBhZ2VzKQogICAgYXNzZXJ0IGNvbWJpbmVkLnJlcGxhY2UoIlxcbiIsICIiKSA9PSAiIi5qb2luKG1hcmtlcnMpCicnJwppZiBvbGQgbm90IGluIHRleHQ6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJwYWdpbmF0aW9uIGFzc2VydGlvbiBtYXJrZXIgbWlzc2luZyIpCnRlc3RzLndyaXRlX3RleHQodGV4dC5yZXBsYWNlKG9sZCwgbmV3LCAxKSwgZW5jb2Rpbmc9InV0Zi04IikK' | base64 -d > /tmp/tighten.py
+          python /tmp/tighten.py
+          python -m pip install ruff
+          ruff format src/cds2/guided_fit.py tests/test_guided_fit.py
+          ruff check --fix src/cds2/guided_fit.py tests/test_guided_fit.py
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/cds2/guided_fit.py tests/test_guided_fit.py
+          git diff --cached --quiet && { echo 'No changes produced'; exit 1; }
+          git commit -m 'Format PDF pagination implementation'
+          git push origin HEAD:feature/pdf-report-pagination
