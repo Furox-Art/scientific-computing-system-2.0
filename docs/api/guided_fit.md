@@ -13,7 +13,7 @@ The workflow:
 7. fits the selected model, calculates parameter uncertainty and 95% confidence intervals;
 8. checks held-out performance with repeated 5-fold cross-validation;
 9. cross-checks the fitted result with an independent numerical method;
-10. produces Matplotlib fit and residual PNG/PDF figures, a reproducibility manifest and an optional PDF/HTML/Markdown report;
+10. produces Matplotlib fit and residual PNG/PDF figures, a reproducibility manifest and an optional PDF/HTML/Markdown report; long PDF reports paginate automatically instead of truncating results;
 11. labels the overall result `reliable`, `caution` or `unreliable`;
 12. recommends a different model when the selected fit is weak;
 13. recommends dataset-specific models when a single common model is materially weaker;

@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import platform
+import textwrap
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
@@ -698,6 +699,30 @@ def rerun_manifest(path: str | Path) -> GuidedFitResult:
     )
 
 
+def _paginate_report_text(
+    text: str,
+    *,
+    width: int = 100,
+    lines_per_page: int = 56,
+) -> tuple[str, ...]:
+    """Wrap report text into complete PDF pages without dropping content."""
+    wrapped_lines: list[str] = []
+    for line in text.splitlines():
+        chunks = textwrap.wrap(
+            line,
+            width=width,
+            replace_whitespace=False,
+            drop_whitespace=False,
+            break_long_words=True,
+            break_on_hyphens=False,
+        )
+        wrapped_lines.extend(chunks or [""])
+    return tuple(
+        "\n".join(wrapped_lines[start : start + lines_per_page])
+        for start in range(0, len(wrapped_lines), lines_per_page)
+    )
+
+
 def write_report(
     result: GuidedFitResult,
     output_dir: str | Path,
@@ -753,10 +778,11 @@ def write_report(
 
     path = target_dir / "guided_fit_report.pdf"
     with PdfPages(path) as pdf:
-        fig = plt.figure(figsize=(8.27, 11.69))
-        fig.text(0.05, 0.95, text[:12000], va="top", family="monospace", fontsize=8)
-        pdf.savefig(fig)
-        plt.close(fig)
+        for page_text in _paginate_report_text(text):
+            fig = plt.figure(figsize=(8.27, 11.69))
+            fig.text(0.05, 0.95, page_text, va="top", family="monospace", fontsize=8)
+            pdf.savefig(fig)
+            plt.close(fig)
     return path
 
 
