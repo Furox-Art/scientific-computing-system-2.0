@@ -206,32 +206,36 @@ def minimum_spanning_forest(adj: object) -> sparse.csr_matrix:
 def pagerank(
     adj: object, damping: float = 0.85, max_iter: int = 100, tol: float = 1e-10
 ) -> FloatArray:
-    """PageRank scores via power iteration on the random-surfer distribution."""
-    coo = sparse.coo_matrix(adj)
+    """PageRank scores for a finite square graph with non-negative weights."""
+    coo = sparse.coo_matrix(adj, dtype=np.float64)
+    if coo.shape[0] != coo.shape[1]:
+        raise ValueError("adjacency matrix must be square")
+    if not np.isfinite(damping) or not (0.0 < damping < 1.0):
+        raise ValueError("damping must be strictly between 0 and 1")
+    if max_iter < 1:
+        raise ValueError("max_iter must be at least 1")
+    if not np.isfinite(tol) or tol <= 0.0:
+        raise ValueError("tol must be a positive finite number")
+    coo.sum_duplicates()
+    weights = np.asarray(coo.data, dtype=np.float64)
+    if not bool(np.all(np.isfinite(weights))):
+        raise ValueError("edge weights must be finite")
+    if bool(np.any(weights < 0.0)):
+        raise ValueError("PageRank requires non-negative edge weights")
     n = coo.shape[0]
     if n == 0:
-        return np.zeros(0)
-    if not (0.0 < damping < 1.0):
-        msg = "damping must be strictly between 0 and 1"
-        raise ValueError(msg)
+        return np.zeros(0, dtype=float)
     source_nodes = coo.row.astype(np.int64, copy=False)
-    weights = coo.data.astype(np.float64, copy=False)
-    # Weighted out-degree: sum of outgoing weights, not count of edges. Using
-    # counts makes the transition matrix non-stochastic and the ranking wrong
-    # on any graph with non-unit weights (e.g. [[0,9,1],[1,0,0],[1,0,0]] ranked
-    # node 1 first instead of node 0).
     out_degree = np.bincount(source_nodes, weights=weights, minlength=n).astype(float)
-
-    # Transposed normalized CSR built with plain numpy: row j lists the
-    # incoming links of node j (sources), so one sweep per iteration runs
-    # the whole follow step - no scipy transpose/copy round-trips.
     normalized = weights / np.where(out_degree == 0.0, 1.0, out_degree)[source_nodes]
     order = np.argsort(coo.col, kind="stable")
     sorted_targets = coo.col[order]
-    follow_indices = source_nodes[order]
-    follow_data = np.ascontiguousarray(normalized[order])
-    follow_indptr = np.searchsorted(sorted_targets, np.arange(n + 1)).astype(np.int64)
-    dangling_indices = np.flatnonzero(out_degree == 0).astype(np.int64)
+    follow_indices = np.ascontiguousarray(source_nodes[order], dtype=np.int64)
+    follow_data = np.ascontiguousarray(normalized[order], dtype=np.float64)
+    follow_indptr = np.ascontiguousarray(
+        np.searchsorted(sorted_targets, np.arange(n + 1)).astype(np.int64)
+    )
+    dangling_indices = np.ascontiguousarray(np.flatnonzero(out_degree == 0), dtype=np.int64)
 
     if _HAS_PR_KERNEL and _pr_kernel is not None:
         rank_buffer, _iterations = _pr_kernel.iterate(
@@ -245,21 +249,25 @@ def pagerank(
             tol,
         )
         rank_vec = np.frombuffer(rank_buffer, dtype=np.float64).copy()
-        return np.asarray(rank_vec / rank_vec.sum(), dtype=float)
-
-    rank_vec = np.full(n, 1.0 / n)
-    follow_matrix = sparse.csr_matrix((follow_data, follow_indices, follow_indptr), shape=(n, n))
-    teleport = (1.0 - damping) / n
-    for _ in range(max_iter):
-        dangling_mass = float(rank_vec.take(dangling_indices).sum())
-        new_rank = damping * (follow_matrix @ rank_vec)
-        new_rank += damping * dangling_mass / n
-        new_rank += teleport
-        delta = float(np.abs(new_rank - rank_vec).max())
-        rank_vec = new_rank
-        if delta < tol:
-            break
-    return np.asarray(rank_vec / rank_vec.sum(), dtype=float)
+    else:
+        rank_vec = np.full(n, 1.0 / n)
+        follow_matrix = sparse.csr_matrix(
+            (follow_data, follow_indices, follow_indptr), shape=(n, n)
+        )
+        teleport = (1.0 - damping) / n
+        for _ in range(max_iter):
+            dangling_mass = float(rank_vec.take(dangling_indices).sum())
+            new_rank = damping * (follow_matrix @ rank_vec)
+            new_rank += damping * dangling_mass / n
+            new_rank += teleport
+            delta = float(np.abs(new_rank - rank_vec).max())
+            rank_vec = np.asarray(new_rank, dtype=np.float64)
+            if delta < tol:
+                break
+    total = float(rank_vec.sum())
+    if not np.isfinite(total) or total <= 0.0:
+        raise FloatingPointError("PageRank iteration produced an invalid probability vector")
+    return np.asarray(rank_vec / total, dtype=float)
 
 
 def topological_order(n: int, edges: list[tuple[int, int]]) -> list[int]:

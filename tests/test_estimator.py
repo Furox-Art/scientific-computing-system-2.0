@@ -145,12 +145,11 @@ class TestKMeansSKL:
             KMeansSKL().predict(np.zeros((4, 2)))
 
     def test_empty_cluster_gets_reseeded(self) -> None:
-        # All points identical -> every cluster but one is empty -> reseed path.
         X = np.zeros((6, 2))
-        with pytest.warns(RuntimeWarning, match="Mean of empty slice"):
-            est = KMeansSKL(n_clusters=2, max_iter=2, tol=0.0, seed=0).fit(X)
+        est = KMeansSKL(n_clusters=2, max_iter=2, tol=0.0, seed=0).fit(X)
         assert est.cluster_centers_ is not None
         assert est.labels_ is not None
+        assert np.isfinite(est.cluster_centers_).all()
 
     def test_fit_loop_exhausts_without_converging(self) -> None:
         rng = np.random.default_rng(4)

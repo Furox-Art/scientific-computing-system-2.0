@@ -5,24 +5,18 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 from ._base import BaseEstimator
 
 __all__ = ["KMeansSKL"]
 
+FloatArray = NDArray[np.float64]
+IntArray = NDArray[np.int64]
+
 
 class KMeansSKL(BaseEstimator):
-    """K-Means clustering with the sklearn estimator interface.
-
-    Wraps ``cds2.ml.KMeans`` (or the C kernel ``cds2._fast_kmeans`` when
-    available) and exposes ``fit``, ``predict`` and ``fit_predict``.
-
-    Args:
-        n_clusters: number of clusters (k).
-        max_iter: maximum Lloyd iterations.
-        tol: convergence tolerance on centroid shift.
-        seed: random seed for centroid initialization.
-    """
+    """K-Means clustering with the sklearn estimator interface."""
 
     _fit_params = ["n_clusters", "max_iter", "tol", "seed"]
 
@@ -37,46 +31,42 @@ class KMeansSKL(BaseEstimator):
         self.max_iter = max_iter
         self.tol = tol
         self.seed = seed
-        self.labels_: np.ndarray | None = None
-        self.cluster_centers_: np.ndarray | None = None
+        self.labels_: IntArray | None = None
+        self.cluster_centers_: FloatArray | None = None
         self.inertia_: float = 0.0
 
     def fit(self, X: Any, y: Any = None) -> KMeansSKL:
-        X = self._check_X(X)
-        rng = np.random.default_rng(self.seed)
-        n = X.shape[0]
-        idx = rng.choice(n, size=self.n_clusters, replace=False)
-        centers = X[idx].copy()
+        del y
+        from ..ml import KMeans
 
-        for _ in range(self.max_iter):
-            # Assignment step.
-            dists = np.linalg.norm(X[:, None] - centers[None, :], axis=2)
-            labels = np.argmin(dists, axis=1)
-            # Update step.
-            new_centers = np.array([X[labels == k].mean(axis=0) for k in range(self.n_clusters)])
-            # Handle empty clusters.
-            for k in range(self.n_clusters):
-                if np.isnan(new_centers[k]).any():
-                    new_centers[k] = X[rng.integers(n)]
-            shift = np.linalg.norm(new_centers - centers)
-            centers = new_centers
-            if shift < self.tol:
-                break
-
-        self.cluster_centers_ = centers
-        self.labels_ = labels
-        self.inertia_ = float(np.sum((X - centers[labels]) ** 2))
+        checked = self._check_X(X)
+        model = KMeans(
+            n_clusters=self.n_clusters,
+            max_iter=self.max_iter,
+            tol=self.tol,
+            seed=self.seed,
+        ).fit(checked)
+        assert model.cluster_centers_ is not None
+        assert model.labels_ is not None
+        assert model.inertia_ is not None
+        self.cluster_centers_ = np.asarray(model.cluster_centers_, dtype=np.float64).copy()
+        self.labels_ = np.asarray(model.labels_, dtype=np.int64).copy()
+        self.inertia_ = float(model.inertia_)
         return self
 
-    def predict(self, X: Any) -> np.ndarray:
+    def predict(self, X: Any) -> IntArray:
         if self.cluster_centers_ is None:
             raise RuntimeError("model not fitted")
         Xc = self._check_X(X)
-        dists = np.linalg.norm(Xc[:, None] - self.cluster_centers_[None, :], axis=2)
-        labels: np.ndarray = np.argmin(dists, axis=1)
-        return labels
+        if Xc.shape[1] != self.cluster_centers_.shape[1]:
+            raise ValueError("X has a different number of features than the fitted data")
+        squared = np.sum(
+            (Xc[:, None, :] - self.cluster_centers_[None, :, :]) ** 2,
+            axis=2,
+        )
+        result: IntArray = np.asarray(np.argmin(squared, axis=1), dtype=np.int64)
+        return result
 
-    def fit_predict(self, X: Any, y: Any = None) -> np.ndarray:
-        self.fit(X)
-        assert self.labels_ is not None
-        return self.labels_
+    def fit_predict(self, X: Any, y: Any = None) -> IntArray:
+        self.fit(X, y)
+        return self.predict(X)

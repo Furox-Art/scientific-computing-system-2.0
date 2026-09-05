@@ -19,7 +19,8 @@ def replace_once(path: str, old: str, new: str) -> None:
     target.write_text(text.replace(old, new, 1), encoding="utf-8")
 
 
-Path("src/cds2/estimator/_base.py").write_text('''"""Base class for cds2 estimators with sklearn-compatible API.
+Path("src/cds2/estimator/_base.py").write_text(
+    '''"""Base class for cds2 estimators with sklearn-compatible API.
 
 Provides ``get_params`` / ``set_params`` and a ``_check_X_y`` helper so the
 concrete estimators only implement ``fit`` / ``predict`` / ``score``.
@@ -84,9 +85,12 @@ class BaseEstimator:
         if not bool(np.all(np.isfinite(arr))):
             raise ValueError("X must contain only finite values")
         return arr
-''', encoding="utf-8")
+''',
+    encoding="utf-8",
+)
 
-Path("src/cds2/estimator/linear.py").write_text('''"""Linear regression estimators with sklearn-compatible API."""
+Path("src/cds2/estimator/linear.py").write_text(
+    '''"""Linear regression estimators with sklearn-compatible API."""
 
 from __future__ import annotations
 
@@ -230,9 +234,12 @@ class RidgeSGD(BaseEstimator):
         ss_res = float(np.sum((truth - y_pred) ** 2))
         ss_tot = float(np.sum((truth - np.mean(truth)) ** 2))
         return 1.0 - ss_res / ss_tot if ss_tot > 0 else 0.0
-''', encoding="utf-8")
+''',
+    encoding="utf-8",
+)
 
-Path("src/cds2/estimator/cluster.py").write_text('''"""K-Means estimator with sklearn-compatible API."""
+Path("src/cds2/estimator/cluster.py").write_text(
+    '''"""K-Means estimator with sklearn-compatible API."""
 
 from __future__ import annotations
 
@@ -298,9 +305,12 @@ class KMeansSKL(BaseEstimator):
         self.fit(X, y)
         assert self.labels_ is not None
         return self.labels_.copy()
-''', encoding="utf-8")
+''',
+    encoding="utf-8",
+)
 
-Path("src/cds2/linalg.py").write_text('''"""Dense linear algebra with typed dataclass results."""
+Path("src/cds2/linalg.py").write_text(
+    '''"""Dense linear algebra with typed dataclass results."""
 
 from __future__ import annotations
 
@@ -459,7 +469,9 @@ def logm(a: object) -> np.ndarray:
 
 def sqrtm(a: object) -> np.ndarray:
     return np.asarray(sla.sqrtm(_as_matrix(a, "a")))
-''', encoding="utf-8")
+''',
+    encoding="utf-8",
+)
 
 replace_between(
     "src/cds2/ml.py",
@@ -823,7 +835,7 @@ replace_between(
     "src/cds2/ml.py",
     "def accuracy_score(y_true: object, y_pred: object) -> float:\n",
     "\n\ndef make_regression_data(" if False else "\n\ndef mean_squared_error(",
-    '''def _classification_arrays(
+    """def _classification_arrays(
     y_true: object, y_pred: object
 ) -> tuple[NDArray[np.int64], NDArray[np.int64]]:
     truth = np.asarray(y_true, dtype=np.int64)
@@ -936,14 +948,14 @@ def confusion_matrix(
     for t, p in zip(truth, predicted, strict=True):
         matrix[lookup[int(t)], lookup[int(p)]] += 1
     return matrix
-''',
+""",
 )
 
 replace_between(
     "src/cds2/ml.py",
     "def mean_squared_error(y_true: object, y_pred: object) -> float:\n",
     "\n\ndef r2_score(",
-    '''def _regression_arrays(y_true: object, y_pred: object) -> tuple[FloatArray, FloatArray]:
+    """def _regression_arrays(y_true: object, y_pred: object) -> tuple[FloatArray, FloatArray]:
     truth = np.asarray(y_true, dtype=float)
     predicted = np.asarray(y_pred, dtype=float)
     if truth.ndim != 1 or predicted.ndim != 1:
@@ -969,7 +981,7 @@ def root_mean_squared_error(y_true: object, y_pred: object) -> float:
 def mean_absolute_error(y_true: object, y_pred: object) -> float:
     truth, predicted = _regression_arrays(y_true, y_pred)
     return float(np.mean(np.abs(truth - predicted)))
-''',
+""",
 )
 
 replace_between(
@@ -980,19 +992,19 @@ replace_between(
 ) if False else None
 replace_once(
     "src/cds2/ml.py",
-    '''def r2_score(y_true: object, y_pred: object) -> float:
+    """def r2_score(y_true: object, y_pred: object) -> float:
     truth = np.asarray(y_true, dtype=float)
     predicted = np.asarray(y_pred, dtype=float)
     ss_res = float(((truth - predicted) ** 2).sum())
     ss_tot = float(((truth - truth.mean()) ** 2).sum())
     return 1.0 - ss_res / ss_tot if ss_tot else 0.0
-''',
-    '''def r2_score(y_true: object, y_pred: object) -> float:
+""",
+    """def r2_score(y_true: object, y_pred: object) -> float:
     truth, predicted = _regression_arrays(y_true, y_pred)
     ss_res = float(((truth - predicted) ** 2).sum())
     ss_tot = float(((truth - truth.mean()) ** 2).sum())
     return 1.0 - ss_res / ss_tot if ss_tot else 0.0
-''',
+""",
 )
 
 replace_between(
@@ -1067,7 +1079,8 @@ replace_between(
 ''',
 )
 
-Path("setup.py").write_text('''"""Build script for optional compiled accelerators.
+Path("setup.py").write_text(
+    '''"""Build script for optional compiled accelerators.
 
 Only the native kernels that are wired into public runtime paths are built:
 ``cds2._fast_kmeans`` and ``cds2._fast_pagerank``. Keeping unused native
@@ -1109,7 +1122,9 @@ if os.environ.get("CDS_PURE") != "1":
     )
 
 setup(ext_modules=extensions)
-''', encoding="utf-8")
+''',
+    encoding="utf-8",
+)
 
 for obsolete in (
     "src/cds2/src/_fast_linop.c",
@@ -1118,7 +1133,8 @@ for obsolete in (
 ):
     Path(obsolete).unlink()
 
-Path("src/cds2/src/_fast_kmeans.c").write_text(r'''/* Safe Lloyd iteration kernel for cds2.ml.KMeans. */
+Path("src/cds2/src/_fast_kmeans.c").write_text(
+    r"""/* Safe Lloyd iteration kernel for cds2.ml.KMeans. */
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <float.h>
@@ -1330,9 +1346,12 @@ static PyMethodDef methods[] = {
 };
 static struct PyModuleDef module = {PyModuleDef_HEAD_INIT, "cds2._fast_kmeans", "Compiled Lloyd kernel.", -1, methods};
 PyMODINIT_FUNC PyInit__fast_kmeans(void) { return PyModule_Create(&module); }
-''', encoding="utf-8")
+""",
+    encoding="utf-8",
+)
 
-Path("src/cds2/src/_fast_pagerank.c").write_text(r'''/* Hardened PageRank power-iteration kernel for cds2.graph. */
+Path("src/cds2/src/_fast_pagerank.c").write_text(
+    r"""/* Hardened PageRank power-iteration kernel for cds2.graph. */
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <math.h>
@@ -1463,30 +1482,33 @@ static PyMethodDef methods[] = {
 };
 static struct PyModuleDef module = {PyModuleDef_HEAD_INIT, "cds2._fast_pagerank", "Compiled PageRank kernel.", -1, methods};
 PyMODINIT_FUNC PyInit__fast_pagerank(void) { return PyModule_Create(&module); }
-''', encoding="utf-8")
+""",
+    encoding="utf-8",
+)
 
 replace_once(
     "tests/test_coverage_gaps.py",
-    '''        assert f1 == pytest.approx(2 * precision * recall / (precision + recall))
-''',
-    '''        assert f1 == pytest.approx(0.6)
-''',
+    """        assert f1 == pytest.approx(2 * precision * recall / (precision + recall))
+""",
+    """        assert f1 == pytest.approx(0.6)
+""",
 )
 
 replace_between(
     "tests/test_estimator.py",
     "    def test_empty_cluster_gets_reseeded(self) -> None:\n",
     "\n    def test_fit_loop_exhausts_without_converging",
-    '''    def test_empty_cluster_gets_reseeded(self) -> None:
+    """    def test_empty_cluster_gets_reseeded(self) -> None:
         X = np.zeros((6, 2))
         est = KMeansSKL(n_clusters=2, max_iter=2, tol=0.0, seed=0).fit(X)
         assert est.cluster_centers_ is not None
         assert est.labels_ is not None
         assert np.isfinite(est.cluster_centers_).all()
-''',
+""",
 )
 
-Path("tests/test_correctness_hardening.py").write_text('''"""Regression tests for correctness and native-boundary hardening."""
+Path("tests/test_correctness_hardening.py").write_text(
+    '''"""Regression tests for correctness and native-boundary hardening."""
 
 from __future__ import annotations
 
@@ -1631,6 +1653,8 @@ def test_native_pagerank_boundary_guards_when_extension_available() -> None:
     dangling = np.ascontiguousarray([], dtype=np.int64)
     with pytest.raises(ValueError):
         kernel.iterate(indptr, indices, data, 2, 0.85, dangling, 20, 1e-10)
-''', encoding="utf-8")
+''',
+    encoding="utf-8",
+)
 
 print("Applied correctness hardening wave 1")

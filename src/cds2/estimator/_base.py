@@ -22,6 +22,7 @@ class BaseEstimator:
 
     def get_params(self, deep: bool = True) -> dict[str, Any]:
         """Return the constructor kwargs that define this estimator."""
+        del deep
         return {name: getattr(self, name) for name in self._fit_params}
 
     def set_params(self, **params: object) -> BaseEstimator:
@@ -34,16 +35,22 @@ class BaseEstimator:
 
     @staticmethod
     def _check_X_y(X: Any, y: Any | None = None) -> tuple[np.ndarray, np.ndarray | None]:
-        """Coerce inputs to float64 arrays, validating shape."""
+        """Coerce inputs to float64 arrays, validating shape and finiteness."""
         X = np.asarray(X, dtype=float)
         if X.ndim != 2:
             raise ValueError("X must be 2-D (n_samples, n_features)")
+        if X.shape[0] == 0 or X.shape[1] == 0:
+            raise ValueError("X must contain at least one sample and one feature")
+        if not bool(np.all(np.isfinite(X))):
+            raise ValueError("X must contain only finite values")
         if y is not None:
             y = np.asarray(y, dtype=float)
             if y.ndim != 1:
                 raise ValueError("y must be 1-D")
             if y.shape[0] != X.shape[0]:
                 raise ValueError("X and y must have the same number of samples")
+            if not bool(np.all(np.isfinite(y))):
+                raise ValueError("y must contain only finite values")
         return X, y
 
     @staticmethod
@@ -51,4 +58,8 @@ class BaseEstimator:
         arr: np.ndarray = np.asarray(X, dtype=float)
         if arr.ndim != 2:
             raise ValueError("X must be 2-D (n_samples, n_features)")
+        if arr.shape[0] == 0 or arr.shape[1] == 0:
+            raise ValueError("X must contain at least one sample and one feature")
+        if not bool(np.all(np.isfinite(arr))):
+            raise ValueError("X must contain only finite values")
         return arr
