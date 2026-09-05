@@ -1,3 +1,12 @@
+## [v5.2.4] - 2026-09-05
+
+PyPI presentation patch: the README hero image now uses an absolute raw GitHub URL so it renders correctly in the package description.
+
+### Fixed
+
+- Updated the README hero image source to an absolute `raw.githubusercontent.com` URL compatible with PyPI rendering.
+- Published the README presentation fix as a distinct patch release because existing PyPI release descriptions are immutable.
+
 ## [v5.2.3] - 2026-09-05
 
 Scientific-correctness and reproducibility hardening patch: the full PR #19 audit is now included in the published package.
