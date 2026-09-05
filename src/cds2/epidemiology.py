@@ -39,7 +39,9 @@ class SIRResult:
     @property
     def r0(self) -> float:
         """Basic reproduction number ``beta / gamma``."""
-        return math.inf if self.gamma == 0.0 else self.beta / self.gamma
+        return (
+            (0.0 if self.beta == 0.0 else math.inf) if self.gamma == 0.0 else self.beta / self.gamma
+        )
 
     @property
     def peak_day(self) -> float:
@@ -69,7 +71,9 @@ class SEIRResult:
     @property
     def r0(self) -> float:
         """Basic reproduction number ``beta / gamma``."""
-        return math.inf if self.gamma == 0.0 else self.beta / self.gamma
+        return (
+            (0.0 if self.beta == 0.0 else math.inf) if self.gamma == 0.0 else self.beta / self.gamma
+        )
 
     @property
     def peak_day(self) -> float:
@@ -96,8 +100,8 @@ def _validate_common(
         or steps_per_day < 1
     ):
         raise ValueError("steps_per_day must be at least 1 and an integer")
-    if not np.isfinite(beta) or beta <= 0.0:
-        raise ValueError("beta must be positive and finite")
+    if not np.isfinite(beta) or beta < 0.0:
+        raise ValueError("beta must be non-negative and finite")
     if not np.isfinite(gamma) or gamma < 0.0:
         raise ValueError("gamma must be non-negative and finite")
 
@@ -240,8 +244,8 @@ def simulate_seir(
 
 def herd_immunity_threshold(r0: float) -> float:
     """Critical immune fraction; zero when transmission is already subcritical."""
-    if not np.isfinite(r0) or r0 <= 0.0:
-        raise ValueError("r0 must be positive and finite")
+    if not np.isfinite(r0) or r0 < 0.0:
+        raise ValueError("r0 must be non-negative and finite")
     if r0 <= 1.0:
         return 0.0
     return float(1.0 - 1.0 / r0)

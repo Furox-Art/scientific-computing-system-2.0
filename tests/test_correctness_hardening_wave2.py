@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 from pathlib import Path
 
@@ -147,3 +148,80 @@ def test_epidemiology_thresholds_and_validation() -> None:
     assert 0.0 < near_critical < 0.1
     no_recovery = epi.simulate_sir(100.0, 0.2, 0.0, 2)
     assert math.isinf(no_recovery.r0)
+
+
+def test_generated_dataset_keys_cannot_collide_with_real_names() -> None:
+    x = np.linspace(1.0, 8.0, 30)
+    datasets = (
+        gf.FitDataset("a", x, 2.0 * x + 1.0),
+        gf.FitDataset("a", x, 3.0 * x + 2.0),
+        gf.FitDataset("a#1", x, 4.0 * x + 3.0),
+    )
+    result = gf.run_guided_fit(datasets, "linear")
+    assert len(result.data_hashes) == 3
+    assert len(set(result.data_hashes)) == 3
+    assert "a#1" in result.data_hashes
+
+
+def test_plot_file_stems_are_unique_and_cannot_escape_output_dir(tmp_path: Path) -> None:
+    x = np.linspace(1.0, 8.0, 30)
+    datasets = (
+        gf.FitDataset("foo", x, 2.0 * x + 1.0),
+        gf.FitDataset("foo", x, 3.0 * x + 2.0),
+        gf.FitDataset("foo_1", x, 4.0 * x + 3.0),
+        gf.FitDataset("../foo", x, 5.0 * x + 4.0),
+    )
+    result = gf.run_guided_fit(datasets, "linear")
+    paths = gf.plot_result(result, datasets, tmp_path)
+    assert len(paths) == 16
+    assert len({path.name for path in paths}) == 16
+    assert all(path.parent == tmp_path for path in paths)
+
+
+def test_manifest_rerun_preserves_custom_dataset_name(tmp_path: Path) -> None:
+    source = tmp_path / "source.csv"
+    x = np.linspace(1.0, 8.0, 30)
+    y = 2.0 * x + 1.0
+    pd.DataFrame({"x": x, "y": y}).to_csv(source, index=False)
+    dataset = gf.FitDataset("custom scientific name", x, y, source_path=str(source))
+    result = gf.run_guided_fit((dataset,), "linear")
+    manifest = gf.save_manifest(
+        result,
+        (dataset,),
+        tmp_path / "manifest.json",
+        x_column="x",
+        y_column="y",
+    )
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    assert payload["result"]["data_hashes"] != payload["result"]["rerun_data_hashes"]
+    rerun = gf.rerun_manifest(manifest)
+    assert rerun.stability_warning is False
+    assert rerun.datasets[0].name == "custom scientific name"
+    assert set(rerun.data_hashes) == {"custom scientific name"}
+
+
+@pytest.mark.parametrize(
+    "correlation",
+    [stats.pearson_correlation, stats.spearman_correlation, stats.kendall_tau],
+)
+def test_correlations_reject_constant_samples(correlation) -> None:  # type: ignore[no-untyped-def]
+    with pytest.raises(ValueError, match="constant"):
+        correlation([1.0, 1.0, 1.0], [1.0, 2.0, 3.0])
+
+
+def test_epidemiology_allows_zero_transmission() -> None:
+    result = epi.simulate_sir(100.0, beta=0.0, gamma=0.2, days=3, i0=5.0)
+    assert result.r0 == 0.0
+    assert epi.herd_immunity_threshold(0.0) == 0.0
+    no_change = epi.simulate_sir(100.0, beta=0.0, gamma=0.0, days=2, i0=5.0)
+    assert no_change.r0 == 0.0
+    assert no_change.infected.tolist() == pytest.approx([5.0, 5.0, 5.0])
+
+
+def test_metropolis_rejects_noninteger_control_counts() -> None:
+    with pytest.raises(ValueError, match="n_samples must be an integer"):
+        mc.metropolis_hastings(
+            lambda v: -0.5 * v[0] ** 2,
+            [0.0],
+            n_samples=10.5,  # type: ignore[arg-type]
+        )

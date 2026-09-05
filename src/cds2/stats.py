@@ -225,22 +225,28 @@ def levene_test(*groups: object) -> TestResult:
 
 
 def pearson_correlation(x: object, y: object) -> CorrelationResult:
-    """Correlation between equal-length finite samples."""
+    """Correlation between equal-length finite, non-constant samples."""
     a, b = _paired_arrays(x, y)
+    if np.ptp(a) == 0.0 or np.ptp(b) == 0.0:
+        raise ValueError("correlation is undefined for constant samples")
     res = sps.pearsonr(a, b)
     return CorrelationResult(r=float(res.statistic), p_value=float(res.pvalue))
 
 
 def spearman_correlation(x: object, y: object) -> CorrelationResult:
-    """Correlation between equal-length finite samples."""
+    """Correlation between equal-length finite, non-constant samples."""
     a, b = _paired_arrays(x, y)
+    if np.ptp(a) == 0.0 or np.ptp(b) == 0.0:
+        raise ValueError("correlation is undefined for constant samples")
     res = sps.spearmanr(a, b)
     return CorrelationResult(r=float(res.statistic), p_value=float(res.pvalue))
 
 
 def kendall_tau(x: object, y: object) -> CorrelationResult:
-    """Correlation between equal-length finite samples."""
+    """Correlation between equal-length finite, non-constant samples."""
     a, b = _paired_arrays(x, y)
+    if np.ptp(a) == 0.0 or np.ptp(b) == 0.0:
+        raise ValueError("correlation is undefined for constant samples")
     res = sps.kendalltau(a, b)
     return CorrelationResult(r=float(res.statistic), p_value=float(res.pvalue))
 

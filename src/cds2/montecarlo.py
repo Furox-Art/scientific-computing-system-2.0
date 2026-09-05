@@ -150,6 +150,10 @@ def metropolis_hastings(
     seed: int | None = None,
 ) -> MCMCResult:
     """Metropolis-Hastings sampler for an unnormalized log density."""
+    integer_args = (("n_samples", n_samples), ("burn_in", burn_in), ("thin", thin))
+    for name, value in integer_args:
+        if not isinstance(value, (int, np.integer)) or isinstance(value, bool):
+            raise ValueError(f"{name} must be an integer")
     if n_samples < 1 or burn_in < 0 or thin < 1:
         raise ValueError("need n_samples >= 1, burn_in >= 0 and thin >= 1")
     if not np.isfinite(proposal_scale) or proposal_scale <= 0.0:

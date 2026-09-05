@@ -463,21 +463,52 @@ def _dataset_keys(datasets: tuple[FitDataset, ...]) -> tuple[str, ...]:
     counts: dict[str, int] = {}
     for dataset in datasets:
         counts[dataset.name] = counts.get(dataset.name, 0) + 1
+    reserved = {name for name, count in counts.items() if count == 1}
     seen: dict[str, int] = {}
+    used: set[str] = set()
     keys: list[str] = []
     for dataset in datasets:
-        if counts[dataset.name] == 1:
-            keys.append(dataset.name)
-            continue
-        ordinal = seen.get(dataset.name, 0) + 1
-        seen[dataset.name] = ordinal
-        keys.append(f"{dataset.name}#{ordinal}")
+        name = dataset.name
+        if counts[name] == 1:
+            key = name
+        else:
+            ordinal = seen.get(name, 0) + 1
+            seen[name] = ordinal
+            base = f"{name}#{ordinal}"
+            key = base
+            suffix = 2
+            while key in used or key in reserved:
+                key = f"{base}~{suffix}"
+                suffix += 1
+        used.add(key)
+        keys.append(key)
     return tuple(keys)
 
 
 def _dataset_file_stems(datasets: tuple[FitDataset, ...]) -> tuple[str, ...]:
+    def safe(value: str) -> str:
+        cleaned = "".join(
+            char if char.isalnum() or char in {"-", "_", "."} else "_" for char in value
+        ).strip(" .")
+        return (cleaned or "dataset")[:120]
+
     keys = _dataset_keys(datasets)
-    return tuple(key.replace("#", "_") for key in keys)
+    counts: dict[str, int] = {}
+    for dataset in datasets:
+        counts[dataset.name] = counts.get(dataset.name, 0) + 1
+    reserved = {safe(dataset.name) for dataset in datasets if counts[dataset.name] == 1}
+    used: set[str] = set()
+    stems: list[str] = []
+    for dataset, key in zip(datasets, keys, strict=True):
+        base = safe(dataset.name if counts[dataset.name] == 1 else key)
+        stem = base
+        suffix = 2
+        while stem in used or (counts[dataset.name] > 1 and stem in reserved):
+            stem = f"{base}__{suffix}"
+            suffix += 1
+        used.add(stem)
+        stems.append(stem)
+    return tuple(stems)
 
 
 def _confidence_interval(fit: FitResult) -> FloatArray:
@@ -705,6 +736,18 @@ def manifest_dict(
     if len(datasets) != len(result.datasets):
         raise ValueError("datasets must match the fitted result count")
     keys = _dataset_keys(datasets)
+    rerun_hashes = dict(result.data_hashes)
+    if x_column and y_column:
+        for key, dataset in zip(keys, datasets, strict=True):
+            if dataset.source_path:
+                source_dataset = load_csv_dataset(
+                    dataset.source_path,
+                    x_column,
+                    y_column,
+                    sigma_column,
+                )
+                source_dataset = replace(source_dataset, name=dataset.name)
+                rerun_hashes[key] = _hash_dataset(source_dataset)
     return {
         "result": {
             "model": result.model,
@@ -716,34 +759,41 @@ def manifest_dict(
             "operations": list(result.operations),
             "package_versions": result.package_versions,
             "data_hashes": result.data_hashes,
+            "rerun_data_hashes": rerun_hashes,
             "stability_warning": result.stability_warning,
             "stability_details": list(result.stability_details),
             "datasets": [
                 {
                     **{
                         k: v
-                        for k, v in asdict(item).items()
-                        if k not in {"params", "parameter_std", "confidence_95", "outlier_indices"}
+                        for k, v in asdict(dataset_result).items()
+                        if k
+                        not in {
+                            "params",
+                            "parameter_std",
+                            "confidence_95",
+                            "outlier_indices",
+                        }
                     },
                     "dataset_key": key,
-                    "params": item.params.tolist(),
-                    "parameter_std": item.parameter_std.tolist(),
-                    "confidence_95": item.confidence_95.tolist(),
-                    "outlier_indices": item.outlier_indices.tolist(),
+                    "params": dataset_result.params.tolist(),
+                    "parameter_std": dataset_result.parameter_std.tolist(),
+                    "confidence_95": dataset_result.confidence_95.tolist(),
+                    "outlier_indices": dataset_result.outlier_indices.tolist(),
                 }
-                for key, item in zip(keys, result.datasets, strict=True)
+                for key, dataset_result in zip(keys, result.datasets, strict=True)
             ],
         },
         "inputs": [
             {
-                "name": ds.name,
+                "name": dataset.name,
                 "dataset_key": key,
-                "source_path": ds.source_path,
+                "source_path": dataset.source_path,
                 "x_column": x_column,
                 "y_column": y_column,
                 "sigma_column": sigma_column,
             }
-            for key, ds in zip(keys, datasets, strict=True)
+            for key, dataset in zip(keys, datasets, strict=True)
         ],
     }
 
@@ -777,18 +827,18 @@ def save_manifest(
 def rerun_manifest(path: str | Path) -> GuidedFitResult:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     cfg = payload["result"]
+    input_items = cast(list[dict[str, object]], payload["inputs"])
     datasets: list[FitDataset] = []
-    for item in payload["inputs"]:
-        if not item["source_path"] or not item["x_column"] or not item["y_column"]:
+    for input_item in input_items:
+        source_path = cast(str | None, input_item.get("source_path"))
+        x_column = cast(str | None, input_item.get("x_column"))
+        y_column = cast(str | None, input_item.get("y_column"))
+        sigma_column = cast(str | None, input_item.get("sigma_column"))
+        if not source_path or not x_column or not y_column:
             raise ValueError("manifest does not contain reusable CSV source metadata")
-        datasets.append(
-            load_csv_dataset(
-                item["source_path"],
-                item["x_column"],
-                item["y_column"],
-                item["sigma_column"],
-            )
-        )
+        loaded = load_csv_dataset(source_path, x_column, y_column, sigma_column)
+        datasets.append(replace(loaded, name=str(input_item.get("name") or loaded.name)))
+
     rerun = run_guided_fit(
         tuple(datasets),
         cfg["model"],
@@ -798,32 +848,41 @@ def rerun_manifest(path: str | Path) -> GuidedFitResult:
     )
 
     details: list[str] = []
-    previous_hashes = cast(dict[str, str], cfg["data_hashes"])
-    keys = _dataset_keys(tuple(datasets))
-    for index, (key, dataset) in enumerate(zip(keys, datasets, strict=True)):
-        digest = rerun.data_hashes[key]
-        previous_digest = previous_hashes.get(key)
-        if previous_digest is None and len({item.name for item in datasets}) == len(datasets):
+    previous_hashes = cast(
+        dict[str, str],
+        cfg.get("rerun_data_hashes", cfg["data_hashes"]),
+    )
+    runtime_keys = _dataset_keys(tuple(datasets))
+    saved_keys = tuple(
+        str(input_item.get("dataset_key") or runtime_key)
+        for input_item, runtime_key in zip(input_items, runtime_keys, strict=True)
+    )
+    for runtime_key, saved_key, dataset in zip(runtime_keys, saved_keys, datasets, strict=True):
+        digest = rerun.data_hashes[runtime_key]
+        previous_digest = previous_hashes.get(saved_key)
+        if previous_digest is None:
+            previous_digest = previous_hashes.get(runtime_key)
+        if previous_digest is None and len({value.name for value in datasets}) == len(datasets):
             previous_digest = previous_hashes.get(dataset.name)
         if previous_digest != digest:
-            details.append(f"input data changed: {key}")
+            details.append(f"input data changed: {saved_key}")
 
     saved_results = cast(list[dict[str, object]], cfg["datasets"])
     if len(saved_results) != len(rerun.datasets):
         details.append(f"dataset count changed: {len(saved_results)} -> {len(rerun.datasets)}")
-    for index, item in enumerate(rerun.datasets):
+    for index, dataset_result in enumerate(rerun.datasets):
         if index >= len(saved_results):
             break
         previous = saved_results[index]
-        key = keys[index]
+        key = saved_keys[index] if index < len(saved_keys) else runtime_keys[index]
         old_rmse = float(cast(float, previous["rmse"]))
-        rmse_change = abs(item.rmse - old_rmse) / max(abs(old_rmse), 1e-12)
+        rmse_change = abs(dataset_result.rmse - old_rmse) / max(abs(old_rmse), 1e-12)
         old_params = np.asarray(cast(list[float], previous["params"]), dtype=np.float64)
-        if old_params.shape != item.params.shape:
+        if old_params.shape != dataset_result.params.shape:
             details.append(f"parameter shape changed for {key}")
             continue
         param_scale = max(float(np.linalg.norm(old_params)), 1e-12)
-        param_change = float(np.linalg.norm(item.params - old_params)) / param_scale
+        param_change = float(np.linalg.norm(dataset_result.params - old_params)) / param_scale
         if max(rmse_change, param_change) > 0.05:
             details.append(
                 f"fit changed materially for {key}: "
@@ -833,7 +892,11 @@ def rerun_manifest(path: str | Path) -> GuidedFitResult:
     if cast(str, cfg["trust"]) != rerun.trust:
         details.append(f"reliability label changed: {cfg['trust']} -> {rerun.trust}")
 
-    return replace(rerun, stability_warning=bool(details), stability_details=tuple(details))
+    return replace(
+        rerun,
+        stability_warning=bool(details),
+        stability_details=tuple(details),
+    )
 
 
 def _paginate_report_text(
