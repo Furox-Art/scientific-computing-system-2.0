@@ -219,11 +219,7 @@ def test_pdf_report_pagination_preserves_all_long_content() -> None:
     assert len(pages) > 1
     assert all(len(page.splitlines()) <= 10 for page in pages)
     combined = "\n".join(pages)
-    assert "marker-0000-" in combined
-    assert "marker-0090-" in combined
-    assert "marker-0179-" in combined
-
-
+    assert combined.replace("\n", "") == "".join(markers)
 
 
 def test_rerun_manifest_warns_on_changed_data_and_saved_verdict(tmp_path) -> None:  # type: ignore[no-untyped-def]
