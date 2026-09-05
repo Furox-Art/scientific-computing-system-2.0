@@ -212,6 +212,20 @@ def test_plot_manifest_reports_and_rerun(tmp_path) -> None:  # type: ignore[no-u
         assert report.exists()
 
 
+def test_pdf_report_pagination_preserves_all_long_content() -> None:
+    markers = [f"marker-{index:04d}-" + ("x" * 140) for index in range(180)]
+    pages = gf._paginate_report_text("\n".join(markers), width=50, lines_per_page=10)
+
+    assert len(pages) > 1
+    assert all(len(page.splitlines()) <= 10 for page in pages)
+    combined = "\n".join(pages)
+    assert "marker-0000-" in combined
+    assert "marker-0090-" in combined
+    assert "marker-0179-" in combined
+
+
+
+
 def test_rerun_manifest_warns_on_changed_data_and_saved_verdict(tmp_path) -> None:  # type: ignore[no-untyped-def]
     csv_path = tmp_path / "stable.csv"
     x = np.linspace(1.0, 8.0, 40)
