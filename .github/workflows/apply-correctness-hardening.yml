@@ -95,8 +95,7 @@ jobs:
 
               def fit_predict(self, X: Any, y: Any = None) -> IntArray:
                   self.fit(X, y)
-                  assert self.labels_ is not None
-                  return self.labels_.copy()
+                  return self.predict(X)
           PY
       - name: Install validation dependencies
         run: |
