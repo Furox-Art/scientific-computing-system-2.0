@@ -60,7 +60,14 @@ jobs:
 
   package:
     needs: lint
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -77,13 +84,25 @@ jobs:
       - name: Smoke-install built wheel
         run: |
           python -m venv .wheel-smoke
-          .wheel-smoke/bin/python -m pip install --upgrade pip
-          .wheel-smoke/bin/python -m pip install dist/*.whl
-          .wheel-smoke/bin/python -c "import importlib.metadata as metadata, cds2; assert cds2.__version__ == metadata.version('scientific-computing-system-2.0')"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            PYTHON=.wheel-smoke/Scripts/python.exe
+          else
+            PYTHON=.wheel-smoke/bin/python
+          fi
+          "$PYTHON" -m pip install --upgrade pip
+          "$PYTHON" -m pip install dist/*.whl
+          "$PYTHON" -c "import importlib.metadata as metadata, cds2; assert cds2.__version__ == metadata.version('scientific-computing-system-2.0')"
       - name: Smoke-test installed CLI and guided fit
         run: |
-          .wheel-smoke/bin/cds2 info
-          .wheel-smoke/bin/python - <<'PY'
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            PYTHON=.wheel-smoke/Scripts/python.exe
+            CDS2=.wheel-smoke/Scripts/cds2.exe
+          else
+            PYTHON=.wheel-smoke/bin/python
+            CDS2=.wheel-smoke/bin/cds2
+          fi
+          "$CDS2" info
+          "$PYTHON" - <<'PY'
           import csv
           with open("cli-smoke.csv", "w", newline="", encoding="utf-8") as handle:
               writer = csv.writer(handle)
@@ -91,13 +110,13 @@ jobs:
               for x in range(1, 21):
                   writer.writerow([x, 2.0 * x + 1.0, 0.2])
           PY
-          .wheel-smoke/bin/cds2 guided-fit cli-smoke.csv --x x --y y --sigma sigma --model linear --missing interpolate --outliers keep --report none --output-dir cli-smoke-output
+          "$CDS2" guided-fit cli-smoke.csv --x x --y y --sigma sigma --model linear --missing interpolate --outliers keep --report none --output-dir cli-smoke-output
           test -f cli-smoke-output/guided_fit_manifest.json
           test -f cli-smoke-output/cli-smoke_fit.png
           test -f cli-smoke-output/cli-smoke_fit.pdf
           test -f cli-smoke-output/cli-smoke_residuals.png
           test -f cli-smoke-output/cli-smoke_residuals.pdf
-          .wheel-smoke/bin/cds2 guided-fit-rerun cli-smoke-output/guided_fit_manifest.json
+          "$CDS2" guided-fit-rerun cli-smoke-output/guided_fit_manifest.json
 
   test:
     needs: lint
