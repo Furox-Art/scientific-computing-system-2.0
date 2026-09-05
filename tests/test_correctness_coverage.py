@@ -307,6 +307,43 @@ def test_guided_manifest_hash_fallbacks(tmp_path: Path) -> None:
     assert gf.rerun_manifest(fallback).stability_warning is False
 
 
+def test_guided_remaining_defensive_branches(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    interpolated = gf.FitDataset(
+        "interpolated",
+        np.arange(5.0),
+        np.array([1.0, 2.0, np.nan, 4.0, 5.0]),
+    )
+
+    def nonfinite_interp(x, xp, fp):  # type: ignore[no-untyped-def]
+        return np.full(np.asarray(x).shape, np.inf, dtype=float)
+
+    monkeypatch.setattr(gf.np, "interp", nonfinite_interp)
+    with pytest.raises(ValueError, match="prepared x and y must be finite"):
+        gf._prepare(interpolated, "interpolate")
+    monkeypatch.undo()
+
+    small = gf.FitDataset("small-keep", np.arange(1.0, 6.0), 2.0 * np.arange(1.0, 6.0) + 1.0)
+    monkeypatch.setattr(gf, "_outliers", lambda residuals: np.array([0, 1], dtype=np.intp))
+    kept = gf.run_guided_fit((small,), "linear", outlier_policy="keep")
+    assert kept.outlier_policy == "keep"
+    assert kept.datasets[0].name == "small-keep"
+    monkeypatch.undo()
+
+    dataset = _linear_dataset()
+    result = gf.run_guided_fit((dataset,), "linear")
+    manifest = gf.manifest_dict(result, (dataset,), x_column="x", y_column="y")
+    assert manifest["result"]["rerun_data_hashes"] == result.data_hashes
+
+    saved_manifest, _source = _save_manifest_for_mutation(tmp_path)
+    payload = json.loads(saved_manifest.read_text(encoding="utf-8"))
+    payload["inputs"][0]["dataset_key"] = "saved-alias"
+    runtime_fallback = tmp_path / "runtime-fallback.json"
+    runtime_fallback.write_text(json.dumps(payload), encoding="utf-8")
+    assert gf.rerun_manifest(runtime_fallback).stability_warning is False
+
+
 # ---------------------------------------------------------------------------
 # ML utility/model validation branches
 # ---------------------------------------------------------------------------
@@ -691,8 +728,14 @@ def test_stats_bootstrap_permutation_matrix_and_streaming_guards() -> None:
         stats.bootstrap_ci(
             [1.0, 2.0], lambda sample, axis=1: np.array([np.nan, np.nan]), n_resamples=2
         )
+
+    def point_nan_stat(sample, axis=None):  # type: ignore[no-untyped-def]
+        if axis is None:
+            return float("nan")
+        return np.mean(sample, axis=axis)
+
     with pytest.raises(ValueError, match="point estimate"):
-        stats.bootstrap_ci([1.0, 2.0], lambda sample, **kwargs: np.nan, n_resamples=2)
+        stats.bootstrap_ci([1.0, 2.0], point_nan_stat, n_resamples=2)
     with pytest.raises(ValueError, match="n_permutations"):
         stats.permutation_test([1.0], [2.0], n_permutations=0)
     with pytest.raises(ValueError, match="constant"):
@@ -726,3 +769,7 @@ def test_final_size_iteration_wraps_solver_failure(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(scipy.optimize, "brentq", fail)
     with pytest.raises(RuntimeError, match="did not converge"):
         epi.final_size_iteration(2.0)
+    with pytest.raises(ValueError, match="tol"):
+        epi.final_size_iteration(2.0, tol=0.0)
+    with pytest.raises(ValueError, match="max_iter"):
+        epi.final_size_iteration(2.0, max_iter=0)

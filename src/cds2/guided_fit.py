@@ -857,13 +857,11 @@ def rerun_manifest(path: str | Path) -> GuidedFitResult:
         str(input_item.get("dataset_key") or runtime_key)
         for input_item, runtime_key in zip(input_items, runtime_keys, strict=True)
     )
-    for runtime_key, saved_key, dataset in zip(runtime_keys, saved_keys, datasets, strict=True):
+    for runtime_key, saved_key in zip(runtime_keys, saved_keys, strict=True):
         digest = rerun.data_hashes[runtime_key]
         previous_digest = previous_hashes.get(saved_key)
         if previous_digest is None:
             previous_digest = previous_hashes.get(runtime_key)
-        if previous_digest is None and len({value.name for value in datasets}) == len(datasets):
-            previous_digest = previous_hashes.get(dataset.name)
         if previous_digest != digest:
             details.append(f"input data changed: {saved_key}")
 
