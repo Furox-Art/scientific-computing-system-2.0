@@ -19,13 +19,15 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - name: Apply final edge-case fixes
+      - name: Apply remaining correctness fixes
         run: |
           python - <<'PY'
           from __future__ import annotations
+
           import ast
           import textwrap
           from pathlib import Path
+
 
           def replace_function(path: str, name: str, source: str) -> None:
               target = Path(path)
@@ -38,22 +40,28 @@ jobs:
               if node is None or node.end_lineno is None:
                   raise SystemExit(f'function {name} not found in {path}')
               lines = text.splitlines(keepends=True)
-              lines[node.lineno - 1:node.end_lineno] = [textwrap.dedent(source).strip('\n') + '\n\n']
+              lines[node.lineno - 1 : node.end_lineno] = [
+                  textwrap.dedent(source).strip('\n') + '\n\n'
+              ]
               target.write_text(''.join(lines), encoding='utf-8')
+
 
           def replace_once(path: str, old: str, new: str) -> None:
               target = Path(path)
               text = target.read_text(encoding='utf-8')
               if old not in text:
-                  raise SystemExit(f'marker not found in {path}: {old[:100]!r}')
+                  raise SystemExit(f'marker not found in {path}: {old[:120]!r}')
               target.write_text(text.replace(old, new, 1), encoding='utf-8')
+
 
           def replace_all(path: str, old: str, new: str, expected: int) -> None:
               target = Path(path)
               text = target.read_text(encoding='utf-8')
-              if text.count(old) != expected:
-                  raise SystemExit(f'expected {expected} markers in {path}, found {text.count(old)}')
+              found = text.count(old)
+              if found != expected:
+                  raise SystemExit(f'expected {expected} markers in {path}, found {found}')
               target.write_text(text.replace(old, new), encoding='utf-8')
+
 
           replace_function('src/cds2/guided_fit.py', '_dataset_keys', r'''
           def _dataset_keys(datasets: tuple[FitDataset, ...]) -> tuple[str, ...]:
@@ -110,11 +118,159 @@ jobs:
               return tuple(stems)
           ''')
 
-          replace_once(
-              'src/cds2/guided_fit.py',
-              '''        datasets.append(\n            load_csv_dataset(\n                item["source_path"],\n                item["x_column"],\n                item["y_column"],\n                item["sigma_column"],\n            )\n        )\n''',
-              '''        loaded = load_csv_dataset(\n            item["source_path"],\n            item["x_column"],\n            item["y_column"],\n            item["sigma_column"],\n        )\n        datasets.append(replace(loaded, name=str(item.get("name", loaded.name))))\n''',
-          )
+          replace_function('src/cds2/guided_fit.py', 'manifest_dict', r'''
+          def manifest_dict(
+              result: GuidedFitResult,
+              datasets: tuple[FitDataset, ...],
+              *,
+              x_column: str | None = None,
+              y_column: str | None = None,
+              sigma_column: str | None = None,
+          ) -> dict[str, object]:
+              if len(datasets) != len(result.datasets):
+                  raise ValueError("datasets must match the fitted result count")
+              keys = _dataset_keys(datasets)
+              rerun_hashes = dict(result.data_hashes)
+              if x_column and y_column:
+                  for key, dataset in zip(keys, datasets, strict=True):
+                      if dataset.source_path:
+                          source_dataset = load_csv_dataset(
+                              dataset.source_path,
+                              x_column,
+                              y_column,
+                              sigma_column,
+                          )
+                          source_dataset = replace(source_dataset, name=dataset.name)
+                          rerun_hashes[key] = _hash_dataset(source_dataset)
+              return {
+                  "result": {
+                      "model": result.model,
+                      "trust": result.trust,
+                      "comment": result.comment,
+                      "seed": result.seed,
+                      "missing_policy": result.missing_policy,
+                      "outlier_policy": result.outlier_policy,
+                      "operations": list(result.operations),
+                      "package_versions": result.package_versions,
+                      "data_hashes": result.data_hashes,
+                      "rerun_data_hashes": rerun_hashes,
+                      "stability_warning": result.stability_warning,
+                      "stability_details": list(result.stability_details),
+                      "datasets": [
+                          {
+                              **{
+                                  k: v
+                                  for k, v in asdict(item).items()
+                                  if k
+                                  not in {
+                                      "params",
+                                      "parameter_std",
+                                      "confidence_95",
+                                      "outlier_indices",
+                                  }
+                              },
+                              "dataset_key": key,
+                              "params": item.params.tolist(),
+                              "parameter_std": item.parameter_std.tolist(),
+                              "confidence_95": item.confidence_95.tolist(),
+                              "outlier_indices": item.outlier_indices.tolist(),
+                          }
+                          for key, item in zip(keys, result.datasets, strict=True)
+                      ],
+                  },
+                  "inputs": [
+                      {
+                          "name": ds.name,
+                          "dataset_key": key,
+                          "source_path": ds.source_path,
+                          "x_column": x_column,
+                          "y_column": y_column,
+                          "sigma_column": sigma_column,
+                      }
+                      for key, ds in zip(keys, datasets, strict=True)
+                  ],
+              }
+          ''')
+
+          replace_function('src/cds2/guided_fit.py', 'rerun_manifest', r'''
+          def rerun_manifest(path: str | Path) -> GuidedFitResult:
+              payload = json.loads(Path(path).read_text(encoding="utf-8"))
+              cfg = payload["result"]
+              input_items = cast(list[dict[str, object]], payload["inputs"])
+              datasets: list[FitDataset] = []
+              for item in input_items:
+                  source_path = cast(str | None, item.get("source_path"))
+                  x_column = cast(str | None, item.get("x_column"))
+                  y_column = cast(str | None, item.get("y_column"))
+                  sigma_column = cast(str | None, item.get("sigma_column"))
+                  if not source_path or not x_column or not y_column:
+                      raise ValueError("manifest does not contain reusable CSV source metadata")
+                  loaded = load_csv_dataset(source_path, x_column, y_column, sigma_column)
+                  datasets.append(replace(loaded, name=str(item.get("name") or loaded.name)))
+
+              rerun = run_guided_fit(
+                  tuple(datasets),
+                  cfg["model"],
+                  missing_policy=cfg["missing_policy"],
+                  outlier_policy=cfg["outlier_policy"],
+                  seed=int(cfg["seed"]),
+              )
+
+              details: list[str] = []
+              previous_hashes = cast(
+                  dict[str, str],
+                  cfg.get("rerun_data_hashes", cfg["data_hashes"]),
+              )
+              runtime_keys = _dataset_keys(tuple(datasets))
+              saved_keys = tuple(
+                  str(item.get("dataset_key") or runtime_key)
+                  for item, runtime_key in zip(input_items, runtime_keys, strict=True)
+              )
+              for runtime_key, saved_key, dataset in zip(
+                  runtime_keys, saved_keys, datasets, strict=True
+              ):
+                  digest = rerun.data_hashes[runtime_key]
+                  previous_digest = previous_hashes.get(saved_key)
+                  if previous_digest is None:
+                      previous_digest = previous_hashes.get(runtime_key)
+                  if previous_digest is None and len({item.name for item in datasets}) == len(datasets):
+                      previous_digest = previous_hashes.get(dataset.name)
+                  if previous_digest != digest:
+                      details.append(f"input data changed: {saved_key}")
+
+              saved_results = cast(list[dict[str, object]], cfg["datasets"])
+              if len(saved_results) != len(rerun.datasets):
+                  details.append(
+                      f"dataset count changed: {len(saved_results)} -> {len(rerun.datasets)}"
+                  )
+              for index, item in enumerate(rerun.datasets):
+                  if index >= len(saved_results):
+                      break
+                  previous = saved_results[index]
+                  key = saved_keys[index] if index < len(saved_keys) else runtime_keys[index]
+                  old_rmse = float(cast(float, previous["rmse"]))
+                  rmse_change = abs(item.rmse - old_rmse) / max(abs(old_rmse), 1e-12)
+                  old_params = np.asarray(cast(list[float], previous["params"]), dtype=np.float64)
+                  if old_params.shape != item.params.shape:
+                      details.append(f"parameter shape changed for {key}")
+                      continue
+                  param_scale = max(float(np.linalg.norm(old_params)), 1e-12)
+                  param_change = float(np.linalg.norm(item.params - old_params)) / param_scale
+                  if max(rmse_change, param_change) > 0.05:
+                      details.append(
+                          f"fit changed materially for {key}: "
+                          f"rmse={rmse_change:.1%}, parameters={param_change:.1%}"
+                      )
+
+              if cast(str, cfg["trust"]) != rerun.trust:
+                  details.append(f"reliability label changed: {cfg['trust']} -> {rerun.trust}")
+
+              return replace(
+                  rerun,
+                  stability_warning=bool(details),
+                  stability_details=tuple(details),
+              )
+          ''')
 
           for name, scipy_name in (
               ('pearson_correlation', 'pearsonr'),
@@ -203,6 +359,22 @@ jobs:
               return MCMCResult(samples=samples, acceptance_rate=accepted / total_steps)
           ''')
 
+          replace_once(
+              'tests/test_epidemiology.py',
+              '''    @pytest.mark.parametrize("r0", [0.0, -2.5])\n    def test_invalid_raises(self, r0: float) -> None:\n        with pytest.raises(ValueError, match="r0 must be positive"):\n            epi.herd_immunity_threshold(r0)\n''',
+              '''    @pytest.mark.parametrize("r0", [-2.5])\n    def test_invalid_raises(self, r0: float) -> None:\n        with pytest.raises(ValueError, match="r0 must be non-negative"):\n            epi.herd_immunity_threshold(r0)\n\n    def test_zero_is_subcritical(self) -> None:\n        assert epi.herd_immunity_threshold(0.0) == 0.0\n''',
+          )
+          replace_once(
+              'tests/test_epidemiology.py',
+              '''    def test_beta_not_positive(self) -> None:\n        with pytest.raises(ValueError, match="beta must be positive"):\n            epi.simulate_sir(1000.0, 0.0, 0.1, 10)\n''',
+              '''    def test_beta_negative(self) -> None:\n        with pytest.raises(ValueError, match="beta must be non-negative"):\n            epi.simulate_sir(1000.0, -0.1, 0.1, 10)\n''',
+          )
+          replace_once(
+              'tests/test_epidemiology.py',
+              '''    def test_beta_not_positive(self) -> None:\n        with pytest.raises(ValueError, match="beta must be positive"):\n            epi.simulate_seir(1000.0, -1.0, 0.2, 0.1, 10)\n''',
+              '''    def test_beta_negative(self) -> None:\n        with pytest.raises(ValueError, match="beta must be non-negative"):\n            epi.simulate_seir(1000.0, -1.0, 0.2, 0.1, 10)\n''',
+          )
+
           test_path = Path('tests/test_correctness_hardening_wave2.py')
           test_text = test_path.read_text(encoding='utf-8')
           if 'test_generated_dataset_keys_cannot_collide_with_real_names' not in test_text:
@@ -250,6 +422,8 @@ jobs:
                   x_column="x",
                   y_column="y",
               )
+              payload = json.loads(manifest.read_text(encoding="utf-8"))
+              assert payload["result"]["data_hashes"] != payload["result"]["rerun_data_hashes"]
               rerun = gf.rerun_manifest(manifest)
               assert rerun.stability_warning is False
               assert rerun.datasets[0].name == "custom scientific name"
@@ -282,15 +456,17 @@ jobs:
                       n_samples=10.5,  # type: ignore[arg-type]
                   )
           '''
+              test_text = test_text.replace(
+                  'from pathlib import Path\n',
+                  'from pathlib import Path\nimport json\n',
+                  1,
+              )
               test_path.write_text(test_text, encoding='utf-8')
           PY
       - name: Remove generated artifacts
         run: |
           rm -rf guided-fit-results
           rm -f src/cds2/*.so src/cds2/*.pyd
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.12'
       - name: Install validation dependencies
         run: |
           python -m pip install --upgrade pip
