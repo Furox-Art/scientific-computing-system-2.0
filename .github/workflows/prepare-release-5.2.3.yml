@@ -42,28 +42,21 @@ jobs:
           existing = changelog.read_text(encoding="utf-8")
           if not existing.startswith("## [v5.2.2] - 2026-09-05"):
               raise SystemExit("unexpected CHANGELOG.md head")
-          entry = """## [v5.2.3] - 2026-09-05
-
-Scientific-correctness and reproducibility hardening patch: the full PR #19 audit is now included in the published package.
-
-### Changed
-
-- Guided-fit reproducibility is hardened for duplicate dataset identities, manifest reruns, plot-output naming, outlier diagnostics and raw-input hashing.
-- Numerical and input validation is strengthened across statistics, reliability, Monte Carlo/MCMC, epidemiology, linear algebra, graph, machine-learning and estimator paths.
-- Reliability fitting handles censored data and availability edge cases more defensively.
-- Native-extension fallbacks and validation behavior are hardened while preserving pure-Python fallback operation.
-
-### Fixed
-
-- Removed a redundant unreachable guided-fit manifest hash fallback instead of retaining dead defensive code.
-- Removed the remaining invalid-regex-escape test warning without changing runtime behavior.
-- Added focused regression coverage for scientific edge cases identified by the correctness audit.
-
-### Validation
-
-- PR #19 final CI passed Ruff lint/format, strict mypy, 1703 tests at 100.00% coverage, property tests, package/installed-wheel/CLI smoke on Ubuntu/Windows/macOS, the Python 3.10-3.13 OS matrix, and the benchmark regression gate.
-
-"""
+          entry = (
+              "## [v5.2.3] - 2026-09-05\n\n"
+              "Scientific-correctness and reproducibility hardening patch: the full PR #19 audit is now included in the published package.\n\n"
+              "### Changed\n\n"
+              "- Guided-fit reproducibility is hardened for duplicate dataset identities, manifest reruns, plot-output naming, outlier diagnostics and raw-input hashing.\n"
+              "- Numerical and input validation is strengthened across statistics, reliability, Monte Carlo/MCMC, epidemiology, linear algebra, graph, machine-learning and estimator paths.\n"
+              "- Reliability fitting handles censored data and availability edge cases more defensively.\n"
+              "- Native-extension fallbacks and validation behavior are hardened while preserving pure-Python fallback operation.\n\n"
+              "### Fixed\n\n"
+              "- Removed a redundant unreachable guided-fit manifest hash fallback instead of retaining dead defensive code.\n"
+              "- Removed the remaining invalid-regex-escape test warning without changing runtime behavior.\n"
+              "- Added focused regression coverage for scientific edge cases identified by the correctness audit.\n\n"
+              "### Validation\n\n"
+              "- PR #19 final CI passed Ruff lint/format, strict mypy, 1703 tests at 100.00% coverage, property tests, package/installed-wheel/CLI smoke on Ubuntu/Windows/macOS, the Python 3.10-3.13 OS matrix, and the benchmark regression gate.\n\n"
+          )
           changelog.write_text(entry + existing, encoding="utf-8")
           PY
 
