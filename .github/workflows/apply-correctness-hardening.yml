@@ -27,8 +27,10 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[dev,test]'
-      - name: Format
-        run: ruff format .
+      - name: Normalize formatting and imports
+        run: |
+          ruff check . --fix
+          ruff format .
       - name: Lint
         run: ruff check .
       - name: Type check
