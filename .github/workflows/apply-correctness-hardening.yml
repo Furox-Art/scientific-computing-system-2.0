@@ -1,0 +1,53 @@
+name: Apply correctness hardening
+
+on:
+  push:
+    branches:
+      - hardening/full-correctness-audit
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: hardening/full-correctness-audit
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Apply hardening patch
+        run: python tools/apply_correctness_hardening_1.py
+      - name: Install validation dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev,test]'
+      - name: Format
+        run: ruff format .
+      - name: Lint
+        run: ruff check .
+      - name: Type check
+        run: mypy
+      - name: Targeted correctness tests
+        run: >-
+          pytest -q
+          tests/test_correctness_hardening.py
+          tests/test_ml.py
+          tests/test_estimator.py
+          tests/test_linalg.py
+          tests/test_graph.py
+          tests/test_coverage_gaps.py
+      - name: Commit validated changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+            exit 0
+          fi
+          git commit -m 'Fix scientific correctness and native safety issues'
+          git push origin HEAD:hardening/full-correctness-audit
