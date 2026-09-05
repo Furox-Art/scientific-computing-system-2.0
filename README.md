@@ -1,7 +1,7 @@
 # scientific-computing-system-2.0
 
 <p align="center">
-  <img src="docs/assets/promo_hero.png" alt="scientific-computing-system-2.0 scientific computing platform" width="100%">
+  <img src="https://raw.githubusercontent.com/Furox-Art/scientific-computing-system-2.0/main/docs/assets/promo_hero.png" alt="scientific-computing-system-2.0 scientific computing platform" width="100%">
 </p>
 
 [![CI](https://github.com/Furox-Art/scientific-computing-system-2.0/actions/workflows/tests.yml/badge.svg)](https://github.com/Furox-Art/scientific-computing-system-2.0/actions/workflows/tests.yml)
