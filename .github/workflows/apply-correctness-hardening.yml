@@ -19,73 +19,278 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
-      - name: Apply correctness hardening wave 2
-        run: python tools/apply_correctness_hardening_2.py
-      - name: Resolve validation compatibility cases
+      - name: Apply final edge-case fixes
         run: |
           python - <<'PY'
+          from __future__ import annotations
+          import ast
+          import textwrap
           from pathlib import Path
 
-          def replace(path: str, old: str, new: str) -> None:
+          def replace_function(path: str, name: str, source: str) -> None:
+              target = Path(path)
+              text = target.read_text(encoding='utf-8')
+              tree = ast.parse(text)
+              node = next(
+                  (item for item in tree.body if isinstance(item, ast.FunctionDef) and item.name == name),
+                  None,
+              )
+              if node is None or node.end_lineno is None:
+                  raise SystemExit(f'function {name} not found in {path}')
+              lines = text.splitlines(keepends=True)
+              lines[node.lineno - 1:node.end_lineno] = [textwrap.dedent(source).strip('\n') + '\n\n']
+              target.write_text(''.join(lines), encoding='utf-8')
+
+          def replace_once(path: str, old: str, new: str) -> None:
               target = Path(path)
               text = target.read_text(encoding='utf-8')
               if old not in text:
-                  raise SystemExit(f'marker not found in {path}: {old!r}')
+                  raise SystemExit(f'marker not found in {path}: {old[:100]!r}')
               target.write_text(text.replace(old, new, 1), encoding='utf-8')
 
-          replace(
-              'src/cds2/stats.py',
-              '''def _paired_arrays(a: object, b: object, *, min_size: int = 2) -> tuple[np.ndarray, np.ndarray]:\n    x = _as_1d(a, min_size=min_size)\n    y = _as_1d(b, min_size=min_size)\n    if x.shape != y.shape:\n        raise ValueError("paired samples must have the same length")\n    return x, y\n''',
-              '''def _paired_arrays(a: object, b: object, *, min_size: int = 2) -> tuple[np.ndarray, np.ndarray]:\n    x = _as_1d(a)\n    y = _as_1d(b)\n    if x.shape != y.shape:\n        raise ValueError("paired samples must have the same length")\n    if x.size < min_size:\n        raise ValueError(f"paired samples need at least {min_size} observations")\n    return x, y\n''',
+          def replace_all(path: str, old: str, new: str, expected: int) -> None:
+              target = Path(path)
+              text = target.read_text(encoding='utf-8')
+              if text.count(old) != expected:
+                  raise SystemExit(f'expected {expected} markers in {path}, found {text.count(old)}')
+              target.write_text(text.replace(old, new), encoding='utf-8')
+
+          replace_function('src/cds2/guided_fit.py', '_dataset_keys', r'''
+          def _dataset_keys(datasets: tuple[FitDataset, ...]) -> tuple[str, ...]:
+              counts: dict[str, int] = {}
+              for dataset in datasets:
+                  counts[dataset.name] = counts.get(dataset.name, 0) + 1
+              reserved = {name for name, count in counts.items() if count == 1}
+              seen: dict[str, int] = {}
+              used: set[str] = set()
+              keys: list[str] = []
+              for dataset in datasets:
+                  name = dataset.name
+                  if counts[name] == 1:
+                      key = name
+                  else:
+                      ordinal = seen.get(name, 0) + 1
+                      seen[name] = ordinal
+                      base = f"{name}#{ordinal}"
+                      key = base
+                      suffix = 2
+                      while key in used or key in reserved:
+                          key = f"{base}~{suffix}"
+                          suffix += 1
+                  used.add(key)
+                  keys.append(key)
+              return tuple(keys)
+          ''')
+
+          replace_function('src/cds2/guided_fit.py', '_dataset_file_stems', r'''
+          def _dataset_file_stems(datasets: tuple[FitDataset, ...]) -> tuple[str, ...]:
+              def safe(value: str) -> str:
+                  cleaned = "".join(
+                      char if char.isalnum() or char in {"-", "_", "."} else "_"
+                      for char in value
+                  ).strip(" .")
+                  return (cleaned or "dataset")[:120]
+
+              keys = _dataset_keys(datasets)
+              counts: dict[str, int] = {}
+              for dataset in datasets:
+                  counts[dataset.name] = counts.get(dataset.name, 0) + 1
+              reserved = {safe(dataset.name) for dataset in datasets if counts[dataset.name] == 1}
+              used: set[str] = set()
+              stems: list[str] = []
+              for dataset, key in zip(datasets, keys, strict=True):
+                  base = safe(dataset.name if counts[dataset.name] == 1 else key)
+                  stem = base
+                  suffix = 2
+                  while stem in used or (counts[dataset.name] > 1 and stem in reserved):
+                      stem = f"{base}__{suffix}"
+                      suffix += 1
+                  used.add(stem)
+                  stems.append(stem)
+              return tuple(stems)
+          ''')
+
+          replace_once(
+              'src/cds2/guided_fit.py',
+              '''        datasets.append(\n            load_csv_dataset(\n                item["source_path"],\n                item["x_column"],\n                item["y_column"],\n                item["sigma_column"],\n            )\n        )\n''',
+              '''        loaded = load_csv_dataset(\n            item["source_path"],\n            item["x_column"],\n            item["y_column"],\n            item["sigma_column"],\n        )\n        datasets.append(replace(loaded, name=str(item.get("name", loaded.name))))\n''',
           )
-          replace(
-              'src/cds2/stats.py',
-              '        raise ValueError(f"expected a 1-D numeric sequence with at least {min_size} value(s)")',
-              '        raise ValueError("expected a non-empty 1-D numeric sequence" if min_size == 1 else f"expected a 1-D numeric sequence with at least {min_size} value(s)")',
-          )
-          replace(
-              'src/cds2/stats.py',
-              '''    if observed.ndim != 2 or min(observed.shape, default=0) < 2:\n        raise ValueError("contingency table needs at least two rows and two columns")\n''',
-              '''    if observed.ndim != 2:\n        raise ValueError("table must be a 2-D contingency matrix")\n    if min(observed.shape) < 2:\n        raise ValueError("contingency table needs at least two rows and two columns")\n''',
-          )
-          replace(
-              'src/cds2/reliability.py',
-              '        raise ValueError("durations must be a non-empty 1-D series")',
-              '        raise ValueError("at least two positive durations are required")',
-          )
-          replace(
-              'src/cds2/reliability.py',
-              '        raise ValueError("failures must be a positive integer")',
-              '        raise ValueError("at least one failure is required and failures must be an integer")',
-          )
-          replace(
+
+          for name, scipy_name in (
+              ('pearson_correlation', 'pearsonr'),
+              ('spearman_correlation', 'spearmanr'),
+              ('kendall_tau', 'kendalltau'),
+          ):
+              replace_function('src/cds2/stats.py', name, f'''
+              def {name}(x: object, y: object) -> CorrelationResult:
+                  """Correlation between equal-length finite, non-constant samples."""
+                  a, b = _paired_arrays(x, y)
+                  if np.ptp(a) == 0.0 or np.ptp(b) == 0.0:
+                      raise ValueError("correlation is undefined for constant samples")
+                  res = sps.{scipy_name}(a, b)
+                  return CorrelationResult(r=float(res.statistic), p_value=float(res.pvalue))
+              ''')
+
+          replace_all(
               'src/cds2/epidemiology.py',
-              '        raise ValueError("days must be an integer at least 1")',
-              '        raise ValueError("days must be at least 1 and an integer")',
+              'return math.inf if self.gamma == 0.0 else self.beta / self.gamma',
+              'return (0.0 if self.beta == 0.0 else math.inf) if self.gamma == 0.0 else self.beta / self.gamma',
+              2,
           )
-          replace(
+          replace_once(
               'src/cds2/epidemiology.py',
-              '        raise ValueError("steps_per_day must be an integer at least 1")',
-              '        raise ValueError("steps_per_day must be at least 1 and an integer")',
+              '''    if not np.isfinite(beta) or beta <= 0.0:\n        raise ValueError("beta must be positive and finite")\n''',
+              '''    if not np.isfinite(beta) or beta < 0.0:\n        raise ValueError("beta must be non-negative and finite")\n''',
           )
-          replace(
-              'tests/test_reliability.py',
-              'with pytest.raises(ValueError, match="must be positive"):',
-              'with pytest.raises(ValueError, match="must be positive|non-negative"):',
+          replace_function('src/cds2/epidemiology.py', 'herd_immunity_threshold', r'''
+          def herd_immunity_threshold(r0: float) -> float:
+              """Critical immune fraction; zero when transmission is already subcritical."""
+              if not np.isfinite(r0) or r0 < 0.0:
+                  raise ValueError("r0 must be non-negative and finite")
+              if r0 <= 1.0:
+                  return 0.0
+              return float(1.0 - 1.0 / r0)
+          ''')
+
+          replace_function('src/cds2/montecarlo.py', 'metropolis_hastings', r'''
+          def metropolis_hastings(
+              log_prob: Callable[[FloatArray], float],
+              initial: object,
+              n_samples: int = 10_000,
+              burn_in: int = 1_000,
+              proposal_scale: float = 1.0,
+              thin: int = 1,
+              seed: int | None = None,
+          ) -> MCMCResult:
+              """Metropolis-Hastings sampler for an unnormalized log density."""
+              integer_args = (("n_samples", n_samples), ("burn_in", burn_in), ("thin", thin))
+              for name, value in integer_args:
+                  if not isinstance(value, (int, np.integer)) or isinstance(value, bool):
+                      raise ValueError(f"{name} must be an integer")
+              if n_samples < 1 or burn_in < 0 or thin < 1:
+                  raise ValueError("need n_samples >= 1, burn_in >= 0 and thin >= 1")
+              if not np.isfinite(proposal_scale) or proposal_scale <= 0.0:
+                  raise ValueError("proposal_scale must be positive and finite")
+              rng = np.random.default_rng(seed)
+              current = np.atleast_1d(np.asarray(initial, dtype=float)).copy()
+              if current.ndim != 1 or current.size == 0 or not bool(np.all(np.isfinite(current))):
+                  raise ValueError("initial must be a non-empty finite 1-D state")
+              current_log_prob = float(log_prob(current))
+              if np.isnan(current_log_prob) or current_log_prob == float("inf"):
+                  raise ValueError("log_prob(initial) must be finite or -inf")
+              total_steps = burn_in + n_samples * thin
+              samples = np.empty((n_samples, current.size))
+              accepted = 0
+              kept = 0
+              for step in range(total_steps):
+                  proposal = current + rng.normal(scale=proposal_scale, size=current.size)
+                  proposal_log_prob = float(log_prob(proposal))
+                  if np.isnan(proposal_log_prob) or proposal_log_prob == float("inf"):
+                      raise ValueError("log_prob must not return NaN or +inf")
+                  if current_log_prob == float("-inf"):
+                      accept = proposal_log_prob > float("-inf")
+                  elif proposal_log_prob == float("-inf"):
+                      accept = False
+                  else:
+                      accept = np.log(rng.random()) < proposal_log_prob - current_log_prob
+                  if accept:
+                      current = proposal
+                      current_log_prob = proposal_log_prob
+                      accepted += 1
+                  if step >= burn_in and (step - burn_in) % thin == 0 and kept < n_samples:
+                      samples[kept] = current
+                      kept += 1
+              return MCMCResult(samples=samples, acceptance_rate=accepted / total_steps)
+          ''')
+
+          test_path = Path('tests/test_correctness_hardening_wave2.py')
+          test_text = test_path.read_text(encoding='utf-8')
+          if 'test_generated_dataset_keys_cannot_collide_with_real_names' not in test_text:
+              test_text += r'''
+
+          def test_generated_dataset_keys_cannot_collide_with_real_names() -> None:
+              x = np.linspace(1.0, 8.0, 30)
+              datasets = (
+                  gf.FitDataset("a", x, 2.0 * x + 1.0),
+                  gf.FitDataset("a", x, 3.0 * x + 2.0),
+                  gf.FitDataset("a#1", x, 4.0 * x + 3.0),
+              )
+              result = gf.run_guided_fit(datasets, "linear")
+              assert len(result.data_hashes) == 3
+              assert len(set(result.data_hashes)) == 3
+              assert "a#1" in result.data_hashes
+
+
+          def test_plot_file_stems_are_unique_and_cannot_escape_output_dir(tmp_path: Path) -> None:
+              x = np.linspace(1.0, 8.0, 30)
+              datasets = (
+                  gf.FitDataset("foo", x, 2.0 * x + 1.0),
+                  gf.FitDataset("foo", x, 3.0 * x + 2.0),
+                  gf.FitDataset("foo_1", x, 4.0 * x + 3.0),
+                  gf.FitDataset("../foo", x, 5.0 * x + 4.0),
+              )
+              result = gf.run_guided_fit(datasets, "linear")
+              paths = gf.plot_result(result, datasets, tmp_path)
+              assert len(paths) == 16
+              assert len({path.name for path in paths}) == 16
+              assert all(path.parent == tmp_path for path in paths)
+
+
+          def test_manifest_rerun_preserves_custom_dataset_name(tmp_path: Path) -> None:
+              source = tmp_path / "source.csv"
+              x = np.linspace(1.0, 8.0, 30)
+              y = 2.0 * x + 1.0
+              pd.DataFrame({"x": x, "y": y}).to_csv(source, index=False)
+              dataset = gf.FitDataset("custom scientific name", x, y, source_path=str(source))
+              result = gf.run_guided_fit((dataset,), "linear")
+              manifest = gf.save_manifest(
+                  result,
+                  (dataset,),
+                  tmp_path / "manifest.json",
+                  x_column="x",
+                  y_column="y",
+              )
+              rerun = gf.rerun_manifest(manifest)
+              assert rerun.stability_warning is False
+              assert rerun.datasets[0].name == "custom scientific name"
+              assert set(rerun.data_hashes) == {"custom scientific name"}
+
+
+          @pytest.mark.parametrize(
+              "correlation",
+              [stats.pearson_correlation, stats.spearman_correlation, stats.kendall_tau],
           )
-          replace(
-              'tests/test_correctness_hardening_wave2.py',
-              'assert any("duplicate#2" in detail for detail in changed.stability_details)',
-              'assert any("#2" in detail for detail in changed.stability_details)',
-          )
-          replace(
-              'tests/test_correctness_hardening_wave2.py',
-              'match="\\[0, y_max\\]"',
-              'match=r"\\[0, y_max\\]"',
-          )
+          def test_correlations_reject_constant_samples(correlation) -> None:  # type: ignore[no-untyped-def]
+              with pytest.raises(ValueError, match="constant"):
+                  correlation([1.0, 1.0, 1.0], [1.0, 2.0, 3.0])
+
+
+          def test_epidemiology_allows_zero_transmission() -> None:
+              result = epi.simulate_sir(100.0, beta=0.0, gamma=0.2, days=3, i0=5.0)
+              assert result.r0 == 0.0
+              assert epi.herd_immunity_threshold(0.0) == 0.0
+              no_change = epi.simulate_sir(100.0, beta=0.0, gamma=0.0, days=2, i0=5.0)
+              assert no_change.r0 == 0.0
+              assert no_change.infected.tolist() == pytest.approx([5.0, 5.0, 5.0])
+
+
+          def test_metropolis_rejects_noninteger_control_counts() -> None:
+              with pytest.raises(ValueError, match="n_samples must be an integer"):
+                  mc.metropolis_hastings(
+                      lambda v: -0.5 * v[0] ** 2,
+                      [0.0],
+                      n_samples=10.5,  # type: ignore[arg-type]
+                  )
+          '''
+              test_path.write_text(test_text, encoding='utf-8')
           PY
-      - name: Remove stale extension artifacts
-        run: rm -f src/cds2/*.so src/cds2/*.pyd
+      - name: Remove generated artifacts
+        run: |
+          rm -rf guided-fit-results
+          rm -f src/cds2/*.so src/cds2/*.pyd
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
       - name: Install validation dependencies
         run: |
           python -m pip install --upgrade pip
@@ -98,22 +303,20 @@ jobs:
         run: ruff check .
       - name: Type check
         run: mypy
-      - name: Targeted correctness tests
+      - name: Final edge-case tests
         run: >-
           pytest -q
           tests/test_correctness_hardening_wave2.py
           tests/test_guided_fit.py
-          tests/test_guided_cli.py
-          tests/test_reliability.py
-          tests/test_montecarlo.py
-          tests/test_mcmc.py
           tests/test_stats.py
+          tests/test_mcmc.py
           tests/test_epidemiology.py
-          tests/test_correctness_hardening.py
       - name: Full test suite
         run: pytest -q
-      - name: Remove generated extension artifacts before commit
-        run: rm -f src/cds2/*.so src/cds2/*.pyd
+      - name: Clean generated artifacts before commit
+        run: |
+          rm -rf guided-fit-results
+          rm -f src/cds2/*.so src/cds2/*.pyd
       - name: Commit validated changes
         run: |
           git config user.name 'github-actions[bot]'
@@ -123,5 +326,5 @@ jobs:
             echo 'No changes to commit.'
             exit 0
           fi
-          git commit -m 'Fix reproducibility and scientific edge cases'
+          git commit -m 'Close remaining scientific correctness edge cases'
           git push origin HEAD:hardening/full-correctness-audit
