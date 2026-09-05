@@ -100,10 +100,13 @@ class TestHerdImmunityThreshold:
     def test_critical_value(self) -> None:
         assert epi.herd_immunity_threshold(1.0) == 0.0
 
-    @pytest.mark.parametrize("r0", [0.0, -2.5])
+    @pytest.mark.parametrize("r0", [-2.5])
     def test_invalid_raises(self, r0: float) -> None:
-        with pytest.raises(ValueError, match="r0 must be positive"):
+        with pytest.raises(ValueError, match="r0 must be non-negative"):
             epi.herd_immunity_threshold(r0)
+
+    def test_zero_is_subcritical(self) -> None:
+        assert epi.herd_immunity_threshold(0.0) == 0.0
 
 
 class TestEffectiveReproduction:
@@ -149,9 +152,9 @@ class TestSIRValidation:
         with pytest.raises(ValueError, match="steps_per_day must be at least 1"):
             epi.simulate_sir(1000.0, 0.4, 0.1, 10, steps_per_day=0)
 
-    def test_beta_not_positive(self) -> None:
-        with pytest.raises(ValueError, match="beta must be positive"):
-            epi.simulate_sir(1000.0, 0.0, 0.1, 10)
+    def test_beta_negative(self) -> None:
+        with pytest.raises(ValueError, match="beta must be non-negative"):
+            epi.simulate_sir(1000.0, -0.1, 0.1, 10)
 
     def test_gamma_negative(self) -> None:
         with pytest.raises(ValueError, match="gamma must be non-negative"):
@@ -176,8 +179,8 @@ class TestSEIRValidation:
         with pytest.raises(ValueError, match="steps_per_day must be at least 1"):
             epi.simulate_seir(1000.0, 0.5, 0.2, 0.1, 10, steps_per_day=-3)
 
-    def test_beta_not_positive(self) -> None:
-        with pytest.raises(ValueError, match="beta must be positive"):
+    def test_beta_negative(self) -> None:
+        with pytest.raises(ValueError, match="beta must be non-negative"):
             epi.simulate_seir(1000.0, -1.0, 0.2, 0.1, 10)
 
     def test_sigma_not_positive(self) -> None:

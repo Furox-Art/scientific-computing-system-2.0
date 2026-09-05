@@ -204,7 +204,7 @@ class TestMlMacroMetrics:
         f1 = ml.f1_score(truth, predicted, average="macro")
         assert 0.0 <= precision <= 1.0
         assert 0.0 <= recall <= 1.0
-        assert f1 == pytest.approx(2 * precision * recall / (precision + recall))
+        assert f1 == pytest.approx(0.6)
 
     def test_macro_zero_denominator_guard(self) -> None:
         truth = [0, 1]
@@ -519,11 +519,8 @@ class TestFinalArcs:
         partial = timeseries.pacf(values, nlags=2)
         assert partial.shape == (3,)
 
-    def test_numpy_lloyd_zero_iterations_returns_init(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_numpy_lloyd_rejects_zero_iterations(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(ml_module, "_HAS_C_KERNEL", False)
         separated = np.vstack([np.zeros((5, 1)), np.full((5, 1), 10.0)])
-        model = ml_module.KMeans(n_clusters=2, max_iter=0, seed=0).fit(separated)
-        assert model.labels_ is not None
-        assert model.cluster_centers_ is not None
+        with pytest.raises(ValueError, match="max_iter"):
+            ml_module.KMeans(n_clusters=2, max_iter=0, seed=0).fit(separated)

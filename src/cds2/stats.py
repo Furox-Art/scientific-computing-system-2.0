@@ -77,12 +77,56 @@ class DescribeResult:
     kurtosis: float
 
 
-def _as_1d(x: object) -> np.ndarray:
+def _as_1d(x: object, *, min_size: int = 1) -> np.ndarray:
     arr = np.asarray(x, dtype=float)
-    if arr.ndim != 1 or arr.size == 0:
-        msg = "expected a non-empty 1-D numeric sequence"
-        raise ValueError(msg)
+    if arr.ndim != 1 or arr.size < min_size:
+        raise ValueError(
+            "expected a non-empty 1-D numeric sequence"
+            if min_size == 1
+            else f"expected a 1-D numeric sequence with at least {min_size} value(s)"
+        )
+    if not bool(np.all(np.isfinite(arr))):
+        raise ValueError("sample values must be finite")
     return arr
+
+
+def _paired_arrays(a: object, b: object, *, min_size: int = 2) -> tuple[np.ndarray, np.ndarray]:
+    x = _as_1d(a)
+    y = _as_1d(b)
+    if x.shape != y.shape:
+        raise ValueError("paired samples must have the same length")
+    if x.size < min_size:
+        raise ValueError(f"paired samples need at least {min_size} observations")
+    return x, y
+
+
+def _validate_normal(mu: float, sigma: float) -> None:
+    if not np.isfinite(mu):
+        raise ValueError("mu must be finite")
+    if not np.isfinite(sigma) or sigma <= 0.0:
+        raise ValueError("sigma must be positive and finite")
+
+
+def _contingency_table(table: object) -> np.ndarray:
+    observed = np.asarray(table, dtype=float)
+    if observed.ndim != 2:
+        raise ValueError("table must be a 2-D contingency matrix")
+    if min(observed.shape) < 2:
+        raise ValueError("contingency table needs at least two rows and two columns")
+    if not bool(np.all(np.isfinite(observed))) or np.any(observed < 0.0):
+        raise ValueError("contingency counts must be finite and non-negative")
+    if float(np.sum(observed)) <= 0.0:
+        raise ValueError("contingency table must contain a positive total count")
+    return observed
+
+
+def _matrix_observations(data: object) -> np.ndarray:
+    values = np.asarray(data, dtype=float)
+    if values.ndim != 2 or values.shape[0] < 2 or values.shape[1] < 1:
+        raise ValueError("data must be a 2-D matrix with at least two observations")
+    if not bool(np.all(np.isfinite(values))):
+        raise ValueError("data must contain only finite values")
+    return values
 
 
 def describe(data: object) -> DescribeResult:
@@ -114,19 +158,22 @@ def describe(data: object) -> DescribeResult:
 
 def t_test(sample: object, popmean: float = 0.0) -> TestResult:
     """One-sample t-test of the sample mean against ``popmean``."""
-    result = sps.ttest_1samp(_as_1d(sample), popmean=popmean)
+    if not np.isfinite(popmean):
+        raise ValueError("popmean must be finite")
+    result = sps.ttest_1samp(_as_1d(sample, min_size=2), popmean=popmean)
     return TestResult(float(result.statistic), float(result.pvalue))
 
 
 def independent_t_test(a: object, b: object, equal_var: bool = True) -> TestResult:
     """Two-sample t-test; ``equal_var=False`` runs Welch's variant."""
-    res = sps.ttest_ind(_as_1d(a), _as_1d(b), equal_var=equal_var)
+    res = sps.ttest_ind(_as_1d(a, min_size=2), _as_1d(b, min_size=2), equal_var=equal_var)
     return TestResult(float(res.statistic), float(res.pvalue))
 
 
 def paired_t_test(a: object, b: object) -> TestResult:
     """Paired-samples t-test on two related samples."""
-    res = sps.ttest_rel(_as_1d(a), _as_1d(b))
+    x, y = _paired_arrays(a, b)
+    res = sps.ttest_rel(x, y)
     return TestResult(float(res.statistic), float(res.pvalue))
 
 
@@ -157,13 +204,14 @@ def mann_whitney_u(a: object, b: object) -> TestResult:
 
 def wilcoxon_signed_rank(a: object, b: object) -> TestResult:
     """Wilcoxon signed-rank test for paired samples."""
-    res = sps.wilcoxon(_as_1d(a), _as_1d(b))
+    x, y = _paired_arrays(a, b)
+    res = sps.wilcoxon(x, y)
     return TestResult(float(res.statistic), float(res.pvalue))
 
 
 def normality_test(data: object) -> TestResult:
-    """Shapiro-Wilk test of normality."""
-    res = sps.shapiro(_as_1d(data))
+    """Shapiro-Wilk test of normality; requires at least three observations."""
+    res = sps.shapiro(_as_1d(data, min_size=3))
     return TestResult(float(res.statistic), float(res.pvalue))
 
 
@@ -177,91 +225,108 @@ def levene_test(*groups: object) -> TestResult:
 
 
 def pearson_correlation(x: object, y: object) -> CorrelationResult:
-    """Pearson linear correlation between two samples."""
-    res = sps.pearsonr(_as_1d(x), _as_1d(y))
+    """Correlation between equal-length finite, non-constant samples."""
+    a, b = _paired_arrays(x, y)
+    if np.ptp(a) == 0.0 or np.ptp(b) == 0.0:
+        raise ValueError("correlation is undefined for constant samples")
+    res = sps.pearsonr(a, b)
     return CorrelationResult(r=float(res.statistic), p_value=float(res.pvalue))
 
 
 def spearman_correlation(x: object, y: object) -> CorrelationResult:
-    """Spearman rank correlation between two samples."""
-    res = sps.spearmanr(_as_1d(x), _as_1d(y))
+    """Correlation between equal-length finite, non-constant samples."""
+    a, b = _paired_arrays(x, y)
+    if np.ptp(a) == 0.0 or np.ptp(b) == 0.0:
+        raise ValueError("correlation is undefined for constant samples")
+    res = sps.spearmanr(a, b)
     return CorrelationResult(r=float(res.statistic), p_value=float(res.pvalue))
 
 
 def kendall_tau(x: object, y: object) -> CorrelationResult:
-    """Kendall's tau rank correlation between two samples."""
-    res = sps.kendalltau(_as_1d(x), _as_1d(y))
+    """Correlation between equal-length finite, non-constant samples."""
+    a, b = _paired_arrays(x, y)
+    if np.ptp(a) == 0.0 or np.ptp(b) == 0.0:
+        raise ValueError("correlation is undefined for constant samples")
+    res = sps.kendalltau(a, b)
     return CorrelationResult(r=float(res.statistic), p_value=float(res.pvalue))
 
 
 def chi_square_independence(table: object) -> TestResult:
-    """Chi-square test of independence on a contingency table."""
-    contingency = np.asarray(table, dtype=float)
-    if contingency.ndim != 2:
-        msg = "table must be a 2-D contingency matrix"
-        raise ValueError(msg)
+    """Chi-square test of independence on a valid contingency table."""
+    contingency = _contingency_table(table)
     stat, p_value, _dof, _expected = sps.chi2_contingency(contingency)
     return TestResult(float(stat), float(p_value))
 
 
 def cohens_d(a: object, b: object) -> float:
-    """Cohen's d standardized mean difference with pooled SD."""
-    x, y = _as_1d(a), _as_1d(b)
+    """Cohen's d standardized mean difference with pooled sample SD."""
+    x, y = _as_1d(a, min_size=2), _as_1d(b, min_size=2)
     nx, ny = x.size, y.size
-    pooled = np.sqrt(((nx - 1) * np.var(x, ddof=1) + (ny - 1) * np.var(y, ddof=1)) / (nx + ny - 2))
-    return float((np.mean(x) - np.mean(y)) / pooled)
+    pooled_variance = ((nx - 1) * np.var(x, ddof=1) + (ny - 1) * np.var(y, ddof=1)) / (nx + ny - 2)
+    if not np.isfinite(pooled_variance) or pooled_variance <= 0.0:
+        raise ValueError("cohens_d is undefined when pooled variance is zero")
+    return float((np.mean(x) - np.mean(y)) / np.sqrt(pooled_variance))
 
 
 def eta_squared_from_f(f_statistic: float, df1: int, df2: int) -> float:
-    """Eta-squared effect size derived from a one-way ANOVA F statistic."""
+    """Eta-squared effect size derived from a non-negative ANOVA F statistic."""
+    if not np.isfinite(f_statistic) or f_statistic < 0.0:
+        raise ValueError("f_statistic must be non-negative and finite")
+    if df1 <= 0 or df2 <= 0:
+        raise ValueError("df1 and df2 must be positive")
     return float((f_statistic * df1) / (f_statistic * df1 + df2))
 
 
 def cramers_v(table: object) -> float:
     """Cramer's V association strength from a contingency table in [0, 1]."""
-    contingency = np.asarray(table, dtype=float)
-    observed = np.atleast_2d(contingency).astype(float)
+    observed = _contingency_table(table)
     stat, _p, _dof, _expected = sps.chi2_contingency(observed)
-    n = observed.sum()
-    phi2 = stat / n
-    rows, cols = observed.shape
-    denominator = min(rows - 1, cols - 1)
-    if denominator <= 0:
-        msg = "contingency table needs at least two rows and two columns"
-        raise ValueError(msg)
-    return float(np.sqrt(phi2 / denominator))
+    n = float(observed.sum())
+    denominator = min(observed.shape[0] - 1, observed.shape[1] - 1)
+    return float(np.sqrt((stat / n) / denominator))
 
 
 def percentile(data: object, q: float | list[float]) -> float | list[float]:
-    """Percentile(s) of a sample for ``q`` given in [0, 100]."""
+    """Percentile(s) of a sample for ``q`` in [0, 100]."""
     values = _as_1d(data)
+    q_array = np.asarray(q, dtype=float)
+    if not bool(np.all(np.isfinite(q_array))) or np.any((q_array < 0.0) | (q_array > 100.0)):
+        raise ValueError("q must contain values in [0, 100]")
     if isinstance(q, list):
         return [float(v) for v in np.percentile(values, q)]
     return float(np.percentile(values, q))
 
 
 def z_scores(data: object) -> np.ndarray:
-    """Standardize a sample to zero mean and unit standard deviation (ddof=1)."""
-    values = _as_1d(data)
-    sd = np.std(values, ddof=1)
-    if sd == 0:
-        msg = "z_scores undefined for a constant sample"
-        raise ValueError(msg)
+    """Standardize a sample to zero mean and unit sample standard deviation."""
+    values = _as_1d(data, min_size=2)
+    sd = float(np.std(values, ddof=1))
+    if not np.isfinite(sd) or sd == 0.0:
+        raise ValueError("z_scores undefined for a constant sample")
     return np.asarray((values - np.mean(values)) / sd)
 
 
 def norm_pdf(x: float, mu: float = 0.0, sigma: float = 1.0) -> float:
-    """Normal probability density function."""
+    """Normal distribution helper with validated location and scale."""
+    _validate_normal(mu, sigma)
+    if not np.isfinite(x):
+        raise ValueError("x must be finite")
     return float(sps.norm.pdf(x, loc=mu, scale=sigma))
 
 
 def norm_cdf(x: float, mu: float = 0.0, sigma: float = 1.0) -> float:
-    """Normal cumulative distribution function."""
+    """Normal distribution helper with validated location and scale."""
+    _validate_normal(mu, sigma)
+    if not np.isfinite(x):
+        raise ValueError("x must be finite")
     return float(sps.norm.cdf(x, loc=mu, scale=sigma))
 
 
 def norm_ppf(q: float, mu: float = 0.0, sigma: float = 1.0) -> float:
-    """Inverse normal CDF (quantile function)."""
+    """Inverse normal CDF for a probability in [0, 1]."""
+    _validate_normal(mu, sigma)
+    if not np.isfinite(q) or not 0.0 <= q <= 1.0:
+        raise ValueError("q must be in [0, 1]")
     return float(sps.norm.ppf(q, loc=mu, scale=sigma))
 
 
@@ -282,11 +347,16 @@ def bootstrap_ci(
     confidence: float = 0.95,
     seed: int | None = None,
 ) -> BootstrapResult:
-    """Percentile bootstrap confidence interval for an arbitrary statistic."""
+    """Percentile bootstrap confidence interval for an arbitrary scalar statistic."""
     values = _as_1d(data)
+    if (
+        not isinstance(n_resamples, (int, np.integer))
+        or isinstance(n_resamples, bool)
+        or n_resamples < 2
+    ):
+        raise ValueError("n_resamples must be an integer >= 2")
     if not 0.0 < confidence < 1.0:
-        msg = "confidence must be in (0, 1)"
-        raise ValueError(msg)
+        raise ValueError("confidence must be in (0, 1)")
     stat_fn = statistic if statistic is not None else np.mean
     n = values.size
     rng = np.random.default_rng(seed)
@@ -295,8 +365,12 @@ def bootstrap_ci(
     try:
         estimates = np.asarray(stat_fn(samples, axis=1), dtype=float)
     except TypeError:
-        estimates = np.array([float(stat_fn(sample)) for sample in samples])
+        estimates = np.array([float(stat_fn(sample)) for sample in samples], dtype=float)
+    if estimates.shape != (n_resamples,) or not bool(np.all(np.isfinite(estimates))):
+        raise ValueError("statistic must return one finite scalar per resample")
     point_estimate = float(stat_fn(values))
+    if not np.isfinite(point_estimate):
+        raise ValueError("statistic returned a non-finite point estimate")
     alpha = (1.0 - confidence) / 2.0
     low, high = np.quantile(estimates, [alpha, 1.0 - alpha])
     return BootstrapResult(
@@ -314,6 +388,12 @@ def permutation_test(
     seed: int | None = None,
 ) -> TestResult:
     """Two-sided permutation test on the difference of means."""
+    if (
+        not isinstance(n_permutations, (int, np.integer))
+        or isinstance(n_permutations, bool)
+        or n_permutations < 1
+    ):
+        raise ValueError("n_permutations must be a positive integer")
     group_a = _as_1d(a)
     group_b = _as_1d(b)
     pooled = np.concatenate([group_a, group_b])
@@ -330,13 +410,15 @@ def permutation_test(
 
 def covariance_matrix(data: object) -> np.ndarray:
     """Sample covariance matrix of column-variables (rows = observations)."""
-    values = np.atleast_2d(np.asarray(data, dtype=float))
+    values = _matrix_observations(data)
     return np.asarray(np.cov(values, rowvar=False, ddof=1))
 
 
 def correlation_matrix(data: object) -> np.ndarray:
-    """Pearson correlation matrix of column-variables."""
-    values = np.atleast_2d(np.asarray(data, dtype=float))
+    """Pearson correlation matrix of non-constant column-variables."""
+    values = _matrix_observations(data)
+    if np.any(np.std(values, axis=0) == 0.0):
+        raise ValueError("correlation is undefined for constant variables")
     return np.asarray(np.corrcoef(values, rowvar=False))
 
 
@@ -364,6 +446,8 @@ class StreamingStats:
         batch = np.asarray(chunk, dtype=float).ravel()
         if batch.size == 0:
             return self
+        if not bool(np.all(np.isfinite(batch))):
+            raise ValueError("chunk must contain only finite values")
         batch_count = batch.size
         batch_mean = float(batch.mean())
         batch_sum_sq = float(((batch - batch_mean) ** 2).sum())
