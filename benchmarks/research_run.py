@@ -77,7 +77,8 @@ def collect_provenance(command: list[str] | None = None) -> dict[str, Any]:
         "captured_at_utc": datetime.now(timezone.utc).isoformat(),
         "command": list(command or []),
         "git": {
-            "commit": _git_output("rev-parse", "HEAD") or base_environment.get("git_commit", "unknown"),
+            "commit": _git_output("rev-parse", "HEAD")
+            or base_environment.get("git_commit", "unknown"),
             "dirty": None if git_status is None else bool(git_status),
         },
         "python": {
@@ -140,9 +141,7 @@ def run_research_benchmarks(
     }
     payload["provenance"] = provenance
     results_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    (target / "provenance.json").write_text(
-        json.dumps(provenance, indent=2), encoding="utf-8"
-    )
+    (target / "provenance.json").write_text(json.dumps(provenance, indent=2), encoding="utf-8")
     return results
 
 
