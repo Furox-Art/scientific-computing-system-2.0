@@ -2,6 +2,20 @@
 
 CDS2 benchmark results are reproducible engineering measurements, not universal performance claims. Timings depend on hardware, BLAS/LAPACK implementation, compiler, operating system, Python version, dependency versions, CPU power policy, and background load.
 
+## Reproducible runner
+
+For research-facing measurements, prefer the provenance-rich wrapper:
+
+```bash
+python -m benchmarks.research_run
+python -m benchmarks.research_run --quick --core-only
+python -m benchmarks.research_run --only solve_large networkx_pagerank
+```
+
+By default it writes `results.json` and `provenance.json` under `benchmarks/artifacts/latest/`. The result record includes the benchmark protocol and captures the full Git commit when available, dirty-tree state, Python implementation and executable, operating-system details, architecture, logical CPU count, dependency versions, thread-control environment variables, and NumPy's BLAS/LAPACK/compiler configuration.
+
+The original `benchmarks/run_benchmarks.py` remains the low-level timing suite; `research_run.py` deliberately wraps it instead of maintaining a second implementation of the benchmark cases.
+
 ## Minimum metadata
 
 Every published benchmark run should record:
@@ -16,8 +30,10 @@ Every published benchmark run should record:
 - benchmark parameters and dataset sizes,
 - warm-up count,
 - measured repetition count,
-- statistic reported (prefer median for wall-clock microbenchmarks),
+- statistic reported,
 - dispersion such as min/max, IQR, MAD, or confidence interval when useful.
+
+The current low-level suite uses the minimum observed wall-clock time across benchmark-specific repeat counts. That is useful for implementation-overhead comparisons but should not be presented as a population estimate. For publication-quality latency distributions, retain per-repeat samples and report a robust center and dispersion in addition to the minimum.
 
 ## Measurement protocol
 
@@ -35,6 +51,6 @@ The CI regression gate is intended to catch substantial regressions, not normal 
 
 ## Publishing results
 
-Generated benchmark artifacts should use a machine-readable format in addition to Markdown when practical. A preferred record contains environment metadata and per-case samples so summary statistics can be regenerated later without rerunning the benchmark.
+Generated benchmark artifacts should use a machine-readable format in addition to Markdown when practical. Keep `results.json` and `provenance.json` together so another researcher can determine exactly what code, software stack, and machine context produced the timings.
 
-The current scoreboard is in `docs/benchmarks.md`; the executable suite lives in `benchmarks/run_benchmarks.py`.
+The current scoreboard is in `docs/benchmarks.md`; the executable suite lives in `benchmarks/run_benchmarks.py`, with research-oriented provenance collection in `benchmarks/research_run.py`.
