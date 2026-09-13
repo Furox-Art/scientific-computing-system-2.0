@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use CDS2 in research, please cite this software."
+title: "scientific-computing-system-2.0 (CDS2)"
+type: software
+authors:
+  - name: "Furox-Art"
+repository-code: "https://github.com/Furox-Art/scientific-computing-system-2.0"
+url: "https://github.com/Furox-Art/scientific-computing-system-2.0"
+license: MIT
+version: "5.2.4"
+date-released: "2026-09-05"
+keywords:
+  - scientific computing
+  - numerical methods
+  - reproducibility
+  - data fitting
+  - statistics
+  - optimization
