@@ -114,5 +114,4 @@ def summarize(df: pd.DataFrame) -> pd.DataFrame:
 def iter_csv(path: str, chunksize: int = 100_000, **kwargs: Any) -> Any:
     """Yield successive DataFrame chunks - process datasets larger than RAM."""
     reader = pd.read_csv(path, chunksize=chunksize, **kwargs)
-    for chunk in reader:
-        yield chunk
+    yield from reader
