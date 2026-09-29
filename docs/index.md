@@ -20,6 +20,14 @@ modules on top.
   series.
 - **Visualization & I/O** - matplotlib helpers and pandas-backed readers.
 
+## Designed for real scientific Python workflows
+
+Use CDS2 for practical **NumPy/SciPy scientific computing** tasks: numerical
+linear algebra, optimization, statistics, Bayesian inference, Monte Carlo,
+signal processing, time series, machine learning, graph algorithms, PageRank,
+PDE/SDE solving, information theory, visualization, data analysis, and
+reproducible scientific model fitting.
+
 ## Quick start
 
 ```bash

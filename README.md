@@ -20,6 +20,14 @@ This is the pragmatic sequel. It uses NumPy, SciPy, pandas, and matplotlib under
 - **Testing**: Property-based tests, oracle comparisons against reference implementations  
 - **Documentation**: Actually complete, with examples that run  
   
+## Common scientific Python use cases
+
+- Accelerated **linear algebra, statistics, optimization, integration, and interpolation**.
+- **Bayesian inference**, Monte Carlo, uncertainty analysis, and reproducible model fitting.
+- **Signal processing, time-series analysis, graphs and PageRank**.
+- **Machine learning, reinforcement learning, information theory, and computational geometry**.
+- **PDE/SDE solvers**, scientific visualization, pandas-backed I/O, and research-quality validation.
+
 ## The philosophy  
   
 Scientific code should be boring. Not boring to write-boring to read. You should be able to look at a function and know exactly what it does, what it expects, and what it returns. No magic, no hidden state, no "just trust the library."  
