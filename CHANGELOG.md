@@ -1,3 +1,17 @@
+## [v5.2.5] - 2026-09-29
+
+PyPI discoverability metadata refresh patch. No public API or numerical behavior changes.
+
+### Changed
+
+- Expanded PyPI keywords and classifiers for scientific Python, Bayesian inference, reinforcement learning, information theory, numerical methods, and related discovery terms.
+- Kept runtime behavior unchanged.
+
+### Fixed
+
+- Removed one redundant static type cast caught by the current mypy toolchain.
+- Applied the repository's formatter to the recipe code examples so release CI remains green.
+
 ## [v5.2.4] - 2026-09-05
 
 PyPI presentation patch: the README hero image now uses an absolute raw GitHub URL so it renders correctly in the package description.
