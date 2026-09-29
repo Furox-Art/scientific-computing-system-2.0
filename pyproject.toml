@@ -15,6 +15,7 @@ authors = [
 ]
 keywords = [
     "scientific-computing",
+    "scientific-python",
     "numpy",
     "scipy",
     "pandas",
@@ -29,10 +30,20 @@ keywords = [
     "time-series",
     "numerical-methods",
     "data-analysis",
+    "bayesian-inference",
+    "reinforcement-learning",
+    "chaos-theory",
+    "information-theory",
+    "computational-geometry",
+    "pde",
+    "sde",
+    "visualization",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -41,6 +52,10 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 dependencies = [
     "numpy>=1.26",
