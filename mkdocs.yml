@@ -27,7 +27,9 @@ nav:
   - Home: index.md
   - Getting started: getting-started.md
   - Modules overview: modules.md
+  - Deprecated modules: deprecated.md
   - Examples: examples.md
+  - Recipes: recipes.md
   - Research quality:
       - Validation & reproducibility: validation-and-reproducibility.md
       - Research-readiness checklist: research-readiness.md

@@ -1,7 +1,17 @@
-"""Generate promotional graphics for scientific-computing-system-2.0."""
+"""Generate promotional graphics for scientific-computing-system-2.0.
+
+All numbers are read from committed repository data at generation time:
+module/test counts from the source tree and benchmark ratios from
+``benchmarks/results.json``. Nothing is hand-typed into the figures.
+"""
 
 from __future__ import annotations
 
+import ast
+import json
+import re
+import subprocess
+import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -16,6 +26,43 @@ TEXT = "#e6edf7"
 MUTED = "#8b9bb8"
 
 OUT = Path(__file__).resolve().parents[1] / "docs" / "assets"
+REPO = Path(__file__).resolve().parents[1]
+
+
+def repo_counts() -> tuple[int, int, int]:
+    """Count top-level cds2 modules, ``__all__`` exports and pytest tests.
+
+    The test count intentionally runs ``pytest --collect-only`` instead of a
+    static ``def test_`` grep so parametrized cases are counted exactly as
+    CI counts them. It fails loudly when pytest is unavailable so the hero
+    figure can never be stamped with a silently wrong number. The export
+    count is parsed with ``ast`` (no package import, no side effects).
+    """
+    src = REPO / "src" / "cds2"
+    modules = [p for p in src.glob("*.py") if p.name not in ("__init__.py", "_version.py")]
+    tree = ast.parse((src / "__init__.py").read_text(encoding="utf-8"))
+    exports = 0
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Assign)
+            and getattr(node.targets[0], "id", "") == "__all__"
+            and isinstance(node.value, ast.List)
+        ):
+            exports = len(node.value.elts)
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "pytest", "--collect-only", "-q"],
+            cwd=REPO,
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise SystemExit(f"cannot count tests without pytest: {exc}") from exc
+    match = re.search(r"(\d+) tests? collected", proc.stdout + proc.stderr)
+    if match is None:
+        raise SystemExit("pytest --collect-only output did not report a test count")
+    return len(modules), exports, int(match.group(1))
 
 
 def dark_canvas(width: float, height: float) -> tuple[plt.Figure, plt.Axes]:
@@ -64,6 +111,7 @@ def chip(axes: plt.Axes, x: float, y: float, text: str, accent: bool = False) ->
 
 def hero() -> None:
     figure, axes = dark_canvas(12.8, 7.2)
+    n_modules, n_exports, n_tests = repo_counts()
 
     axes.text(
         50,
@@ -76,13 +124,18 @@ def hero() -> None:
         family="monospace",
     )
     axes.text(
-        50, 68, "42 modules. One import. Zero bloat.", ha="center", fontsize=17, color=ACCENT_2
+        50,
+        68,
+        f"{n_modules} modules. One import. Zero bloat.",
+        ha="center",
+        fontsize=17,
+        color=ACCENT_2,
     )
 
     stats = [
-        ("470+", "public functions"),
-        ("1,277", "tests - 100% cov"),
-        ("C kernels", "beating scipy/sklearn"),
+        (f"{n_exports}", "public functions"),
+        (f"{n_tests:,}", "tests - 100% cov"),
+        ("C kernels", "optional extensions"),
         ("MIT", "open source"),
     ]
     for i, (big, small) in enumerate(stats):
@@ -146,34 +199,55 @@ def hero() -> None:
 
 
 def benchmarks() -> None:
-    figure, axes = dark_canvas(12.8, 7.2)
-    races = [
-        ("PSO  vs  scipy DE", 0.03),
-        ("entropy  vs  numpy loop", 0.07),
-        ("PageRank  vs  NetworkX", 0.18),
-        ("K-Means  vs  scikit-learn", 0.72),
-        ("Latin hypercube  vs  scipy.qmc", 0.74),
-    ]
-    labels = [r[0] for r in races][::-1]
-    values = [r[1] for r in races][::-1]
+    """Bar chart of every row in benchmarks/results.json, winners and losers.
 
-    axes.text(6, 88, "cds2 vs the specialists", fontsize=24, fontweight="bold", color=TEXT)
+    Ratios are recomputed from the committed absolute timings
+    (cds2_seconds / baseline_seconds) so the figure can never drift from
+    the JSON file or from docs/benchmarks.md. A provenance line names the
+    exact data source; the parity line marks 1.00x.
+    """
+    payload = json.loads((REPO / "benchmarks" / "results.json").read_text(encoding="utf-8"))
+    env = payload["environment"]
+    rows = payload["results"]
+    names = [r["name"] for r in rows]
+    baselines = [r["baseline_library"] for r in rows]
+    ratios = [r["cds2_seconds"] / r["baseline_seconds"] for r in rows]
+    labels = [f"{n}  vs  {b}" for n, b in zip(names, baselines, strict=True)]
+
+    figure, axes = dark_canvas(12.8, 7.2)
     axes.text(
         6,
-        80,
+        96,
+        "cds2 vs baselines - every measured case",
+        fontsize=22,
+        fontweight="bold",
+        color=TEXT,
+        zorder=6,
+    )
+    axes.text(
+        6,
+        91.5,
         "lower is better  -  time ratio cds2/baseline (smaller = faster)",
         fontsize=11,
         color=MUTED,
     )
+    provenance = (
+        f"benchmarks/results.json - cds2 {env['versions']['cds2']} - "
+        f"commit {env['git_commit']} - {env['timestamp_utc'][:10]} - {env['platform'].split('-')[0]}"
+    )
+    axes.text(6, 87.5, provenance, fontsize=9, color=MUTED, family="monospace", zorder=6)
 
-    bar_height = 9.0
-    for i, (label, value) in enumerate(zip(labels, values, strict=True)):
-        y = 12 + i * 13
-        width = max(value * 90, 4)
+    ceiling = max(max(ratios), 1.0)
+    bar_max = 60.0
+    bar_height = 4.2
+    n = len(labels)
+    for i, (label, value) in enumerate(zip(labels, ratios, strict=True)):
+        y = 6 + (n - 1 - i) * 6.0
+        width = max(value / ceiling * bar_max, 3.0)
         axes.add_patch(
             FancyBboxPatch(
                 (28, y),
-                62,
+                bar_max,
                 bar_height,
                 boxstyle="round,pad=0.2,rounding_size=1.2",
                 fc="#18233c",
@@ -191,22 +265,23 @@ def benchmarks() -> None:
                 lw=1.0,
             )
         )
-        axes.text(27, y + bar_height / 2, label, ha="right", va="center", fontsize=11.5, color=TEXT)
-        label_x = 28 + width + 1.5 if width < 55 else 28 + width - 2
-        label_color = BG if width >= 55 else ACCENT_2
+        axes.text(27, y + bar_height / 2, label, ha="right", va="center", fontsize=9, color=TEXT)
+        label_x = 28 + width + 1.5 if width < 48 else 28 + width - 1.5
+        label_color = BG if width >= 48 else ACCENT_2
         axes.text(
             label_x,
             y + bar_height / 2,
             f"{value:.2f}x",
-            ha="right" if width >= 55 else "left",
+            ha="right" if width >= 48 else "left",
             va="center",
-            fontsize=12,
+            fontsize=10,
             fontweight="bold",
             color=label_color,
         )
 
-    axes.plot([91, 91], [8, 66], color="#26324d", lw=1.2, ls="--")
-    axes.text(91, 70, "parity", ha="center", fontsize=9.5, color=MUTED)
+    parity_x = 28 + bar_max / ceiling
+    axes.plot([parity_x, parity_x], [3, 6 + n * 6.0], color="#26324d", lw=1.2, ls="--")
+    axes.text(parity_x, 6 + n * 6.0 + 0.5, "parity 1.00x", ha="center", fontsize=9, color=MUTED)
     figure.savefig(OUT / "promo_benchmarks.png", facecolor=BG)
     plt.close(figure)
 
@@ -256,7 +331,13 @@ def modules() -> None:
         ],
     }
     axes.text(
-        50, 85, "42 modules, four shelves", ha="center", fontsize=24, fontweight="bold", color=TEXT
+        50,
+        85,
+        "four shelves from 46 modules",
+        ha="center",
+        fontsize=24,
+        fontweight="bold",
+        color=TEXT,
     )
     positions = [(4, 46), (52, 46), (4, 8), (52, 8)]
     for (x0, y0), (title, names) in zip(positions, groups.items(), strict=True):

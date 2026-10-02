@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://furox-art.github.io/scientific-computing-system-2.0/
+    about: Read the guides and API reference before filing
+  - name: Security vulnerability
+    url: https://github.com/Furox-Art/scientific-computing-system-2.0/security/advisories/new
+    about: Report privately via GitHub security advisories, never via public issues

@@ -1,8 +1,12 @@
 # Modules overview
 
-cds2 ships forty-two importable modules plus a CLI. Every heavy computation is
+cds2 ships forty-six importable modules plus a CLI. Every heavy computation is
 delegated to NumPy/SciPy; pandas carries tabular data; matplotlib renders
 figures.
+
+Two thin wrappers, `cds2.special` and `cds2.distributions`, are
+[deprecated since 4.3.0](deprecated.md); prefer `scipy.special` and
+`scipy.stats` directly.
 
 ## Core scientific stack
 
@@ -21,10 +25,10 @@ figures.
 | [`cds2.viz`](api/viz.md) | matplotlib | series, histogram, scatter, heatmap, spectrum, regression, confusion |
 | [`cds2.io`](api/io.md) | pandas | CSV/JSON read-write, optional Excel/Parquet bridges, DataFrame summaries |
 | [`cds2.calculus`](api/calculus.md) | NumPy/SciPy | derivative, complex-step gradient, jacobian, hessian, error propagation |
-| [`cds2.special`](api/special.md) | scipy.special | gamma, erf, Bessels, elliptics, orthogonal polynomials, zeta |
+| [`cds2.special`](api/special.md) (deprecated) | scipy.special | gamma, erf, Bessels, elliptics, orthogonal polynomials, zeta |
 | [`cds2.sparse`](api/sparse.md) | scipy.sparse.linalg | CG/GMRES/BiCGSTAB, Lanczos eigenpairs, truncated SVD |
 | [`cds2.spectral`](api/spectral.md) | scipy.sparse | Laplacians, Fiedler vector, algebraic connectivity, spectral clustering |
-| [`cds2.distributions`](api/distributions.md) | scipy.stats | pdf/cdf/ppf for twenty-plus distributions |
+| [`cds2.distributions`](api/distributions.md) (deprecated) | scipy.stats | pdf/cdf/ppf for twenty-plus distributions |
 
 ## Discovery and modelling
 

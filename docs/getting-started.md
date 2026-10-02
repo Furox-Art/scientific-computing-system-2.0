@@ -27,7 +27,7 @@ from cds2 import linalg
 
 a = [[4.0, 7.0], [2.0, 6.0]]
 print(linalg.det(a))  # 10.0
-print(linalg.solve(a, [18.0, 16.0]))  # [2.5, 1.0]
+print(linalg.solve(a, [18.0, 16.0]))  # [-0.4  2.8]
 
 svd = linalg.svd(np.random.default_rng(0).normal(size=(5, 3)))
 print(svd.s)  # descending singular values
@@ -84,8 +84,8 @@ fs = 1000.0
 t = np.arange(4000) / fs
 tone = np.sin(2 * np.pi * 50.0 * t)
 
-freqs, psd = signals.power_spectrum(tone, fs=fs)
-peak = freqs[np.argmax(psd)]
+spectrum = signals.power_spectrum(tone, fs=fs)
+peak = spectrum.frequencies[np.argmax(spectrum.power)]
 print(peak)  # ~ 50 Hz
 ```
 
@@ -111,7 +111,7 @@ x, y = ml.make_regression_data(n=300, n_features=3, noise=5.0, seed=1)
 x_train, x_test, y_train, y_test = ml.train_test_split(x, y, seed=2)
 
 model = ml.LinearRegression().fit(x_train, y_train)
-print(model.score(x_test, y_test))  # close to 1.0
+print(model.score(x_test, y_test))  # ~0.52 with noise=5.0
 ```
 
 ### Time series
@@ -172,7 +172,7 @@ print(chaos.hurst_exponent(np.cumsum(np.random.default_rng(0).normal(size=2000))
 from cds2 import bayes
 
 posterior = bayes.beta_binomial_update(successes=7, failures=3)
-print(posterior.mean)  # 0.7
+print(posterior.mean)  # 0.6667 (Beta(1, 1) prior)
 
 classifier = bayes.NaiveBayes().fit([[0, 0], [0, 1], [10, 10], [10, 11]], [0, 0, 1, 1])
 print(classifier.predict([[0, 0], [10, 10]]))  # [0. 1.]
