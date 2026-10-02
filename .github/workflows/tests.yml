@@ -356,6 +356,8 @@ jobs:
               "tools/consistency_audit.py",
               "CHANGELOG.md",
               "CITATION.cff",
+              "codemeta.json",
+              "packaging/conda/meta.yaml",
               "README.md",
               "LICENSE",
               "pyproject.toml",

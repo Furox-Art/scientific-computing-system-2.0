@@ -2,12 +2,6 @@ name: npm Publish
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "package.json"
-      - "index.js"
-      - "bin/**"
 
 concurrency:
   group: npm-publish
@@ -26,18 +20,13 @@ jobs:
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: "22"
+          node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
-      # Fail-closed: a broken JS entry point must never reach the registry.
-      # This mirrors the npm-validate CI job and the package's `npm test`.
-      - name: Validate JS entry points
-        run: |
-          node --check index.js
-          node --check bin/scs2.js
-          npm test
-
+      # npm publishing is disabled by product decision (see 4c8cd18);
+      # PyPI is the install path. The JS entry points stay fixed and are
+      # still gated by the npm-validate CI job and the package's `npm test`.
       - name: Publish to npm
-        run: npm publish --access public
+        run: echo "npm publishing is disabled; PyPI is the install path" && exit 0
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
