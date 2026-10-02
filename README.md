@@ -9,9 +9,9 @@
 [![npm](https://img.shields.io/npm/v/scientific-computing-system-2.0)](https://www.npmjs.com/package/scientific-computing-system-2.0)  
 [![Python](https://img.shields.io/pypi/pyversions/scientific-computing-system-2.0)](https://pypi.org/project/scientific-computing-system-2.0/)  
   
-The original scientific-computing-system was pure Python-no NumPy, no SciPy, no dependencies. It was beautiful and slow and educational.  
+This is the NumPy build of [scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system), not a separate product. Install this when you want NumPy, SciPy, pandas, and matplotlib. Install the other package when you want readable pure Python and no runtime dependencies.  
   
-This is the pragmatic sequel. It uses NumPy, SciPy, pandas, and matplotlib under the hood, but wraps them in a cleaner, more consistent API. You get the speed of optimized C with the readability of modern Python.  
+PyPI is the install path. npm is no longer published.  
   
 ## What changed from v1  
   
