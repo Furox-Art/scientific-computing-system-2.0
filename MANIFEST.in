@@ -1,0 +1,20 @@
+# sdist scope: ship everything needed to audit, rebuild and re-verify the
+# release from the tarball — sources, C kernels, full test suite (including
+# the tests/ subdirectories), docs, examples, benchmarks and tooling.
+# Deliberately excluded: CI workflows, build outputs and local run artifacts.
+include README.md LICENSE CHANGELOG.md CITATION.cff codemeta.json pyproject.toml setup.py
+graft src
+graft tests
+graft docs
+graft examples
+graft benchmarks
+graft tools
+graft packaging
+global-exclude *.py[cod]
+global-exclude __pycache__/*
+global-exclude *.egg-info/*
+prune .github
+prune site
+prune dist
+prune build
+prune guided-fit-results

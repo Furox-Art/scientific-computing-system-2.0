@@ -11,5 +11,14 @@ updates:
     schedule:
       interval: "monthly"
     ignore:
-      # Dev-only cap documented in pyproject.toml (numpy 2.5 stubs vs mypy 3.10 target)
+      # Dev-only cap documented in pyproject.toml (numpy 2.5 stubs vs mypy 3.10 target).
+      # Narrowed to the >=2.5 range only, so security and bugfix updates below
+      # 2.5 still arrive instead of freezing numpy entirely.
       - dependency-name: "numpy"
+        versions: [">=2.5"]
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "ci"
