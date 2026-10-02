@@ -288,8 +288,10 @@ jobs:
           if missing:
               raise SystemExit(f"ERROR: native extensions missing from sdist-built wheel: {missing}")
           print(f"Native extensions present in {wheels[0]}")
+          # Install with runtime dependencies (importing cds2 executes the
+          # package __init__, which needs NumPy/SciPy/pandas/matplotlib).
           subprocess.run(
-              [sys.executable, "-m", "pip", "install", "--force-reinstall", "--no-deps", wheels[0]],
+              [sys.executable, "-m", "pip", "install", wheels[0]],
               check=True,
           )
           import cds2._fast_kmeans  # noqa: F401
