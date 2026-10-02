@@ -578,7 +578,7 @@ they beat the wrapped libraries, with graceful NumPy fallback everywhere.
 
 The first release of the v2 generation: a full rewrite on top of the scientific
 Python stack. The pure-Python algorithms proven in
-[cognitive-discovery-system](https://github.com/Furox88/cognitive-discovery-system)
+[scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system)
 (v1.x) form the foundation; v2 rebuilds them on NumPy/SciPy for speed and adds
 new domain modules on top.
 
