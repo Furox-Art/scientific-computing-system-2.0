@@ -212,17 +212,20 @@ jobs:
   # Consistency audit is advisory for now: it currently reports known
   # findings owned by the library/docs owners (README module table,
   # __init__ wiring), so it must not block merges yet.
+  # Real gate: the audit imports the installed package, so it must be installed
+  # first. It is allowed to fail a PR and blocks merge until green.
   consistency-audit:
     needs: lint
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
+      - name: Install package so the audit can import cds2
+        run: pip install -c constraints/ci-tools.txt -e .[dev]
       - name: Run repository consistency audit
         run: python tools/consistency_audit.py
 
