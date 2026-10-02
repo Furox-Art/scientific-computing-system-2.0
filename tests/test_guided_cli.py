@@ -225,6 +225,41 @@ def test_guided_fit_rerun_cli_confines_foreign_manifest(tmp_path) -> None:  # ty
     )
 
 
+def test_guided_fit_rerun_cli_relative_csv_smoke_flow(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    """Regression test for the CI package smoke flow: CWD-relative CSV plus
+    an output subdirectory, then a rerun of the saved manifest."""
+    monkeypatch.chdir(tmp_path)
+    _write_csv(tmp_path / "smoke.csv")
+    assert (
+        main(
+            [
+                "guided-fit",
+                "smoke.csv",
+                "--x",
+                "x",
+                "--y",
+                "y",
+                "--sigma",
+                "sigma",
+                "--model",
+                "linear",
+                "--missing",
+                "interpolate",
+                "--outliers",
+                "keep",
+                "--report",
+                "none",
+                "--output-dir",
+                "smoke-output",
+            ]
+        )
+        == 0
+    )
+    manifest = tmp_path / "smoke-output" / "guided_fit_manifest.json"
+    assert manifest.exists()
+    assert main(["guided-fit-rerun", str(manifest)]) == 0
+
+
 def test_missing_policy_drop_choice_and_next_recommendation(tmp_path, monkeypatch, capsys) -> None:  # type: ignore[no-untyped-def]
     csv_path = tmp_path / "nonlinear.csv"
     _write_csv(csv_path, missing=True, nonlinear=True)

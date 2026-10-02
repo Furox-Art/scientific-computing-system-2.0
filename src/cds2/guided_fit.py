@@ -833,16 +833,32 @@ def _resolve_rerun_source(
 ) -> Path:
     """Resolve one manifest ``source_path`` inside the trusted directories.
 
-    Relative paths resolve against the manifest's own directory; symlinks
-    and ``..`` segments are normalised with :meth:`Path.resolve` before the
-    containment check, so neither can escape the whitelist.
+    Relative paths are tried against the manifest's own directory first and
+    then the current working directory, so reruns keep working when the
+    original ``guided-fit`` invocation used a CWD-relative CSV path while the
+    manifest lives in an output subdirectory. Symlinks and ``..`` segments
+    are normalised with :meth:`Path.resolve` before the containment check,
+    so neither can escape the whitelist.
     """
     candidate = Path(source)
-    if not candidate.is_absolute():
-        candidate = run_dir / candidate
-    resolved = candidate.resolve()
-    if allow_outside_run_dir or any(resolved.is_relative_to(root) for root in trusted_roots):
-        return resolved
+    candidates: tuple[Path, ...]
+    if candidate.is_absolute():
+        candidates = (candidate,)
+    else:
+        candidates = (run_dir / candidate, Path.cwd() / candidate)
+    missing: list[Path] = []
+    for cand in candidates:
+        resolved = cand.resolve()
+        if not allow_outside_run_dir and not any(
+            resolved.is_relative_to(root) for root in trusted_roots
+        ):
+            continue
+        if resolved.is_file():
+            return resolved
+        missing.append(resolved)
+    if missing:
+        tried = ", ".join(str(path) for path in missing)
+        raise FileNotFoundError(f"manifest source_path not found: {source!r} (tried {tried})")
     raise ValueError(
         f"manifest source_path escapes the trusted rerun directories: {source!r}; "
         "rerun only reads sources inside the manifest directory or the current "

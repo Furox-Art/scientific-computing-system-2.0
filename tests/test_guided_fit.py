@@ -405,6 +405,28 @@ def test_rerun_manifest_accepts_relative_source_inside_run_dir(tmp_path) -> None
     assert rerun.stability_warning is False
 
 
+def test_rerun_manifest_relative_source_cwd_fallback(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    # Mirrors `cds2 guided-fit data.csv --output-dir out` from the data
+    # directory: the manifest records a CWD-relative path that does not exist
+    # under the manifest directory itself.
+    monkeypatch.chdir(tmp_path)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    manifest = _save_rerunnable_manifest(tmp_path, run_dir)
+    _rewrite_source(manifest, "data.csv")
+    rerun = gf.rerun_manifest(manifest)
+    assert rerun.stability_warning is False
+
+
+def test_rerun_manifest_missing_source_not_found(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    manifest = _save_rerunnable_manifest(tmp_path, run_dir)
+    _rewrite_source(manifest, "gone.csv")
+    with pytest.raises(FileNotFoundError, match="not found"):
+        gf.rerun_manifest(manifest)
+
+
 def test_rerun_manifest_run_dir_trusted_alongside_roots(tmp_path) -> None:  # type: ignore[no-untyped-def]
     run_dir = tmp_path / "run"
     run_dir.mkdir()
