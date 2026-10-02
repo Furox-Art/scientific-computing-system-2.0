@@ -15,20 +15,23 @@ concurrency:
 # packages, so none of them should hold a write-scoped GITHUB_TOKEN even if the
 # repository default is ever flipped from read-only. Kept at `contents: read`
 # so release.yml can still call this workflow, which requires the callee's
-# permissions to be a subset of the caller's.
+# permissions to be a subset of the caller's. Every job repeats the permission
+# explicitly so a newly added job can never inherit a broader default.
 permissions:
   contents: read
 
 jobs:
   lint:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
-      - name: Install ruff
-        run: pip install ruff
+      - name: Install pinned ruff
+        run: pip install -c constraints/ci-tools.txt ruff
       - name: Lint
         run: ruff check .
       - name: Format check
@@ -36,30 +39,36 @@ jobs:
 
   types:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
       - name: Install package with dev extras
-        run: pip install -e .[dev]
+        run: pip install -c constraints/ci-tools.txt -e .[dev]
       - name: Type check (strict)
         run: mypy
 
   coverage:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
       - name: Install package with dev extras
-        run: pip install -e .[dev]
+        run: pip install -c constraints/ci-tools.txt -e .[dev]
       - name: Blended coverage gate (100%)
         run: pytest --cov=cds2 --cov-report=term-missing --cov-fail-under=100
 
   package:
     needs: lint
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -69,10 +78,13 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
+      - name: Pin build timestamp for reproducibility
+        shell: bash
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
       - name: Install build validation tooling
         run: python -m pip install --upgrade build twine
       - name: Build sdist and pure-Python wheel
@@ -120,6 +132,8 @@ jobs:
 
   test:
     needs: lint
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -127,12 +141,12 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install package with dev extras
-        run: pip install -e .[dev]
+        run: pip install -c constraints/ci-tools.txt -e .[dev]
       - name: Run tests
         run: pytest --cov=cds2 --cov-report=term-missing
 
@@ -140,28 +154,274 @@ jobs:
   property-tests:
     needs: lint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
       - name: Install package with test extras
-        run: pip install -e .[test]
+        run: pip install -c constraints/ci-tools.txt -e .[test]
       - name: Run property-based tests
         run: python -m pytest tests/property/ -v --hypothesis-seed=0
 
-  # Regression gate: after benchmarks run, assert no benchmark regressed.
+  # Fuzz harnesses live under tests/fuzz/ as test_*_fuzz.py so the default
+  # `pytest` run collects them; this job additionally runs them verbosely.
+  fuzz:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Install package with dev extras
+        run: pip install -c constraints/ci-tools.txt -e .[dev]
+      - name: Run fuzz tests
+        run: python -m pytest tests/fuzz/ -v
+
+  # Every examples/*.py script must run to completion; docs examples are
+  # otherwise never executed by CI.
+  examples-smoke:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Install package with dev extras
+        run: pip install -c constraints/ci-tools.txt -e .[dev]
+      - name: Run every example script
+        shell: bash
+        run: |
+          set -euo pipefail
+          for script in examples/*.py; do
+            echo "--- $script"
+            python "$script" > /dev/null
+          done
+          echo "All example scripts ran cleanly"
+
+  # Consistency audit is advisory for now: it currently reports known
+  # findings owned by the library/docs owners (README module table,
+  # __init__ wiring), so it must not block merges yet.
+  consistency-audit:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Run repository consistency audit
+        run: python tools/consistency_audit.py
+
+  # npm entry points: syntax-check the JS and run the package's contract test
+  # (`npm test`) on every PR so a broken index.js can never reach main again.
+  npm-validate:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Syntax-check JS entry points
+        run: |
+          node --check index.js
+          node --check bin/scs2.js
+      - name: Run npm contract test
+        run: npm test
+      - name: Verify packed file list
+        run: npm pack --dry-run
+
+  # sdist -> native wheel gate: build the wheel from the sdist (never from a
+  # bare checkout) and require both compiled accelerators to be present and
+  # importable. setup.py fails closed on missing C sources, and this job
+  # proves the sdist actually carries them.
+  sdist-native:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Install build tooling
+        run: python -m pip install --upgrade "setuptools>=77" wheel build
+      - name: Build sdist
+        env:
+          CDS_PURE: "1"
+        run: python -m build --sdist
+      - name: Build native wheel from the sdist
+        run: python -m pip wheel --no-build-isolation --no-deps --wheel-dir native-wheelhouse dist/*.tar.gz
+      - name: Assert native extensions are present and importable
+        run: |
+          python - <<'PY'
+          import glob
+          import subprocess
+          import sys
+          import zipfile
+
+          wheels = glob.glob("native-wheelhouse/*.whl")
+          assert len(wheels) == 1, wheels
+          names = zipfile.ZipFile(wheels[0]).namelist()
+          missing = [
+              mod
+              for mod in ("cds2/_fast_kmeans", "cds2/_fast_pagerank")
+              if not any(entry.startswith(mod) and entry.endswith(".so") for entry in names)
+          ]
+          if missing:
+              raise SystemExit(f"ERROR: native extensions missing from sdist-built wheel: {missing}")
+          print(f"Native extensions present in {wheels[0]}")
+          subprocess.run(
+              [sys.executable, "-m", "pip", "install", "--force-reinstall", "--no-deps", wheels[0]],
+              check=True,
+          )
+          import cds2._fast_kmeans  # noqa: F401
+          import cds2._fast_pagerank  # noqa: F401
+
+          print("Native extensions import cleanly from the sdist-built wheel")
+          PY
+
+  # Reproducible-build gate: the same commit must produce bit-identical
+  # wheels, and the sdist must carry the full audit/rebuild scope (C sources,
+  # complete test tree, docs, examples, benchmarks, tooling).
+  reproducible-build:
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Install build tooling
+        run: python -m pip install --upgrade build
+      - name: Build the wheel twice with a fixed SOURCE_DATE_EPOCH
+        shell: bash
+        env:
+          CDS_PURE: "1"
+        run: |
+          set -euo pipefail
+          export SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          echo "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH"
+          python -m build --wheel --outdir repro-a
+          python -m build --wheel --outdir repro-b
+          sha256sum repro-a/*.whl repro-b/*.whl
+          test "$(sha256sum repro-a/*.whl | cut -d' ' -f1)" = "$(sha256sum repro-b/*.whl | cut -d' ' -f1)"
+          echo "Wheel builds are bit-identical"
+      - name: Assert sdist scope
+        shell: bash
+        env:
+          CDS_PURE: "1"
+        run: |
+          set -euo pipefail
+          python -m build --sdist --outdir sdist-check
+          python - <<'PY'
+          import glob
+          import tarfile
+
+          archives = glob.glob("sdist-check/*.tar.gz")
+          assert len(archives) == 1, archives
+          members = tarfile.open(archives[0]).getnames()
+          # Match on path suffix so the version-prefixed top directory does not matter.
+          required = [
+              "src/cds2/src/_fast_kmeans.c",
+              "src/cds2/src/_fast_pagerank.c",
+              "tests/oracles/test_stats_oracles.py",
+              "tests/property/test_properties.py",
+              "tests/fuzz/test_api_fuzz.py",
+              "tests/fuzz/test_cli_fuzz.py",
+              "docs/index.md",
+              "examples/ab_test_bayes.py",
+              "benchmarks/run_benchmarks.py",
+              "tools/consistency_audit.py",
+              "CHANGELOG.md",
+              "CITATION.cff",
+              "README.md",
+              "LICENSE",
+              "pyproject.toml",
+              "setup.py",
+          ]
+          missing = [want for want in required if not any(m.endswith(want) for m in members)]
+          if missing:
+              raise SystemExit(f"ERROR: sdist scope is incomplete, missing: {missing}")
+          leaked = [m for m in members if "/.github/" in m or m.endswith("/.github")]
+          if leaked:
+              raise SystemExit(f"ERROR: sdist must not ship CI workflows: {leaked}")
+          print(f"sdist scope OK ({len(members)} members)")
+          PY
+
+  # Regression gate: record this run into the benchmark history, then assert
+  # no benchmark regressed. Recording and gating in the same job (and
+  # refusing an empty history) means the gate can never pass on zero rows.
   regression:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
       - name: Install package
         run: pip install -e .
       - name: Run benchmarks
         run: python benchmarks/run_benchmarks.py --quick
+      - name: Record benchmark history
+        run: |
+          python - <<'PY'
+          from benchmarks.run_benchmarks import run_all
+          from cds2.prof import BenchEntry, BenchHistory
+
+          results = run_all(quick=True)
+          entries = [
+              BenchEntry(
+                  name=r.name,
+                  baseline_library=r.baseline_library,
+                  baseline_seconds=r.baseline_seconds,
+                  cds2_seconds=r.cds2_seconds,
+              )
+              for r in results
+          ]
+          history = BenchHistory()
+          path = history.append(entries)
+          print(f"Recorded {len(entries)} benchmark results to {path}")
+          PY
       - name: Regression gate
         run: python -m cds2.bench.regression --tolerance 0.10
+      - name: Refuse an empty benchmark history
+        run: |
+          python - <<'PY'
+          from cds2.prof import BenchHistory
+
+          frame = BenchHistory().load_range()
+          if frame.empty:
+              raise SystemExit(
+                  "ERROR: benchmark history is empty; "
+                  "the regression gate must not pass on zero rows"
+              )
+          print(
+              f"Benchmark history holds {len(frame)} rows "
+              f"across {frame['name'].nunique()} benchmarks"
+          )
+          PY
