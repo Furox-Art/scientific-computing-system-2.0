@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -35,7 +37,10 @@ def test_yes_no_and_report_choice(monkeypatch) -> None:  # type: ignore[no-untyp
         _guided_report_choice("ask")
 
 
-def test_noninteractive_guided_fit_and_rerun(tmp_path, capsys) -> None:  # type: ignore[no-untyped-def]
+def test_noninteractive_guided_fit_and_rerun(tmp_path, capsys, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    # Rerun trusts the manifest directory and the invocation directory, so run
+    # from the data directory like a real user would.
+    monkeypatch.chdir(tmp_path)
     csv_path = tmp_path / "linear.csv"
     _write_csv(csv_path)
     output = tmp_path / "out"
@@ -193,6 +198,31 @@ def test_bad_interactive_choices_and_io_errors(tmp_path, monkeypatch) -> None:  
 
     assert main(["guided-fit", str(tmp_path / "missing.csv"), "--x", "x", "--y", "y"]) == 1
     assert main(["guided-fit-rerun", str(tmp_path / "missing.json")]) == 1
+
+
+def test_guided_fit_rerun_cli_confines_foreign_manifest(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    csv_path = elsewhere / "data.csv"
+    x = np.linspace(1.0, 8.0, 20)
+    pd.DataFrame({"x": x, "y": 2.0 * x + 1.0}).to_csv(csv_path, index=False)
+    dataset = gf.load_csv_dataset(csv_path, "x", "y")
+    result = gf.run_guided_fit((dataset,), "linear")
+    manifest = gf.save_manifest(
+        result, (dataset,), run_dir / "manifest.json", x_column="x", y_column="y"
+    )
+    assert manifest.exists()
+
+    # Foreign manifest: the CSV lives outside both the run directory and the
+    # invocation directory, so rerun must refuse it by default ...
+    assert main(["guided-fit-rerun", str(manifest)]) == 1
+    # ... and honour the explicit opt-out flag.
+    assert main(["guided-fit-rerun", str(manifest), "--allow-outside-run-dir"]) == 0
+    assert json.loads(manifest.read_text(encoding="utf-8"))["inputs"][0]["source_path"] == str(
+        csv_path
+    )
 
 
 def test_missing_policy_drop_choice_and_next_recommendation(tmp_path, monkeypatch, capsys) -> None:  # type: ignore[no-untyped-def]

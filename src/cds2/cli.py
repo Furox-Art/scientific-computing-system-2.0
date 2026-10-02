@@ -339,7 +339,7 @@ def cmd_guided_fit_rerun(args: argparse.Namespace) -> int:
     from .guided_fit import rerun_manifest
 
     try:
-        result = rerun_manifest(args.manifest)
+        result = rerun_manifest(args.manifest, allow_outside_run_dir=args.allow_outside_run_dir)
     except (OSError, ValueError, RuntimeError, KeyError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
@@ -437,6 +437,11 @@ def build_parser() -> argparse.ArgumentParser:
         "guided-fit-rerun", help="repeat a guided fit from a saved manifest"
     )
     rerun_parser.add_argument("manifest")
+    rerun_parser.add_argument(
+        "--allow-outside-run-dir",
+        action="store_true",
+        help="allow manifest sources outside the manifest directory and CWD",
+    )
     rerun_parser.set_defaults(handler=cmd_guided_fit_rerun)
 
     return parser

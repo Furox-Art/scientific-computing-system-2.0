@@ -1,6 +1,8 @@
 """Tests for cds2.prof profiling, benchmark history and regression gates."""
 
+import sys
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -298,3 +300,84 @@ class TestGpuSoftDependency:
             gpu_signal.fft([1.0, 2.0])
         with pytest.raises(RuntimeError, match="CuPy"):
             gpu_montecarlo.pi_estimate(n_samples=100)
+
+
+def _entry() -> BenchEntry:
+    return BenchEntry(name="solve", baseline_library="s", baseline_seconds=1.0, cds2_seconds=1.0)
+
+
+class TestBenchHistoryPathBoundary:
+    """Construction must never mutate the filesystem; installed layouts must
+    never resolve history storage inside the Python environment."""
+
+    def test_init_creates_nothing_until_append(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        target = tmp_path / "nested" / "history"
+        hist = BenchHistory(history_dir=target)
+        assert not target.exists()
+        path = hist.append([_entry()], run_id="run-1")
+        assert path.exists()
+        assert path.parent == target
+
+    def test_load_range_on_missing_dir_reads_empty_without_creating(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        target = tmp_path / "missing"
+        hist = BenchHistory(history_dir=target)
+        assert hist.load_range().empty
+        assert not target.exists()
+
+    def test_repo_root_checkout_defaults_to_benchmarks_history(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        (tmp_path / "src" / "cds2").mkdir(parents=True)
+        hist = BenchHistory(repo_root=tmp_path)
+        assert hist.repo_root == tmp_path
+        assert hist.history_dir == tmp_path / "benchmarks" / "history"
+
+    def test_repo_root_without_checkout_uses_root_itself(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        hist = BenchHistory(repo_root=tmp_path)
+        assert hist.history_dir == tmp_path
+        assert not (tmp_path / "benchmarks").exists()
+
+    def test_repo_root_fallback_never_points_inside_prefix(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        from cds2.prof import history as history_mod
+
+        monkeypatch.setattr(Path, "is_dir", lambda self: False)
+        root = history_mod._repo_root()
+        assert root == history_mod._default_user_history_dir()
+        assert Path(sys.prefix) not in root.parents
+        assert root != Path(sys.prefix)
+
+    def test_user_history_dir_windows_branches(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        from cds2.prof import history as history_mod
+
+        pick = history_mod._user_history_dir_for
+        assert pick("nt", "win32", {"LOCALAPPDATA": str(tmp_path / "local")}, tmp_path) == (
+            tmp_path / "local" / "cds2" / "history"
+        )
+        assert pick("nt", "win32", {"APPDATA": str(tmp_path / "roaming")}, tmp_path) == (
+            tmp_path / "roaming" / "cds2" / "history"
+        )
+        assert pick("nt", "win32", {}, tmp_path) == (tmp_path / "cds2" / "history")
+
+    def test_user_history_dir_macos(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        from cds2.prof import history as history_mod
+
+        assert history_mod._user_history_dir_for("posix", "darwin", {}, tmp_path) == (
+            tmp_path / "Library" / "Application Support" / "cds2" / "history"
+        )
+
+    def test_user_history_dir_xdg(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        from cds2.prof import history as history_mod
+
+        pick = history_mod._user_history_dir_for
+        assert pick("posix", "linux", {"XDG_DATA_HOME": str(tmp_path / "xdg")}, tmp_path) == (
+            tmp_path / "xdg" / "cds2" / "history"
+        )
+        assert pick("posix", "linux", {}, tmp_path) == (
+            tmp_path / ".local" / "share" / "cds2" / "history"
+        )
+
+    def test_default_user_history_dir_uses_live_environment(self) -> None:
+        from cds2.prof import history as history_mod
+
+        current = history_mod._default_user_history_dir()
+        assert current.name == "history"
+        assert current.parent.name == "cds2"
+        assert Path(sys.prefix) not in current.parents
