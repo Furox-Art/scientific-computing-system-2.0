@@ -6,12 +6,11 @@
   
 [![CI](https://github.com/Furox-Art/scientific-computing-system-2.0/actions/workflows/tests.yml/badge.svg)](https://github.com/Furox-Art/scientific-computing-system-2.0/actions/workflows/tests.yml)  
 [![PyPI](https://img.shields.io/pypi/v/scientific-computing-system-2.0)](https://pypi.org/project/scientific-computing-system-2.0/)  
-[![npm](https://img.shields.io/npm/v/scientific-computing-system-2.0)](https://www.npmjs.com/package/scientific-computing-system-2.0)  
 [![Python](https://img.shields.io/pypi/pyversions/scientific-computing-system-2.0)](https://pypi.org/project/scientific-computing-system-2.0/)  
   
 This is the NumPy build of [scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system), not a separate product. Install this when you want NumPy, SciPy, pandas, and matplotlib. Install the other package when you want readable pure Python and no runtime dependencies.  
   
-PyPI is the install path. npm is no longer published.  
+PyPI is the install path. npm is discontinued: `package.json` carries `"private": true`, so the stale `2.0.0` tarball still visible on the npm registry will never be updated. A conda recipe lives in `packaging/conda/` for local builds; no conda package is published.  
   
 ## Installation  
   
@@ -28,13 +27,13 @@ Full guide with a ten-minute tour:
   
 Every output below was executed against `scientific-computing-system-2.0==5.2.5`:  
   
-```python  
-import cds2  
-  
-x = cds2.linalg.solve([[3.0, 1.0], [1.0, 2.0]], [9.0, 8.0])  
-print(x)  # [2. 3.]  
-print(cds2.montecarlo.pi_estimate(n=100_000, seed=42))  # 3.13776  
-print(cds2.infotheory.entropy([0.25, 0.25, 0.25, 0.25]))  # 2.0  
+```python
+import cds2
+
+x = cds2.linalg.solve([[3.0, 1.0], [1.0, 2.0]], [9.0, 8.0])
+print(x)  # [2. 3.]
+print(cds2.montecarlo.pi_estimate(n=100_000, seed=42))  # 3.13776
+print(cds2.infotheory.entropy([0.25, 0.25, 0.25, 0.25]))  # 2.0
 ```  
   
 Command line:  

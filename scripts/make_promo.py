@@ -39,9 +39,7 @@ def repo_counts() -> tuple[int, int, int]:
     count is parsed with ``ast`` (no package import, no side effects).
     """
     src = REPO / "src" / "cds2"
-    modules = [
-        p for p in src.glob("*.py") if p.name not in ("__init__.py", "_version.py")
-    ]
+    modules = [p for p in src.glob("*.py") if p.name not in ("__init__.py", "_version.py")]
     tree = ast.parse((src / "__init__.py").read_text(encoding="utf-8"))
     exports = 0
     for node in ast.walk(tree):
@@ -217,7 +215,15 @@ def benchmarks() -> None:
     labels = [f"{n}  vs  {b}" for n, b in zip(names, baselines, strict=True)]
 
     figure, axes = dark_canvas(12.8, 7.2)
-    axes.text(6, 96, "cds2 vs baselines - every measured case", fontsize=22, fontweight="bold", color=TEXT, zorder=6)
+    axes.text(
+        6,
+        96,
+        "cds2 vs baselines - every measured case",
+        fontsize=22,
+        fontweight="bold",
+        color=TEXT,
+        zorder=6,
+    )
     axes.text(
         6,
         91.5,
@@ -325,7 +331,13 @@ def modules() -> None:
         ],
     }
     axes.text(
-        50, 85, "four shelves from 46 modules", ha="center", fontsize=24, fontweight="bold", color=TEXT
+        50,
+        85,
+        "four shelves from 46 modules",
+        ha="center",
+        fontsize=24,
+        fontweight="bold",
+        color=TEXT,
     )
     positions = [(4, 46), (52, 46), (4, 8), (52, 8)]
     for (x0, y0), (title, names) in zip(positions, groups.items(), strict=True):
