@@ -61,6 +61,16 @@ API reference for all 46 modules:
 - **Machine learning, reinforcement learning, information theory, and computational geometry**.
 - **PDE/SDE solvers**, scientific visualization, pandas-backed I/O, and research-quality validation.
 
+## Modules
+
+46 importable modules, each with an API reference page. Core numerical stack,
+discovery and modelling, then applied domains
+(`*` = [deprecated](https://furox-art.github.io/scientific-computing-system-2.0/deprecated/)):
+
+- Core: [`cds2.linalg`](docs/api/linalg.md), [`cds2.stats`](docs/api/stats.md), [`cds2.optimize`](docs/api/optimize.md), [`cds2.integrate`](docs/api/integrate.md), [`cds2.interpolate`](docs/api/interpolate.md), [`cds2.signals`](docs/api/signals.md), [`cds2.montecarlo`](docs/api/montecarlo.md), [`cds2.graph`](docs/api/graph.md), [`cds2.ml`](docs/api/ml.md), [`cds2.timeseries`](docs/api/timeseries.md), [`cds2.viz`](docs/api/viz.md), [`cds2.io`](docs/api/io.md), [`cds2.calculus`](docs/api/calculus.md), [`cds2.special`](docs/api/special.md)`*`, [`cds2.sparse`](docs/api/sparse.md), [`cds2.spectral`](docs/api/spectral.md), [`cds2.distributions`](docs/api/distributions.md)`*`
+- Discovery and modelling: [`cds2.infotheory`](docs/api/infotheory.md), [`cds2.chaos`](docs/api/chaos.md), [`cds2.bayes`](docs/api/bayes.md), [`cds2.metaheuristics`](docs/api/metaheuristics.md), [`cds2.geometry`](docs/api/geometry.md), [`cds2.rl`](docs/api/rl.md), [`cds2.quality`](docs/api/quality.md), [`cds2.design`](docs/api/design.md), [`cds2.modeling`](docs/api/modeling.md), [`cds2.hypothesis`](docs/api/hypothesis.md), [`cds2.knowledge`](docs/api/knowledge.md), [`cds2.scientific`](docs/api/scientific.md), [`cds2.quantum`](docs/api/quantum.md), [`cds2.cli`](docs/api/cli.md)
+- Applied domains: [`cds2.bayesopt`](docs/api/bayesopt.md), [`cds2.combinatorial`](docs/api/combinatorial.md), [`cds2.data_analysis`](docs/api/data_analysis.md), [`cds2.epidemiology`](docs/api/epidemiology.md), [`cds2.finance`](docs/api/finance.md), [`cds2.game_theory`](docs/api/game_theory.md), [`cds2.genetics`](docs/api/genetics.md), [`cds2.guided_fit`](docs/api/guided_fit.md), [`cds2.image`](docs/api/image.md), [`cds2.pde`](docs/api/pde.md), [`cds2.reliability`](docs/api/reliability.md), [`cds2.sde`](docs/api/sde.md), [`cds2.spatial`](docs/api/spatial.md), [`cds2.text`](docs/api/text.md), [`cds2.wavelets`](docs/api/wavelets.md)
+
 ## The philosophy  
   
 Scientific code should be boring. Not boring to write-boring to read. You should be able to look at a function and know exactly what it does, what it expects, and what it returns. No magic, no hidden state, no "just trust the library."  
