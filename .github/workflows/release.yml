@@ -9,6 +9,11 @@ concurrency:
   group: release
   cancel-in-progress: false
 
+# This workflow publishes the Python distribution to PyPI only. The npm package
+# is published by npm-publish.yml, which release-on-version-bump.yml dispatches
+# alongside this workflow so one version bump updates both registries. npm keeps
+# its own workflow so a failed npm publish cannot fail a completed PyPI release.
+
 permissions:
   contents: read
 

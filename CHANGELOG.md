@@ -1,3 +1,53 @@
+## [Unreleased]
+
+npm publishing is being re-enabled for this repository. This reverses an earlier
+owner decision, and the reversal is recorded here deliberately rather than
+applied silently.
+
+### Reverted
+
+- **npm publishing re-enabled.** Commit `4c8cd18` ("docs: mark this as the NumPy
+  build and stop npm publishing") disabled npm publishing and added
+  `"private": true` to `package.json` as a guard. Both are reverted: the npm
+  registry is a distribution channel again for all owned repositories, and
+  `"private": true` is removed so `npm publish` is not blocked by npm itself.
+- **The disabled-marker guard removed.** The `npm publish` step that echoed
+  `npm publishing is disabled; PyPI is the install path` and exited 0 is gone,
+  replaced by a real publish.
+
+### Added
+
+- OIDC trusted publishing (`id-token: write`, `npm publish --provenance`) gated
+  by a new `npm` environment. No long-lived npm token is used as the primary
+  path and there is no token fallback, so the repository's `NPM_TOKEN` secret
+  should be deleted once the npmjs.com trusted publisher is configured.
+- One version bump now updates both registries: `release-on-version-bump.yml`
+  dispatches `npm-publish.yml` alongside `release.yml`. npm publishing stays in
+  its own workflow so a failed npm publish cannot fail a completed PyPI release.
+- Publish-path gates: JS entry-point syntax checks plus `npm test`, an exact
+  `npm pack` tarball allowlist assertion, version lockstep across
+  `package.json` / `src/cds2/_version.py` / `pyproject.toml`, an idempotent
+  registry version existence check, and post-publish registry verification.
+
+### Notes
+
+- The npm registry currently holds only `2.0.0`, which shipped a broken entry
+  point (a JavaScript syntax error plus a `scs2.cli` module target that does not
+  exist; the import root is `cds2`). npm versions are immutable, so `2.0.0`
+  cannot be repaired in place; `5.2.5` is published as the first working npm
+  version and `latest` moves forward from `2.0.0`.
+- PyPI `5.2.5` is already published, so no version bump will ever fire for it.
+  npm `5.2.5` must be published with a one-time manual dispatch of
+  `npm-publish.yml`.
+- Publishing an npm package from this repository means the same Python project
+  is distributed on npm here as well as under its other published names. This is
+  a second npm package name for one project, which is a consequence of the
+  decision to re-enable npm publishing and is recorded here rather than left
+  implicit.
+- `4c8cd18` also added `codemeta.json` and a conda-forge recipe
+  (`packaging/conda/meta.yaml`) while stating this repository is not a second
+  product. Those files are unrelated to npm publishing and are left in place.
+
 ## [v5.2.5] - 2026-09-29
 
 PyPI discoverability metadata refresh patch. No public API or numerical behavior changes.
