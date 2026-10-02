@@ -18,8 +18,10 @@ jobs:
   # cancellation/coordination issues with normal CI.
   preflight:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
@@ -32,7 +34,7 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
 
@@ -40,6 +42,7 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
+          import json
           import pathlib
           import re
           import tomllib
@@ -57,6 +60,15 @@ jobs:
           heading = re.search(r"^## \[v([^\]]+)\]", changelog, re.MULTILINE)
           if heading is None or heading.group(1) != version:
               raise SystemExit("ERROR: CHANGELOG.md does not start with the package version")
+
+          package_json = json.loads((root / "package.json").read_text(encoding="utf-8"))
+          if package_json.get("version") != version:
+              raise SystemExit("ERROR: package.json is out of sync with pyproject.toml")
+
+          citation = (root / "CITATION.cff").read_text(encoding="utf-8")
+          citation_match = re.search(r'^version:\s*"([^"]+)"', citation, re.MULTILINE)
+          if citation_match is None or citation_match.group(1) != version:
+              raise SystemExit("ERROR: CITATION.cff is out of sync with pyproject.toml")
 
           print(f"Release metadata is consistent for {project['project']['name']} {version}")
           PY
@@ -88,7 +100,7 @@ jobs:
       - name: Install package and release test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[dev,test]"
+          python -m pip install -c constraints/ci-tools.txt -e ".[dev,test]"
       - name: Lint
         run: ruff check .
       - name: Format check
@@ -102,18 +114,55 @@ jobs:
       - name: Benchmark regression gate
         run: |
           python benchmarks/run_benchmarks.py --quick
+          python - <<'PY'
+          from benchmarks.run_benchmarks import run_all
+          from cds2.prof import BenchHistory
+          from cds2.prof.history import BenchEntry
+
+          results = run_all(quick=True)
+          entries = [
+              BenchEntry(
+                  name=r.name,
+                  baseline_library=r.baseline_library,
+                  baseline_seconds=r.baseline_seconds,
+                  cds2_seconds=r.cds2_seconds,
+              )
+              for r in results
+          ]
+          path = BenchHistory().append(entries)
+          print(f"Recorded {len(entries)} benchmark results to {path}")
+          PY
           python -m cds2.bench.regression --tolerance 0.10
+          python - <<'PY'
+          from cds2.prof import BenchHistory
+
+          frame = BenchHistory().load_range()
+          if frame.empty:
+              raise SystemExit(
+                  "ERROR: benchmark history is empty; "
+                  "the regression gate must not pass on zero rows"
+              )
+          print(
+              f"Benchmark history holds {len(frame)} rows "
+              f"across {frame['name'].nunique()} benchmarks"
+          )
+          PY
 
   build_sdist_and_pure_wheel:
     needs: preflight
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
       - name: Install build tooling
         run: pip install build
+      - name: Pin build timestamp for reproducibility
+        shell: bash
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
       - name: Build sdist and pure-Python fallback wheel
         env:
           CDS_PURE: "1"
@@ -121,13 +170,15 @@ jobs:
           python -m build --sdist
           python -m build --wheel
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: sdist-and-pure-wheel
           path: dist/*
 
   build_wheels:
     needs: preflight
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -135,13 +186,16 @@ jobs:
         python: ["310", "311", "312", "313"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Pin build timestamp for reproducibility
+        shell: bash
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
       - name: Build compiled wheel
-        uses: pypa/cibuildwheel@v4.2
+        uses: pypa/cibuildwheel@cfbec0988a9c12de5a84206e42aa17442af10d44 # v4.2
         env:
           CIBW_BUILD: "cp${{ matrix.python }}-*"
       - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: wheel-${{ matrix.os }}-${{ matrix.python }}
           path: wheelhouse/*.whl
@@ -149,6 +203,9 @@ jobs:
   publish:
     needs: [build_sdist_and_pure_wheel, build_wheels]
     runs-on: ubuntu-latest
+    # The `pypi` environment gates publication (manual approval) and matches
+    # the PyPI trusted-publisher configuration documented in docs/release.md.
+    environment: pypi
     permissions:
       contents: read
       id-token: write
@@ -156,7 +213,7 @@ jobs:
       package_name: ${{ steps.meta.outputs.name }}
       version: ${{ steps.meta.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Resolve release metadata
         id: meta
@@ -195,20 +252,20 @@ jobs:
           fi
 
       - name: Download all distributions
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: dist
           merge-multiple: true
 
       - name: Publish to PyPI (trusted publishing)
         id: trusted_publish
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         continue-on-error: true
 
       - name: Publish to PyPI (API token fallback)
         id: token_publish
         if: steps.trusted_publish.outcome != 'success' && steps.auth.outputs.has_token == 'true'
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
         continue-on-error: true
@@ -236,6 +293,7 @@ jobs:
   # tests pass, so a green release means the public package itself was tested.
   verify_published:
     needs: publish
+    permissions: {}
     strategy:
       fail-fast: false
       matrix:
@@ -247,7 +305,7 @@ jobs:
     env:
       MPLBACKEND: Agg
     steps:
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
 
@@ -312,12 +370,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@5113cdc90fd4d541c801c55356214017bf5ae34b # v3
         with:
           tag_name: v${{ needs.publish.outputs.version }}
           target_commitish: ${{ github.sha }}

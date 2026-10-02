@@ -10,6 +10,26 @@ import sys
 
 from setuptools import Extension, setup
 
+# Fail-closed native build: when the compiled accelerators are requested
+# (anything but CDS_PURE=1), the C sources must exist. setuptools marks the
+# extensions `optional=True` so a missing *compiler* still falls back to
+# pure Python — but missing *sources* must never silently produce a
+# capability-less wheel.
+C_SOURCES = [
+    "src/cds2/src/_fast_kmeans.c",
+    "src/cds2/src/_fast_pagerank.c",
+]
+
+if os.environ.get("CDS_PURE") != "1":
+    missing_sources = [s for s in C_SOURCES if not os.path.isfile(s)]
+    if missing_sources:
+        raise SystemExit(
+            "ERROR: missing C accelerator sources: "
+            + ", ".join(missing_sources)
+            + ". Refusing to build a capability-less wheel; "
+            "set CDS_PURE=1 for the pure-Python fallback wheel."
+        )
+
 extra_compile_args: list[str] = ["-O3"]
 extra_link_args: list[str] = []
 

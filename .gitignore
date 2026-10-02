@@ -22,6 +22,8 @@ htmlcov/
 build/
 dist/
 *.whl
+*.pyd
+*.so
 
 # Editors / OS
 .vscode/
@@ -31,6 +33,9 @@ Thumbs.db
 
 # Local scratch
 _scratch/
+
+# Guided-fit CLI / example outputs (also kept out of the npm tarball)
+guided-fit-results/
 
 # MkDocs output
 site/

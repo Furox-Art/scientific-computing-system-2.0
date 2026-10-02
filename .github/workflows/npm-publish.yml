@@ -1,33 +1,32 @@
-name: npm Publish  
-  
-on:  
-  workflow_dispatch:  
-  push:  
-    branches: [main]  
-    paths:  
-      - "package.json"  
-      - "index.js"  
-      - "bin/**"  
-  
-concurrency:  
-  group: npm-publish  
-  cancel-in-progress: false  
-  
-permissions:  
-  contents: read  
-  
-jobs:  
-  publish:  
-    runs-on: ubuntu-latest  
-    steps:  
-      - uses: actions/checkout@v4  
-  
-      - uses: actions/setup-node@v4  
-        with:  
-          node-version: "20"  
-          registry-url: "https://registry.npmjs.org"  
-  
-      - name: Publish to npm  
-        run: npm publish --access public  
-        env:  
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} 
+name: npm Publish
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      # npm publishing is disabled by product decision (see 4c8cd18);
+      # PyPI is the install path. The JS entry points stay fixed and are
+      # still gated by the npm-validate CI job and the package's `npm test`.
+      - name: Publish to npm
+        run: echo "npm publishing is disabled; PyPI is the install path" && exit 0
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
