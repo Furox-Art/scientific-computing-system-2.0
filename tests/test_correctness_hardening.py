@@ -143,3 +143,44 @@ def test_native_pagerank_boundary_guards_when_extension_available() -> None:
     dangling = np.ascontiguousarray([], dtype=np.int64)
     with pytest.raises(ValueError):
         kernel.iterate(indptr, indices, data, 2, 0.85, dangling, 20, 1e-10)
+
+
+def test_native_pagerank_rejects_noncontiguous_buffers() -> None:
+    try:
+        kernel = importlib.import_module("cds2._fast_pagerank")
+    except ImportError:
+        pytest.skip("compiled PageRank extension is not installed")
+    empty_indices = np.ascontiguousarray([], dtype=np.int64)
+    empty_data = np.ascontiguousarray([], dtype=np.float64)
+    empty_dangling = np.ascontiguousarray([], dtype=np.int64)
+    column = np.zeros((5, 3), dtype=np.int64)[:, 0]
+    assert not column.flags["C_CONTIGUOUS"]
+    reversed_row = np.zeros((1, 5), dtype=np.int64)[0, ::-1]
+    assert not reversed_row.flags["C_CONTIGUOUS"]
+    for bad_indptr in (column, reversed_row):
+        with pytest.raises(ValueError, match="[Cc]ontiguous"):
+            kernel.iterate(
+                bad_indptr,
+                empty_indices,
+                empty_data,
+                4,
+                0.85,
+                empty_dangling,
+                10,
+                1e-12,
+            )
+    # A strided weights vector must be rejected even when the graph is valid.
+    good_indptr = np.ascontiguousarray([0, 0, 0, 0, 0], dtype=np.int64)
+    strided_data = np.zeros((3, 4), dtype=np.float64)[:, 0]
+    assert not strided_data.flags["C_CONTIGUOUS"]
+    with pytest.raises(ValueError, match="[Cc]ontiguous"):
+        kernel.iterate(
+            good_indptr,
+            empty_indices,
+            strided_data,
+            4,
+            0.85,
+            empty_dangling,
+            10,
+            1e-12,
+        )

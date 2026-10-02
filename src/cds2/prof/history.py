@@ -1,17 +1,20 @@
 """Append-only benchmark history backed by JSONL files.
 
-Each benchmark run writes one JSON line to ``benchmarks/history/<run_id>.jsonl``.
-``BenchHistory`` loads a range of runs into a ``pandas.DataFrame`` for analysis
-and regression gating.
+Each benchmark run writes one JSON line to ``benchmarks/history/<run_id>.jsonl``
+inside a source checkout, or to a per-user data directory when cds2 is
+installed as a package. ``BenchHistory`` loads a range of runs into a
+``pandas.DataFrame`` for analysis and regression gating.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import json
+import os
 import platform
 import subprocess
-from collections.abc import Iterable
+import sys
+from collections.abc import Iterable, Mapping
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,13 +22,44 @@ from typing import Any
 import pandas as pd
 
 
+def _user_history_dir_for(os_name: str, plat: str, environ: Mapping[str, str], home: Path) -> Path:
+    """Pure user-data-directory selection (no environment access).
+
+    ``LOCALAPPDATA`` / ``APPDATA`` on Windows, ``~/Library/Application
+    Support`` on macOS and ``XDG_DATA_HOME`` (or ``~/.local/share``)
+    elsewhere. Kept parameterised so every platform branch is unit
+    testable on any host.
+    """
+    app = "cds2"
+    if os_name == "nt":
+        base = environ.get("LOCALAPPDATA") or environ.get("APPDATA") or str(home)
+        return Path(base) / app / "history"
+    if plat == "darwin":
+        return home / "Library" / "Application Support" / app / "history"
+    base = environ.get("XDG_DATA_HOME") or str(home / ".local" / "share")
+    return Path(base) / app / "history"
+
+
+def _default_user_history_dir() -> Path:
+    """Per-user history directory for installed (non-checkout) layouts.
+
+    Never points inside the Python environment.
+    """
+    return _user_history_dir_for(os.name, sys.platform, os.environ, Path.home())
+
+
 def _repo_root() -> Path:
-    """Walk up until we find the directory containing ``src/cds2``."""
+    """Walk up until we find the directory containing ``src/cds2``.
+
+    Falls back to the per-user data directory when cds2 runs from an
+    installed package (no checkout layout is visible). The fallback never
+    resolves inside the Python environment itself.
+    """
     here = Path(__file__).resolve()
     for parent in [here, *here.parents]:
         if (parent / "src" / "cds2").is_dir():
             return parent
-    return here.parents[3]  # pragma: no cover - defensive; src/cds2 always found above
+    return _default_user_history_dir()
 
 
 def _git_commit() -> str:
@@ -59,11 +93,16 @@ class BenchEntry:
 class BenchHistory:
     """Append-only JSONL history of benchmark runs.
 
+    Constructing an instance never touches the filesystem; the history
+    directory is created on first :meth:`append`.
+
     Args:
         repo_root: path to the repository root. Defaults to the directory
-            containing ``src/cds2``.
+            containing ``src/cds2``, or the per-user data directory when
+            cds2 is installed (never inside the Python environment).
         history_dir: path to the history directory. Defaults to
-            ``<repo_root>/benchmarks/history``.
+            ``<repo_root>/benchmarks/history`` inside a checkout, or the
+            per-user data directory for installed packages.
     """
 
     def __init__(
@@ -72,10 +111,12 @@ class BenchHistory:
         history_dir: str | Path | None = None,
     ) -> None:
         self.repo_root = Path(repo_root) if repo_root else _repo_root()
-        self.history_dir = (
-            Path(history_dir) if history_dir else self.repo_root / "benchmarks" / "history"
-        )
-        self.history_dir.mkdir(parents=True, exist_ok=True)
+        if history_dir is not None:
+            self.history_dir = Path(history_dir)
+        elif (self.repo_root / "src" / "cds2").is_dir():
+            self.history_dir = self.repo_root / "benchmarks" / "history"
+        else:
+            self.history_dir = self.repo_root
 
     def _run_path(self, run_id: str) -> Path:
         safe = "".join(c for c in run_id if c.isalnum() or c in "-_")
@@ -90,11 +131,13 @@ class BenchHistory:
     ) -> Path:
         """Append a run to the history.
 
-        Returns the path written to. Each entry is serialized as a JSON object
-        with ``name``, ``baseline_library``, ``baseline_seconds``,
-        ``cds2_seconds`` and ``ratio``.
+        Creates the history directory on first use. Returns the path
+        written to. Each entry is serialized as a JSON object with ``name``,
+        ``baseline_library``, ``baseline_seconds``, ``cds2_seconds`` and
+        ``ratio``.
         """
         run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        self.history_dir.mkdir(parents=True, exist_ok=True)
         path = self._run_path(run_id)
         env = {
             "python": platform.python_version(),

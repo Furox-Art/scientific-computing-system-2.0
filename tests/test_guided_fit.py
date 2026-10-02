@@ -334,3 +334,102 @@ def test_additional_branches(monkeypatch, tmp_path) -> None:  # type: ignore[no-
     result = gf.run_guided_fit((contaminated,), "linear", outlier_policy="keep")
     paths = gf.plot_result(result, (contaminated,), tmp_path)
     assert len(paths) == 4
+
+
+def _save_rerunnable_manifest(csv_dir, manifest_dir):  # type: ignore[no-untyped-def]
+    """Fit a tiny linear dataset and save its manifest, returning the path."""
+    csv_path = csv_dir / "data.csv"
+    x = np.linspace(1.0, 8.0, 20)
+    pd.DataFrame({"x": x, "y": 2.0 * x + 1.0}).to_csv(csv_path, index=False)
+    dataset = gf.load_csv_dataset(csv_path, "x", "y")
+    result = gf.run_guided_fit((dataset,), "linear")
+    return gf.save_manifest(
+        result, (dataset,), manifest_dir / "manifest.json", x_column="x", y_column="y"
+    )
+
+
+def _rewrite_source(manifest, source) -> None:  # type: ignore[no-untyped-def]
+    payload = json.loads(manifest.read_text(encoding="utf-8"))
+    payload["inputs"][0]["source_path"] = source
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_rerun_manifest_rejects_source_outside_run_dir(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    manifest = _save_rerunnable_manifest(elsewhere, run_dir)
+    with pytest.raises(ValueError, match="trusted rerun"):
+        gf.rerun_manifest(manifest)
+
+
+def test_rerun_manifest_rejects_dotdot_traversal(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    manifest = _save_rerunnable_manifest(tmp_path, run_dir)
+    _rewrite_source(manifest, "../data.csv")
+    with pytest.raises(ValueError, match="trusted rerun"):
+        gf.rerun_manifest(manifest)
+
+
+def test_rerun_manifest_opt_out_allows_outside_source(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    manifest = _save_rerunnable_manifest(elsewhere, run_dir)
+    rerun = gf.rerun_manifest(manifest, allow_outside_run_dir=True)
+    assert rerun.model == "linear"
+    assert rerun.stability_warning is False
+
+
+def test_rerun_manifest_trusted_roots_whitelist(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    manifest = _save_rerunnable_manifest(elsewhere, run_dir)
+    rerun = gf.rerun_manifest(manifest, trusted_roots=(elsewhere,))
+    assert rerun.stability_warning is False
+    with pytest.raises(ValueError, match="trusted rerun"):
+        gf.rerun_manifest(manifest, trusted_roots=(tmp_path / "unrelated",))
+
+
+def test_rerun_manifest_accepts_relative_source_inside_run_dir(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    manifest = _save_rerunnable_manifest(run_dir, run_dir)
+    _rewrite_source(manifest, "data.csv")
+    rerun = gf.rerun_manifest(manifest)
+    assert rerun.stability_warning is False
+
+
+def test_rerun_manifest_relative_source_cwd_fallback(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    # Mirrors `cds2 guided-fit data.csv --output-dir out` from the data
+    # directory: the manifest records a CWD-relative path that does not exist
+    # under the manifest directory itself.
+    monkeypatch.chdir(tmp_path)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    manifest = _save_rerunnable_manifest(tmp_path, run_dir)
+    _rewrite_source(manifest, "data.csv")
+    rerun = gf.rerun_manifest(manifest)
+    assert rerun.stability_warning is False
+
+
+def test_rerun_manifest_missing_source_not_found(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    manifest = _save_rerunnable_manifest(tmp_path, run_dir)
+    _rewrite_source(manifest, "gone.csv")
+    with pytest.raises(FileNotFoundError, match="not found"):
+        gf.rerun_manifest(manifest)
+
+
+def test_rerun_manifest_run_dir_trusted_alongside_roots(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    manifest = _save_rerunnable_manifest(run_dir, run_dir)
+    rerun = gf.rerun_manifest(manifest, trusted_roots=(tmp_path / "unrelated",))
+    assert rerun.stability_warning is False

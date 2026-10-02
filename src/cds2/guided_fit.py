@@ -10,7 +10,7 @@ import hashlib
 import json
 import platform
 import textwrap
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Literal, cast
@@ -824,8 +824,71 @@ def save_manifest(
     return target
 
 
-def rerun_manifest(path: str | Path) -> GuidedFitResult:
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+def _resolve_rerun_source(
+    source: str,
+    run_dir: Path,
+    trusted_roots: tuple[Path, ...],
+    *,
+    allow_outside_run_dir: bool,
+) -> Path:
+    """Resolve one manifest ``source_path`` inside the trusted directories.
+
+    Relative paths are tried against the manifest's own directory first and
+    then the current working directory, so reruns keep working when the
+    original ``guided-fit`` invocation used a CWD-relative CSV path while the
+    manifest lives in an output subdirectory. Symlinks and ``..`` segments
+    are normalised with :meth:`Path.resolve` before the containment check,
+    so neither can escape the whitelist.
+    """
+    candidate = Path(source)
+    candidates: tuple[Path, ...]
+    if candidate.is_absolute():
+        candidates = (candidate,)
+    else:
+        candidates = (run_dir / candidate, Path.cwd() / candidate)
+    missing: list[Path] = []
+    for cand in candidates:
+        resolved = cand.resolve()
+        if not allow_outside_run_dir and not any(
+            resolved.is_relative_to(root) for root in trusted_roots
+        ):
+            continue
+        if resolved.is_file():
+            return resolved
+        missing.append(resolved)
+    if missing:
+        tried = ", ".join(str(path) for path in missing)
+        raise FileNotFoundError(f"manifest source_path not found: {source!r} (tried {tried})")
+    raise ValueError(
+        f"manifest source_path escapes the trusted rerun directories: {source!r}; "
+        "rerun only reads sources inside the manifest directory or the current "
+        "working directory unless allow_outside_run_dir=True"
+    )
+
+
+def rerun_manifest(
+    path: str | Path,
+    *,
+    allow_outside_run_dir: bool = False,
+    trusted_roots: Iterable[str | Path] | None = None,
+) -> GuidedFitResult:
+    """Repeat a guided fit from a saved manifest.
+
+    By default every ``source_path`` recorded in the manifest must resolve
+    inside the manifest's own directory (the run directory) or the current
+    working directory, so a foreign manifest cannot make the tool read
+    arbitrary files. Pass ``allow_outside_run_dir=True`` to opt out of the
+    confinement, or ``trusted_roots`` to extend the whitelist explicitly
+    (the manifest directory itself is always trusted).
+    """
+    manifest_file = Path(path).resolve()
+    run_dir = manifest_file.parent
+    roots: tuple[Path, ...]
+    if trusted_roots is None:
+        roots = (run_dir, Path.cwd())
+    else:
+        roots = (run_dir, *(Path(root).resolve() for root in trusted_roots))
+    payload = json.loads(manifest_file.read_text(encoding="utf-8"))
     cfg = payload["result"]
     input_items = cast(list[dict[str, object]], payload["inputs"])
     datasets: list[FitDataset] = []
@@ -836,7 +899,10 @@ def rerun_manifest(path: str | Path) -> GuidedFitResult:
         sigma_column = cast(str | None, input_item.get("sigma_column"))
         if not source_path or not x_column or not y_column:
             raise ValueError("manifest does not contain reusable CSV source metadata")
-        loaded = load_csv_dataset(source_path, x_column, y_column, sigma_column)
+        source = _resolve_rerun_source(
+            source_path, run_dir, roots, allow_outside_run_dir=allow_outside_run_dir
+        )
+        loaded = load_csv_dataset(source, x_column, y_column, sigma_column)
         datasets.append(replace(loaded, name=str(input_item.get("name") or loaded.name)))
 
     rerun = run_guided_fit(

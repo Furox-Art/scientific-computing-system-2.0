@@ -6,7 +6,17 @@
 #include <string.h>
 
 static int require_buffer(PyObject *obj, Py_buffer *view, int want_double, const char *name) {
-    if (PyObject_GetBuffer(obj, view, PyBUF_CONTIG_RO | PyBUF_FORMAT) < 0) return 0;
+    /* Request C-contiguous storage explicitly: PyBUF_CONTIG_RO does not imply
+    contiguity, so flat indexing below would otherwise trust the exporter. The
+    PyBuffer_IsContiguous check is defense-in-depth for exporters that honour
+    PyBUF_C_CONTIGUOUS loosely. */
+    if (PyObject_GetBuffer(obj, view, PyBUF_C_CONTIGUOUS | PyBUF_FORMAT) < 0) return 0;
+    if (!PyBuffer_IsContiguous(view, 'C')) {
+        PyErr_Format(PyExc_ValueError, "%s must be a C-contiguous 1-D %s array", name,
+                     want_double ? "float64" : "int64");
+        PyBuffer_Release(view);
+        return 0;
+    }
     int format_ok = want_double
         ? (view->format != NULL && strcmp(view->format, "d") == 0)
         : (view->format != NULL && (strcmp(view->format, "q") == 0 || strcmp(view->format, "l") == 0));
