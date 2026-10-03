@@ -24,7 +24,7 @@ def _random_string(length: int = 8) -> str:
     return "".join(random.choices(string.ascii_letters + string.digits + "-,.", k=length))
 
 
-def _run_cli(args: list[str], timeout: float = 5.0) -> subprocess.CompletedProcess[str]:
+def _run_cli(args: list[str], timeout: float = 30.0) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         CLI + args,
         cwd=ROOT,
@@ -51,14 +51,14 @@ class TestCLIFuzz:
     def test_stats_random_input(self, seed: int) -> None:
         random.seed(seed)
         nums = ",".join(str(random.gauss(0, 100)) for _ in range(random.randint(2, 20)))
-        result = _run_cli(["stats", nums], timeout=5.0)
+        result = _run_cli(["stats", nums], timeout=30.0)
         assert result.returncode in (0, 1, 2)
 
     @pytest.mark.parametrize("seed", range(10))
     def test_entropy_random_input(self, seed: int) -> None:
         random.seed(seed)
         nums = ",".join(str(random.random()) for _ in range(random.randint(2, 10)))
-        result = _run_cli(["entropy", nums], timeout=5.0)
+        result = _run_cli(["entropy", nums], timeout=30.0)
         assert result.returncode in (0, 1, 2)
 
     @pytest.mark.parametrize("seed", range(10))
@@ -69,5 +69,5 @@ class TestCLIFuzz:
             args += ["--from-unit", _random_string(3)]
         if random.random() > 0.5:
             args += ["--to-unit", _random_string(3)]
-        result = _run_cli(args, timeout=5.0)
+        result = _run_cli(args, timeout=30.0)
         assert result.returncode in (0, 1, 2)

@@ -2,6 +2,12 @@
 
 ### Fixed
 
+- **The CLI fuzz harness no longer fails on a slow cold start.** It spawned
+  `python -m cds2` with a 5.0 s timeout, but a cold import of `cds2` measures
+  4.0–7.7 s on a Windows host and exceeded 5 s on the `macos-latest` / Python 3.10
+  CI leg, failing with `subprocess.TimeoutExpired` and blocking a required check.
+  The timeout is now 30 s, which leaves generous headroom for the import cost
+  without masking a genuine hang.
 - **Release tooling is pinned, so the publishability gate is reproducible.**
   `build` and `twine` were installed unpinned (`pip install --upgrade build
   twine`), so whether `twine check --strict` passed depended on which versions
