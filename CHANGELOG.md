@@ -1,4 +1,71 @@
-## [Unreleased]
+## [v5.2.6] - 2026-10-03
+
+Patch release whose main purpose is to let the PyPI project page pick up the
+corrected README: the distribution long description comes from `README.md` at
+build time, and only a new release can change it, so the 5.2.5 project page still
+shows the previous 2,041-character description. PyPI release descriptions are
+immutable, so this could not be fixed in place.
+
+This is **not** a documentation-only release. The range also contains the
+security hardening of #28, which changes shipped runtime behavior; it is
+described under "Security" rather than folded into the documentation notes.
+
+### Security
+
+Hardening from #28, with new guard coverage:
+
+- `prof/history` never creates directories in `__init__`; installed layouts fall
+  back to a per-user data directory instead of `parents[3]` inside the
+  interpreter.
+- `guided_fit.rerun_manifest` confines `source_path` to the manifest directory
+  and the current working directory by default, with
+  `allow_outside_run_dir` / `trusted_roots` as an explicit opt-out and a new
+  `--allow-outside-run-dir` CLI flag. Relative sources resolve run-dir first,
+  then the working directory; a trusted-but-missing source raises
+  `FileNotFoundError` naming the paths tried.
+- `_fast_pagerank` requires `PyBUF_C_CONTIGUOUS` and additionally checks
+  `PyBuffer_IsContiguous`.
+- New `tests/test_security_guards.py` fails the build if `eval`, `exec`,
+  `pickle`, unsafe `yaml.load` or `shell=True` ever appear under `src/cds2`,
+  scanning the Python modules and the C accelerator sources alike.
+
+### Fixed
+
+- **npm publishing can run before a trusted publisher exists.**
+  `npm-publish.yml` gained an explicit `use_token_fallback` dispatch input
+  (boolean, default `false`). When set, it publishes with the repository's
+  `NPM_TOKEN` as `NODE_AUTH_TOKEN` and omits `--provenance`, because a
+  long-lived automation token cannot mint a Sigstore attestation; OIDC trusted
+  publishing with provenance stays the default. Requesting the token mode with
+  an empty secret fails closed.
+- An explicit `use_token_fallback=false` was previously rejected as "must be a
+  boolean" instead of selecting the OIDC path.
+- npm publish now tolerates registry propagation delay after uploading, and the
+  npm documentation reflects published reality rather than intent.
+
+### Changed
+
+- **All GitHub Actions are pinned to full commit SHAs**, every job declares
+  least-privilege `permissions`, and CI tool versions (`ruff`, `mypy`) are pinned
+  through `constraints/ci-tools.txt`. Unpinned tooling had turned `main` red
+  repeatedly.
+- `setup.py` now fails closed if the C accelerator sources are missing, instead
+  of silently producing a capability-less wheel; CI builds the wheel *from the
+  sdist* and asserts both accelerators are present and importable.
+- Builds are pinned to `SOURCE_DATE_EPOCH`, and CI asserts the wheel is
+  bit-identical across two builds.
+- A new `MANIFEST.in` gives the sdist full scope (C sources, the complete test
+  tree, docs, examples, benchmarks, tooling) while excluding CI workflows.
+- The npm tarball is restricted by a `files` allowlist; CI asserts the packed
+  contents match it exactly.
+- `consistency_audit` is a real gate rather than advisory. It previously died
+  with `ModuleNotFoundError` because the job never installed the package.
+- `tools/consistency_audit.py` no longer treats a repository legitimately ahead
+  of PyPI as a fatal error, which would have deadlocked every release once `main`
+  required pull requests.
+- `guided_fit` is bound in `src/cds2/__init__.py` and listed in `__all__`, so
+  `cds2.guided_fit` resolves after a bare `import cds2`. Public exports go from
+  534 to 535.
 
 ### Documentation
 
