@@ -1,3 +1,43 @@
+## [Unreleased]
+
+### Fixed
+
+- **Release tooling is pinned, so the publishability gate is reproducible.**
+  `build` and `twine` were installed unpinned (`pip install --upgrade build
+  twine`), so whether `twine check --strict` passed depended on which versions
+  happened to resolve that day. They are now pinned in
+  `constraints/release-tools.txt` and every build/install site passes
+  `-c constraints/release-tools.txt`.
+- **twine is pinned to 7.0.0 because 6.2.0 and below carry a frozen
+  Metadata-Version list.** twine <= 6.2.0 hardcodes the valid metadata versions
+  ending at 2.4, so it rejects a valid `Metadata-Version: 2.5` artifact with
+  `InvalidDistribution: '2.5' is not a valid metadata version` even though
+  `packaging` knows 2.5. twine 7.0.0 removed that hardcoded list and delegates to
+  `packaging.metadata.parse_email`. This build currently emits
+  `Metadata-Version: 2.4`, which 6.2.0 would also accept, so the exposure was
+  latent: `build` and the `setuptools>=77` build requirement both float, so the
+  emitted metadata version can advance with no change in this repository.
+- **The `package` CI job now runs `twine check --strict`.** It had been running
+  non-strict `twine check`, which silently skips the strict metadata validation.
+
+### Added
+
+- `tests/test_release_tooling_pins.py` guards this: `build` and `twine` must be
+  pinned with `==`; every workflow that runs `twine check` must install tooling
+  through `constraints/release-tools.txt`; the pinned twine must be able to
+  validate the emitted `Metadata-Version`; and `--strict` must not be dropped.
+  Unpinning twine, re-pinning it to 6.2.0, removing the constraints flag from a
+  workflow, and dropping `--strict` each make the suite fail.
+
+### Notes
+
+- Measured metadata for this release, from a real `python -m build`:
+  `Metadata-Version: 2.4` in both the wheel and the sdist, `Requires-Python:
+  >=3.10`, `License-Expression: MIT`, `License-File: LICENSE`, and **no**
+  `License ::` classifiers. That combination is correct for Metadata 2.4: since
+  PEP 639, `License-Expression` must not be paired with `License ::` classifiers,
+  and the legacy `License:` field is correctly absent.
+
 ## [v5.2.6] - 2026-10-03
 
 Patch release whose main purpose is to let the PyPI project page pick up the

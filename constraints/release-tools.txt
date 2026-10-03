@@ -1,0 +1,17 @@
+# Pinned release/build tooling. Any workflow that runs `python -m build` or
+# `twine check` must install these with `-c constraints/release-tools.txt`.
+#
+# twine must stay on 7.x. twine <= 6.2.0 carries a frozen list of valid
+# Metadata-Version values that stops at 2.4, so it rejects a valid
+# Metadata-Version 2.5 artifact with
+# `InvalidDistribution: '2.5' is not a valid metadata version` even though
+# packaging knows 2.5. twine 7.0.0 removed that hardcoded list and delegates to
+# `packaging.metadata.parse_email`, so it tracks packaging instead of lagging it.
+#
+# This is not hypothetical for us: our build backend emits Metadata-Version 2.4
+# today, but `build` and the `setuptools>=77` build requirement are unpinned, so
+# the emitted metadata version can advance without any change in this repository.
+# tests/test_release_tooling_pins.py enforces both the pin and that the pin can
+# validate the emitted metadata version.
+build==1.6.1
+twine==7.0.0

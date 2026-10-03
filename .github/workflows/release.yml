@@ -163,8 +163,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
-      - name: Install build tooling
-        run: pip install build
+      - name: Install pinned build tooling
+        run: python -m pip install -c constraints/release-tools.txt --upgrade build
       - name: Pin build timestamp for reproducibility
         shell: bash
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"

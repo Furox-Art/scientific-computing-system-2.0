@@ -85,14 +85,14 @@ jobs:
       - name: Pin build timestamp for reproducibility
         shell: bash
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
-      - name: Install build validation tooling
-        run: python -m pip install --upgrade build twine
+      - name: Install pinned build and twine tooling
+        run: python -m pip install -c constraints/release-tools.txt --upgrade build twine
       - name: Build sdist and pure-Python wheel
         env:
           CDS_PURE: "1"
         run: python -m build
       - name: Validate distribution metadata
-        run: python -m twine check dist/*
+        run: python -m twine check --strict dist/*
       - name: Smoke-install built wheel
         run: |
           python -m venv .wheel-smoke
@@ -264,8 +264,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
-      - name: Install build tooling
-        run: python -m pip install --upgrade "setuptools>=77" wheel build
+      - name: Install pinned build tooling
+        run: python -m pip install -c constraints/release-tools.txt --upgrade "setuptools>=77" wheel build
       - name: Build sdist
         env:
           CDS_PURE: "1"
@@ -318,8 +318,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.12"
-      - name: Install build tooling
-        run: python -m pip install --upgrade build
+      - name: Install pinned build tooling
+        run: python -m pip install -c constraints/release-tools.txt --upgrade build
       - name: Build the wheel twice with a fixed SOURCE_DATE_EPOCH
         shell: bash
         env:
