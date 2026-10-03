@@ -29,17 +29,38 @@ OUT = Path(__file__).resolve().parents[1] / "docs" / "assets"
 REPO = Path(__file__).resolve().parents[1]
 
 
-def repo_counts() -> tuple[int, int, int]:
-    """Count top-level cds2 modules, ``__all__`` exports and pytest tests.
+def repo_counts() -> tuple[int, int, int, int, int]:
+    """Count importable names, ``__all__`` exports, API pages and collected tests.
 
-    The test count intentionally runs ``pytest --collect-only`` instead of a
-    static ``def test_`` grep so parametrized cases are counted exactly as
-    CI counts them. It fails loudly when pytest is unavailable so the hero
-    figure can never be stamped with a silently wrong number. The export
-    count is parsed with ``ast`` (no package import, no side effects).
+    Four counts, each from the real tree so the figure cannot drift:
+
+    ``importable``
+        Flat modules **plus** importable subpackages. A previous revision used
+        ``glob("*.py")``, which silently ignored the subpackages
+        (``array_api``, ``bench``, ``estimator``, ``gpu``, ``nlp``, ``prof``)
+        and therefore under-reported the package surface. A subdirectory counts
+        only when it carries an ``__init__.py``; ``src/cds2/src`` holds C
+        sources and is correctly excluded.
+    ``exports``
+        ``len(cds2.__all__)``, parsed with ``ast`` so nothing is imported. The
+        hero labels this "public exports", not "public functions": the list
+        mixes functions, classes, submodules and data objects, so a
+        "functions" label is structurally wrong.
+    ``api_pages``
+        Number of files in ``docs/api``, which is what the docs actually serve.
+    ``tests``
+        ``pytest --collect-only``, so parametrized cases count exactly as CI
+        counts them. Fails loudly rather than guessing.
+
+    Returns ``(importable, exports, api_pages, tests, flat_modules)``.
     """
     src = REPO / "src" / "cds2"
-    modules = [p for p in src.glob("*.py") if p.name not in ("__init__.py", "_version.py")]
+    flat = [p for p in src.glob("*.py") if p.name not in ("__init__.py", "_version.py")]
+    subpackages = [
+        d.name for d in sorted(src.iterdir()) if d.is_dir() and (d / "__init__.py").is_file()
+    ]
+    api_pages = len(list((REPO / "docs" / "api").glob("*.md")))
+
     tree = ast.parse((src / "__init__.py").read_text(encoding="utf-8"))
     exports = 0
     for node in ast.walk(tree):
@@ -49,20 +70,21 @@ def repo_counts() -> tuple[int, int, int]:
             and isinstance(node.value, ast.List)
         ):
             exports = len(node.value.elts)
+
     try:
         proc = subprocess.run(
             [sys.executable, "-m", "pytest", "--collect-only", "-q"],
             cwd=REPO,
             capture_output=True,
             text=True,
-            timeout=600,
+            timeout=900,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise SystemExit(f"cannot count tests without pytest: {exc}") from exc
     match = re.search(r"(\d+) tests? collected", proc.stdout + proc.stderr)
     if match is None:
         raise SystemExit("pytest --collect-only output did not report a test count")
-    return len(modules), exports, int(match.group(1))
+    return len(flat) + len(subpackages), exports, api_pages, int(match.group(1)), len(flat)
 
 
 def dark_canvas(width: float, height: float) -> tuple[plt.Figure, plt.Axes]:
@@ -111,7 +133,7 @@ def chip(axes: plt.Axes, x: float, y: float, text: str, accent: bool = False) ->
 
 def hero() -> None:
     figure, axes = dark_canvas(12.8, 7.2)
-    n_modules, n_exports, n_tests = repo_counts()
+    n_importable, n_exports, n_api, n_tests, n_flat = repo_counts()
 
     axes.text(
         50,
@@ -126,16 +148,18 @@ def hero() -> None:
     axes.text(
         50,
         68,
-        f"{n_modules} modules. One import. Zero bloat.",
+        f"{n_importable} importable names. One install. Zero bloat.",
         ha="center",
         fontsize=17,
         color=ACCENT_2,
     )
 
+    # "public exports", not "public functions": __all__ holds functions,
+    # classes, submodules and data objects, so a functions label would be wrong.
     stats = [
-        (f"{n_exports}", "public functions"),
+        (f"{n_exports}", "public exports"),
         (f"{n_tests:,}", "tests - 100% cov"),
-        ("C kernels", "optional extensions"),
+        (f"{n_flat}+{n_api}", "modules + API pages"),
         ("MIT", "open source"),
     ]
     for i, (big, small) in enumerate(stats):
@@ -288,6 +312,7 @@ def benchmarks() -> None:
 
 def modules() -> None:
     figure, axes = dark_canvas(12.8, 7.2)
+    n_flat = repo_counts()[4]
     groups = {
         "CORE": [
             "linalg",
@@ -333,7 +358,7 @@ def modules() -> None:
     axes.text(
         50,
         85,
-        "four shelves from 46 modules",
+        f"four shelves, {n_flat} flat modules",
         ha="center",
         fontsize=24,
         fontweight="bold",
