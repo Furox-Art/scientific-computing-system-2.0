@@ -17,10 +17,18 @@ applied silently.
 
 ### Added
 
+- **Token publish mode.** `npm-publish.yml` now takes an explicit
+  `workflow_dispatch` input `use_token_fallback` (boolean, default `false`).
+  When set to `true` it publishes with the repository's long-lived `NPM_TOKEN`
+  secret as `NODE_AUTH_TOKEN` and runs `npm publish --access public` **without**
+  `--provenance`. This supersedes the earlier decision, recorded just below, that
+  a long-lived token is never used at all. It exists because no npmjs.com trusted
+  publisher is registered yet, so OIDC-only publishing cannot succeed today.
+  OIDC trusted publishing remains the default and the preferred path for every
+  future release.
 - OIDC trusted publishing (`id-token: write`, `npm publish --provenance`) gated
-  by a new `npm` environment. No long-lived npm token is used as the primary
-  path and there is no token fallback, so the repository's `NPM_TOKEN` secret
-  should be deleted once the npmjs.com trusted publisher is configured.
+  by a new `npm` environment. This is the default path and the one to keep using
+  once an npmjs.com trusted publisher is configured.
 - One version bump now updates both registries: `release-on-version-bump.yml`
   dispatches `npm-publish.yml` alongside `release.yml`. npm publishing stays in
   its own workflow so a failed npm publish cannot fail a completed PyPI release.
@@ -28,9 +36,33 @@ applied silently.
   `npm pack` tarball allowlist assertion, version lockstep across
   `package.json` / `src/cds2/_version.py` / `pyproject.toml`, an idempotent
   registry version existence check, and post-publish registry verification.
+- A publish-workflow contract test (`scripts/check-npm-publish-contract.mjs`,
+  wired into `npm test`) asserts both publish modes, that the token path omits
+  `--provenance` and supplies `NODE_AUTH_TOKEN`, that a requested mode without a
+  credential fails closed, that an explicit `use_token_fallback=false` is
+  accepted, and that the npm version floor is compared numerically rather than by
+  regex.
+
+### Changed
+
+- **Provenance is conditional on the credential, not on the flag.** A long-lived
+  automation token cannot mint a Sigstore attestation, so the token path does not
+  pass `--provenance` and the verification step states plainly that no attestation
+  exists on that path. Publishing via token is therefore a weaker guarantee than
+  publishing via OIDC, and this should be treated as temporary.
 
 ### Notes
 
+- **No provenance on the token path.** Anyone installing npm `5.2.5` published
+  through the token mode gets no Sigstore attestation. That is expected and is
+  not a defect, but it is the reason to register the trusted publisher and return
+  to OIDC.
+- **The npm version floor is numeric.** It is asserted with a numeric semver
+  comparison, not a regular expression. A pattern such as
+  `^11\.(5[1-9]|[6-9][0-9])\.|^1[2-9]\.` is wrong: `[6-9][0-9]` only covers
+  `11.60`-`11.99`, so it rejects `npm 11.19.0` — the version bundled with Node
+  24 — and would also reject `11.5.2` through `11.59.99`. The contract test fails
+  the build if a regex gate reappears.
 - The npm registry currently holds only `2.0.0`, which shipped a broken entry
   point (a JavaScript syntax error plus a `scs2.cli` module target that does not
   exist; the import root is `cds2`). npm versions are immutable, so `2.0.0`
@@ -43,7 +75,8 @@ applied silently.
   is distributed on npm here as well as under its other published names. This is
   a second npm package name for one project, which is a consequence of the
   decision to re-enable npm publishing and is recorded here rather than left
-  implicit.
+  implicit. Publishing to both registries does not change that: the duplicate
+  name exists either way.
 - `4c8cd18` also added `codemeta.json` and a conda-forge recipe
   (`packaging/conda/meta.yaml`) while stating this repository is not a second
   product. Those files are unrelated to npm publishing and are left in place.
