@@ -7,10 +7,11 @@
 [![CI](https://github.com/Furox-Art/scientific-computing-system-2.0/actions/workflows/tests.yml/badge.svg)](https://github.com/Furox-Art/scientific-computing-system-2.0/actions/workflows/tests.yml)  
 [![PyPI](https://img.shields.io/pypi/v/scientific-computing-system-2.0)](https://pypi.org/project/scientific-computing-system-2.0/)  
 [![Python](https://img.shields.io/pypi/pyversions/scientific-computing-system-2.0)](https://pypi.org/project/scientific-computing-system-2.0/)  
+[![npm](https://img.shields.io/npm/v/scientific-computing-system-2.0)](https://www.npmjs.com/package/scientific-computing-system-2.0)  
   
 This is the NumPy build of [scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system), not a separate product. Install this when you want NumPy, SciPy, pandas, and matplotlib. Install the other package when you want readable pure Python and no runtime dependencies.  
   
-PyPI is the install path. npm is discontinued: `package.json` carries `"private": true`, so the stale `2.0.0` tarball still visible on the npm registry will never be updated. A conda recipe lives in `packaging/conda/` for local builds; no conda package is published.  
+PyPI is the install path. A conda recipe lives in `packaging/conda/` for local builds; no conda package is published. The npm package is a launcher shim, not a second distribution of the library (see [npm](#npm-launcher-shim-optional) below).  
   
 ## Installation  
   
@@ -60,6 +61,45 @@ API reference for all 46 modules:
 - **Signal processing, time-series analysis, graphs and PageRank**.
 - **Machine learning, reinforcement learning, information theory, and computational geometry**.
 - **PDE/SDE solvers**, scientific visualization, pandas-backed I/O, and research-quality validation.
+
+## npm launcher shim (optional)
+
+The npm package `scientific-computing-system-2.0` is published from this
+repository and tracks the same version as PyPI; both currently serve `5.2.5`.
+It is a **thin Node launcher, not a second copy of the library**. Its entire
+tarball is five small files (`index.js`, `bin/scs2.js`, `package.json`,
+`README.md`, `LICENSE`, about 8 KB unpacked) and it contains no Python code. It
+spawns `python -m cds2.cli`, so:
+
+- you still install the library from PyPI - the npm package does not vendor
+  NumPy, SciPy, pandas or matplotlib;
+- the `scs2` command only works if that Python package is installed and
+  importable on your `PATH`;
+- for most people `pip install scientific-computing-system-2.0` plus the `cds2`
+  console script is the whole story, and the npm package is unnecessary.
+
+```bash
+npm install -g scientific-computing-system-2.0   # optional
+scs2 stats 1,2,3,4,5
+```
+
+Supply chain, stated precisely:
+
+- **No provenance attestation.** The published `5.2.5` carries no Sigstore
+  attestation: the registry's attestation endpoint
+  (`/-/npm/v1/attestations/scientific-computing-system-2.0@5.2.5`) returns
+  `404 Not found`, and the version document has no `attestations` field. It was
+  published through the long-lived automation-token path, which cannot mint an
+  attestation, so `--provenance` was deliberately not passed. The `dist.signatures`
+  values that *are* present are npm's own ECDSA registry signatures proving the
+  tarball came from npm; they are not Sigstore build provenance. Do not treat this
+  package as provenance-attested.
+- **Two names, one project.** This repository publishes the same project on npm
+  under this name as well as on PyPI, and npm already carries an older `2.0.0`
+  from before this repository took over the name. npm versions are immutable, so
+  `2.0.0` cannot be repaired; install `5.2.5` or later.
+- **Verification.** `npm view scientific-computing-system-2.0@5.2.5 dist.integrity`
+  returns the published `sha512` integrity hash you can pin against.
 
 ## Modules
 

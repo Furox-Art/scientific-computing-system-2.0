@@ -1,8 +1,67 @@
 ## [Unreleased]
 
-npm publishing is being re-enabled for this repository. This reverses an earlier
-owner decision, and the reversal is recorded here deliberately rather than
-applied silently.
+npm publishing is live for this repository and `5.2.5` is now on the npm
+registry. This reverses an earlier owner decision, and the reversal is recorded
+here deliberately rather than applied silently.
+
+### Fixed
+
+- **False publish failure: the post-publish visibility check no longer
+  misreports a successful publish.** Run 37120536500 published `5.2.5` and then
+  failed, logging `npm registry metadata not visible yet (attempt 1/6)` through
+  `(attempt 6/6)` and finally `ERROR: ... was not visible on the registry after
+  publishing`. The version *was* published and is served by the registry today.
+  Two independent causes, both fixed:
+
+  1. **Budget far shorter than the propagation window.** `npm publish` returns
+     when the registry's *write* path accepts the upload, while the *read* path
+     is served by a CDN that propagates asynchronously. ~95s was observed for a
+     sibling repository; the check allowed ~60s (6 attempts, flat `sleep 10`).
+  2. **Stale cached reads.** The packument is served with
+     `Cache-Control: public, max-age=300`, and `npm view` resolves through
+     npm's on-disk HTTP cache, so retries inside that TTL could keep replaying
+     the pre-publish document even after the CDN had it.
+
+  `npm-publish.yml` now delegates to `scripts/wait-for-npm-visibility.mjs`: 12
+  attempts, 5s base backoff capped at 45s (a ~7.5 minute budget, wider than both
+  the 95s propagation window and the 300s cache TTL), reading the registry
+  directly with `Cache-Control: no-cache` plus a cache-busting query parameter.
+  A direct read is used instead of `npm view` because it (a) defeats both cache
+  layers, (b) distinguishes a 404 ("not propagated yet") from a 5xx or transport
+  error, which `npm view` collapses into one exit code, and (c) avoids paying npm
+  CLI startup on every attempt. First match wins. On budget exhaustion the
+  script emits `::warning::` with a re-check hint and then exits non-zero, so a
+  version that genuinely never appeared still fails closed - a slow-but-successful
+  publish is never reported as a hard error, and a missing publish is never
+  reported as a success.
+
+  Regression test `scripts/check-npm-visibility-poll.test.mjs` (wired into
+  `npm test`, and therefore into the `npm-validate` CI job) asserts **both**
+  directions: a 404-then-success sequence resolves and stops polling on the first
+  match, and a version that never appears still fails after the full budget. It
+  also pins the budget above the propagation window and cache TTL, bounds the
+  backoff, and requires every read to defeat caching. Four mutations were
+  verified to break it: shrinking the budget to the old 6x10s shape, making the
+  poll always succeed, removing the `::warning::` marker, and removing the
+  cache-buster.
+
+### Documentation
+
+- **npm is documented as published.** The README previously stated that npm was
+  discontinued and carried `"private": true`; that was already false on `main`
+  and is now corrected. `README.md` documents the npm package as what it
+  actually is - a Node launcher shim whose whole tarball is five files and about
+  8 KB, which spawns `python -m cds2.cli` and therefore still requires the PyPI
+  package on `PATH`. PyPI remains the install path; the conda recipe in
+  `packaging/conda/` is in-repo only and no conda package is published.
+- **Supply chain stated without overclaiming.** The published `5.2.5` carries
+  **no** Sigstore provenance attestation: `/-/npm/v1/attestations/...@5.2.5`
+  returns `404` and the version document has no `attestations` field, because it
+  was published with the long-lived automation-token path that cannot mint one.
+  The `dist.signatures` values that are present are npm's own ECDSA registry
+  signatures, not build provenance, and the docs say so rather than implying an
+  attested build. The npm badge was added only after confirming the registry
+  `latest` dist-tag and the published version list match PyPI (`5.2.5` on both).
 
 ### Reverted
 
@@ -56,27 +115,30 @@ applied silently.
 - **No provenance on the token path.** Anyone installing npm `5.2.5` published
   through the token mode gets no Sigstore attestation. That is expected and is
   not a defect, but it is the reason to register the trusted publisher and return
-  to OIDC.
+  to OIDC. Verified against the registry: the attestation endpoint for
+  `scientific-computing-system-2.0@5.2.5` returns `404`, and the published
+  version document has no `attestations` field.
 - **The npm version floor is numeric.** It is asserted with a numeric semver
   comparison, not a regular expression. A pattern such as
   `^11\.(5[1-9]|[6-9][0-9])\.|^1[2-9]\.` is wrong: `[6-9][0-9]` only covers
   `11.60`-`11.99`, so it rejects `npm 11.19.0` — the version bundled with Node
   24 — and would also reject `11.5.2` through `11.59.99`. The contract test fails
   the build if a regex gate reappears.
-- The npm registry currently holds only `2.0.0`, which shipped a broken entry
-  point (a JavaScript syntax error plus a `scs2.cli` module target that does not
-  exist; the import root is `cds2`). npm versions are immutable, so `2.0.0`
-  cannot be repaired in place; `5.2.5` is published as the first working npm
-  version and `latest` moves forward from `2.0.0`.
-- PyPI `5.2.5` is already published, so no version bump will ever fire for it.
-  npm `5.2.5` must be published with a one-time manual dispatch of
-  `npm-publish.yml`.
+- The npm registry holds `2.0.0` and `5.2.5`, with `latest` resolving to
+  `5.2.5`. `2.0.0` shipped a broken entry point (a JavaScript syntax error plus
+  an `scs2.cli` module target that does not exist; the import root is `cds2`).
+  npm versions are immutable, so `2.0.0` cannot be repaired in place. Install
+  `5.2.5` or later.
+- PyPI `5.2.5` and npm `5.2.5` are both published and both serve the same
+  version string, so the version-lockstep gate in `npm-publish.yml` holds.
 - Publishing an npm package from this repository means the same Python project
   is distributed on npm here as well as under its other published names. This is
   a second npm package name for one project, which is a consequence of the
   decision to re-enable npm publishing and is recorded here rather than left
-  implicit. Publishing to both registries does not change that: the duplicate
-  name exists either way.
+  implicit. It is now actually the case, not a plan: npm `5.2.5` is live. What
+  ships to npm is a Node launcher shim of five files (about 8 KB unpacked) that
+  spawns `python -m cds2.cli`; it contains no Python and does not vendor the
+  scientific stack, so PyPI remains the install path and npm is optional.
 - `4c8cd18` also added `codemeta.json` and a conda-forge recipe
   (`packaging/conda/meta.yaml`) while stating this repository is not a second
   product. Those files are unrelated to npm publishing and are left in place.

@@ -215,7 +215,24 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public
 
-      # Fail closed on publication: the registry must show the new version.
+      # Fail closed on publication, but tolerate registry propagation.
+      #
+      # `npm publish` returns when the registry's WRITE path accepts the upload.
+      # The READ path is served by a CDN that propagates asynchronously: ~95s
+      # was observed for a sibling repository, and the packument is served with
+      # `Cache-Control: public, max-age=300`, so any client-side cache can
+      # replay a stale document for up to five minutes. The previous inline loop
+      # retried 6 times with a flat 10s sleep: a ~60s budget, shorter than both
+      # the propagation window and the cache TTL. Run 37120536500 therefore
+      # failed a 5.2.5 publish that had genuinely succeeded.
+      #
+      # The poll lives in scripts/wait-for-npm-visibility.mjs so it can be unit
+      # tested in both directions (404-then-success must pass; never-appearing
+      # must still fail). It reads the registry directly rather than calling
+      # `npm view`, because `npm view` resolves through npm's on-disk HTTP cache
+      # and cannot distinguish "not propagated yet" from a registry error.
+      # First match wins; on budget exhaustion it emits ::warning:: and then
+      # exits non-zero, so a never-published version still fails closed.
       - name: Verify npm publication
         if: steps.exists.outputs.exists == 'false'
         shell: bash
@@ -225,23 +242,15 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
-          for attempt in 1 2 3 4 5 6; do
-            if npm view "${PACKAGE}@${VERSION}" version > /dev/null 2>&1; then
-              echo "Verified npm publication: ${PACKAGE}@${VERSION}"
-              echo "tarball: $(npm view "${PACKAGE}@${VERSION}" dist.tarball)"
-              if [ "${PUBLISH_MODE}" = "oidc" ]; then
-                echo "attestations:"
-                npm view "${PACKAGE}@${VERSION}" dist.attestations --json || true
-              else
-                echo "published with a long-lived token; no Sigstore provenance attestation exists on this path"
-              fi
-              exit 0
-            fi
-            echo "npm registry metadata not visible yet (attempt ${attempt}/6); retrying..."
-            sleep 10
-          done
-          echo "ERROR: ${PACKAGE}@${VERSION} was not visible on the registry after publishing"
-          exit 1
+          # 12 attempts with a 5s base and a 45s cap is a ~7.5 minute budget:
+          # wider than the 95s propagation window and the 300s cache TTL.
+          node scripts/wait-for-npm-visibility.mjs "${PACKAGE}" "${VERSION}" 12
+          if [ "${PUBLISH_MODE}" = "oidc" ]; then
+            echo "Publish mode was oidc; an attestation is expected on the version document."
+          else
+            echo "Publish mode was token: a long-lived automation token cannot mint a" >&2
+            echo "Sigstore attestation, so this version carries no provenance." >&2
+          fi
 
       - name: Confirm already-published version is intact
         if: steps.exists.outputs.exists == 'true'
