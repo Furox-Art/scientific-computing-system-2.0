@@ -1,5 +1,61 @@
 ## [Unreleased]
 
+### Documentation
+
+- **The README now explains the whole repository.** It was 747 words for a
+  package with 46 flat modules and 6 subpackages: 46 modules received 78 words
+  between them, all ten CLI commands were not listed (2 of 10 appeared), the
+  `guided-fit` workflow was a bare link, all 20 scripts in `examples/` went
+  unmentioned, the five install extras were undocumented, and the optional C
+  kernels were not mentioned at all. It is now ~1,510 words with a 54-row
+  module table (module, what it does, real entry points), all ten subcommands,
+  a guided-fit section, the extras table, the C-kernel fallback caveat, and links
+  to the twelve docs pages and six repository files that had none.
+  Every entry point named in the table was checked against the module's `__all__`
+  rather than written from memory.
+- **npm section cut from 283 to ~60 words.** It accounted for ~38% of the README
+  for an install path the README itself calls unnecessary. The detail now lives
+  in `docs/npm.md`, which the README links.
+- **Hero figure counts are generated, and the counting logic was wrong.**
+  `scripts/make_promo.py` counted `glob("*.py")`, which silently ignored the six
+  subpackages (`array_api`, `bench`, `estimator`, `gpu`, `nlp`, `prof`) and so
+  under-reported the surface. It now counts flat modules *plus* directories that
+  carry an `__init__.py`, which excludes `src/cds2/src` (C sources, not a
+  package). Sub-facts are derived too: the API-page count comes from `docs/api`,
+  and the test count from `pytest --collect-only`.
+
+### Fixed
+
+- **Stale numbers in the README and hero image, all corrected against the tree:**
+
+  | Claim | Was | Now |
+  |---|---|---|
+  | hero "public functions" | 534 | **535 public exports** - and relabelled, because `__all__` mixes functions, classes, submodules and data, so a "functions" label was structurally wrong |
+  | hero "tests" | 1,724 | **1,805** |
+  | "API reference for all 46 modules" | 46 | **47 pages** (the count `tools/consistency_audit.py` reports) |
+  | "46 importable modules" | 46 | **52 importable names** (46 flat + 6 subpackages) |
+
+  No benchmark-speedup claim was reintroduced; the previous audit had already
+  removed the "10-100x faster" line and it stays gone.
+- **Deprecation notice was technically true but misleading.** The README said
+  `cds2.special` and `cds2.distributions` warn "on import". Because
+  `__init__.py` imports both eagerly, a bare `import cds2` emits **both**
+  warnings whether or not you touch either module - verified. The README now
+  says so.
+- **`python -m cds2` does not work and the README implied otherwise.** There is
+  no `cds2.__main__`; the correct invocations are the `cds2` console script or
+  `python -m cds2.cli`. Now stated explicitly, because `docs/npm.md` tells npm
+  users that the shim runs `python -m cds2.cli` and the difference is easy to
+  trip over.
+- **Benchmark provenance is disclosed instead of glossed.** The README described
+  the results as "roughly at parity on wrapper-only calls". They are in fact from
+  **cds2 3.0.0, commit `6ea5a02`, 2026-08-22**, while the release is 5.2.5, and
+  **4 of the 13 cases are losses**: `dataframe summary` 1.82x, `solve 800x800`
+  1.22x, `solve 8x8 x300` 1.17x, `welch` 1.03x. The README now states the stale
+  commit, names the four losses, notes that the pandas row computes strictly
+  more, and keeps the one clear win (PageRank at 0.15x vs NetworkX) in proportion.
+- **`cds2.nlp` was missing from the README** entirely, despite having an API page.
+
 npm publishing is live for this repository and `5.2.5` is now on the npm
 registry. This reverses an earlier owner decision, and the reversal is recorded
 here deliberately rather than applied silently.
