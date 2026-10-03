@@ -2,7 +2,7 @@
   "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
   "@type": "SoftwareSourceCode",
   "name": "scientific-computing-system-2.0",
-  "version": "5.2.5",
+  "version": "5.2.6",
   "description": "NumPy, SciPy, pandas, and matplotlib build of scientific-computing-system. Not a separate product.",
   "license": "https://spdx.org/licenses/MIT",
   "codeRepository": "https://github.com/Furox-Art/scientific-computing-system-2.0",
@@ -17,7 +17,7 @@
       "name": "Furox-Art"
     }
   ],
-  "datePublished": "2026-09-29",
+  "datePublished": "2026-10-03",
   "keywords": [
     "scientific computing",
     "numpy",

@@ -7,8 +7,8 @@ authors:
 repository-code: "https://github.com/Furox-Art/scientific-computing-system-2.0"
 url: "https://github.com/Furox-Art/scientific-computing-system-2.0"
 license: MIT
-version: "5.2.5"
-date-released: "2026-09-29"
+version: "5.2.6"
+date-released: "2026-10-03"
 keywords:
   - scientific computing
   - numerical methods
