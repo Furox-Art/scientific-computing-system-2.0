@@ -196,7 +196,7 @@ jobs:
         shell: bash
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
       - name: Build compiled wheel
-        uses: pypa/cibuildwheel@cfbec0988a9c12de5a84206e42aa17442af10d44 # v4.2
+        uses: pypa/cibuildwheel@e090b81e30c4d855ea63bf4b6e59204c09a101ae # v4.2
         env:
           CIBW_BUILD: "cp${{ matrix.python }}-*"
       - name: Upload artifacts
