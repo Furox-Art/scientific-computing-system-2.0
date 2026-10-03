@@ -16,7 +16,7 @@
  */
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -177,14 +177,73 @@ check("provenance is not claimed on the token path", () => {
   const block = stepBlock("Verify npm publication");
   assert.match(
     block,
-    /no Sigstore provenance attestation exists on this path/,
+    /carries no provenance/,
     "verification must state that the token path has no attestation",
   );
   assert.match(block, /PUBLISH_MODE/);
-  // attestations may only be reported in the OIDC branch
-  const attestationsIndex = block.indexOf("dist.attestations");
+  // The attestation caveat may only be stated in the OIDC branch.
+  const caveatIndex = block.indexOf("carries no provenance");
   const oidcBranchIndex = block.indexOf('= "oidc"');
-  assert.ok(attestationsIndex > oidcBranchIndex, "attestations must be OIDC-only");
+  assert.ok(oidcBranchIndex >= 0, "the OIDC branch must still exist");
+  assert.ok(caveatIndex > oidcBranchIndex, "the no-provenance caveat must be token-only");
+});
+
+check("post-publish visibility is polled, not checked once", () => {
+  const block = stepBlock("Verify npm publication");
+  // A single-shot check after `npm publish` is a false-failure generator: the
+  // read path is served by a CDN that propagates asynchronously.
+  assert.match(
+    block,
+    /wait-for-npm-visibility\.mjs/,
+    "verification must delegate to the tested visibility poll",
+  );
+  assert.doesNotMatch(
+    block,
+    /attempt \$\{attempt\}\/6/,
+    "the old six-attempt inline loop must be gone",
+  );
+  assert.match(
+    block,
+    /node scripts\/wait-for-npm-visibility\.mjs "\$\{PACKAGE\}" "\$\{VERSION\}" 12/,
+    "the poll must be invoked with an explicit attempt count",
+  );
+});
+
+check("the visibility poll script exists and is covered by npm test", () => {
+  const pollPath = join(repoRoot, "scripts", "wait-for-npm-visibility.mjs");
+  const testPath = join(repoRoot, "scripts", "check-npm-visibility-poll.test.mjs");
+  assert.ok(existsSync(pollPath), "scripts/wait-for-npm-visibility.mjs must exist");
+  assert.ok(existsSync(testPath), "scripts/check-npm-visibility-poll.test.mjs must exist");
+
+  const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
+  assert.match(
+    pkg.scripts.test,
+    /check-npm-visibility-poll\.test\.mjs/,
+    "npm test must run the visibility regression test",
+  );
+});
+
+check("the visibility poll fails closed but warns first", () => {
+  const source = readFileSync(
+    join(repoRoot, "scripts", "wait-for-npm-visibility.mjs"),
+    "utf8",
+  );
+  assert.match(source, /::warning::/, "a budget miss must emit a workflow warning");
+  assert.match(source, /process\.exit\(1\)/, "a budget miss must still exit non-zero");
+  assert.match(source, /process\.exit\(0\)/, "a confirmed publish must exit zero");
+  // The registry is read directly, with caching defeated.
+  assert.match(source, /cache-control.*no-cache/, "the poll must defeat client-side caching");
+  assert.match(source, /cb=/, "the poll must send a cache-busting query parameter");
+  // `npm view` resolves through npm's on-disk HTTP cache and reports 404 and
+  // transport errors with the same exit code, so the poll must not shell out to
+  // it. A human-facing hint may still mention `npm view` in a message, so match
+  // on real invocations rather than the bare string.
+  assert.doesNotMatch(
+    source,
+    /(execFileSync|spawnSync|execSync|spawn)\(\s*["'`]npm["'`]/,
+    "the poll must not shell out to the npm CLI",
+  );
+  assert.doesNotMatch(source, /npm view\s+"?\$\{PACKAGE\}/, "the poll must not read via npm view");
 });
 
 check("existing gates are retained", () => {
