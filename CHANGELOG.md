@@ -2,6 +2,32 @@
 
 ### Fixed
 
+- **Two pinned GitHub Actions pointed at commits that do not exist upstream.**
+  `release.yml` pinned `pypa/cibuildwheel@cfbec09` and
+  `softprops/action-gh-release@5113cdc`; the GitHub API returns
+  `No commit found for SHA` (HTTP 422) for both. GitHub Actions resolves a
+  `uses:` pin before the job body runs, so any workflow reaching either step
+  failed at action resolution. Because both sit in the release path, the breakage
+  was invisible until a release was attempted. Replaced with the commits the
+  upstream tags actually point at: `pypa/cibuildwheel@v4.2` →
+  `e090b81e30c4d855ea63bf4b6e59204c09a101ae` and
+  `softprops/action-gh-release@v3` → `efb35369e0ad2afab669f228072c1b0d510eae64`.
+- `tools/consistency_audit.py` now verifies every `uses:` pin: each must be a full
+  40-character commit SHA, and that SHA must resolve to a real commit in the
+  upstream repository. It also requires any job using a repository-writing action
+  such as `softprops/action-gh-release` to hold `contents: write`, which rules out
+  a release that publishes successfully and then reports failure. A definitive
+  "no such commit" fails the audit; a network or rate-limit problem is reported as
+  a warning so a transient blip cannot fail a healthy build.
+
+### Notes
+
+- All ten distinct action pins across the five workflows were checked. The other
+  eight resolve correctly and match the version named in their trailing comment.
+- The `pypi` publish job keeps least privilege (`contents: read` plus
+  `id-token: write` for trusted publishing); only the `github_release` job holds
+  `contents: write`, which is what creating a tag and release requires.
+
 - **`python -m cds2` now works.** `src/cds2/__main__.py` did not exist, so the
   module invocation always failed with `No module named cds2.__main__`. It is the
   conventional way to run a package and costs three lines, so it is now supported

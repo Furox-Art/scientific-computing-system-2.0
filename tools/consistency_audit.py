@@ -14,8 +14,10 @@ network failure can never block a merge:
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -27,6 +29,25 @@ sys.path.insert(0, str(ROOT / "src"))
 
 issues: list[str] = []
 warnings: list[str] = []
+
+
+def _iter_jobs(workflow_text: str):
+    """Yield (job_name, job_body) for each top-level job in a workflow.
+
+    Deliberately indentation-based rather than YAML-based: the caller only needs
+    the job's own text, and this keeps the audit importable without PyYAML, which
+    is not a declared dependency of the repository.
+    """
+    lines = workflow_text.splitlines()
+    starts = [
+        (index, line.split(":", 1)[0].strip())
+        for index, line in enumerate(lines)
+        if line.startswith("  ") and not line.startswith("   ") and line.rstrip().endswith(":")
+    ]
+    for position, (index, name) in enumerate(starts):
+        end = starts[position + 1][0] if position + 1 < len(starts) else len(lines)
+        yield name, "\n".join(lines[index:end])
+
 
 # 1. Every source module wired into __init__
 #
@@ -131,10 +152,103 @@ try:
 except (urllib.error.URLError, OSError) as exc:
     warnings.append(f"could not reach the deployed docs site ({type(exc).__name__}: {exc})")
 
+# 8. GitHub Action pins.
+#
+# Every `uses:` must be a full 40-character commit SHA, and that SHA must
+# actually exist upstream. This is not theoretical: release.yml shipped pins for
+# `pypa/cibuildwheel` and `softprops/action-gh-release` that no upstream commit
+# matched. GitHub Actions resolves those at job start, so every run that reached
+# the step failed before the job body executed -- and because the only affected
+# steps are in the release path, the breakage was invisible until a release was
+# attempted.
+#
+# The upstream existence check is fatal only when GitHub definitively reports the
+# commit as missing. Transport errors and rate limiting produce a warning, so a
+# network blip cannot fail a build that is actually fine.
+WORKFLOW_DIR = ROOT / ".github" / "workflows"
+USES_RE = re.compile(r"uses:\s*([A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)@([^\s#]+)")
+SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+# Actions that mutate the repository through the REST/git API and therefore
+# require `contents: write` on the calling job. A release job granted only
+# `contents: read` publishes successfully and then fails, which is a confusing
+# failure mode worth ruling out structurally.
+REPO_WRITER_ACTIONS = ("softprops/action-gh-release",)
+
+action_pins: dict[tuple[str, str], set[str]] = {}
+unpinned: list[str] = []
+for path in sorted(WORKFLOW_DIR.glob("*.yml")):
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        match = USES_RE.search(line)
+        if not match:
+            continue
+        action, ref = match.groups()
+        if not SHA_RE.match(ref):
+            unpinned.append(f"{path.name}:{lineno} {action}@{ref} is not a full commit SHA")
+            continue
+        action_pins.setdefault((action, ref), set()).add(path.name)
+
+for entry in unpinned:
+    issues.append(f"action is not pinned to a full commit SHA -> {entry}")
+
+
+def _action_commit_exists(action: str, sha: str) -> bool | None:
+    """True/False if GitHub answered, None if the check could not be made."""
+    url = f"https://api.github.com/repos/{action}/commits/{sha}"
+    headers = {"User-Agent": "cds2-consistency-audit", "Accept": "application/vnd.github+json"}
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            request = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310
+                return 200 <= response.status < 300
+        except urllib.error.HTTPError as exc:
+            if exc.code in (403, 429):
+                # Rate limited or forbidden: we do not know the answer.
+                last_error = exc
+                time.sleep(2**attempt)
+                continue
+            # 404 / 422 are GitHub stating the commit does not exist.
+            return False
+        except (urllib.error.URLError, OSError) as exc:
+            last_error = exc
+            time.sleep(2**attempt)
+    warnings.append(f"could not verify {action}@{sha[:12]} ({type(last_error).__name__})")
+    return None
+
+
+verified_actions = 0
+for (action, sha), files in sorted(action_pins.items()):
+    exists = _action_commit_exists(action, sha)
+    if exists is None:
+        continue
+    verified_actions += 1
+    if not exists:
+        issues.append(
+            f"action pin does not exist upstream: {action}@{sha} "
+            f"(used in {', '.join(sorted(files))})"
+        )
+
+# Release-writing actions must sit in a job with contents: write.
+for path in sorted(WORKFLOW_DIR.glob("*.yml")):
+    text = path.read_text(encoding="utf-8")
+    for action in REPO_WRITER_ACTIONS:
+        if f"{action}@" not in text:
+            continue
+        for job_name, body in _iter_jobs(text):
+            if f"{action}@" in body and "contents: write" not in body:
+                issues.append(
+                    f"{path.name}: job '{job_name}' uses {action} but does not grant "
+                    "contents: write"
+                )
+
 print(f"source modules : {len(src_modules)}")
 print(f"public exports : {len(cds2.__all__)}")
 print(f"versions       : {versions}")
 print(f"api pages      : {len(set(api_refs))}")
+print(f"action pins    : {len(action_pins)} checked, {verified_actions} verified upstream")
 
 for warning in warnings:
     print(f" - WARNING: {warning}")
