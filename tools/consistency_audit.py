@@ -29,8 +29,15 @@ issues: list[str] = []
 warnings: list[str] = []
 
 # 1. Every source module wired into __init__
+#
+# `__init__`, `_version` and `__main__` are excluded from the public module
+# inventory. `__main__` is the `python -m cds2` shim, not an API surface: it has
+# no public functions to document, and importing it from `__init__` would execute
+# the CLI (it raises SystemExit) on a bare `import cds2`. Requiring it to be
+# bound in `__init__` would be actively harmful.
+_NON_API_MODULES = {"__init__", "_version", "__main__"}
 src_modules = sorted(
-    p.stem for p in (ROOT / "src" / "cds2").glob("*.py") if p.stem not in {"__init__", "_version"}
+    p.stem for p in (ROOT / "src" / "cds2").glob("*.py") if p.stem not in _NON_API_MODULES
 )
 init_text = (ROOT / "src" / "cds2" / "__init__.py").read_text(encoding="utf-8")
 block = init_text[

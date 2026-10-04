@@ -1,8 +1,71 @@
 """Tests for the cds2 command-line interface."""
 
+import runpy
+import subprocess
+import sys
+
 import pytest
 
 from cds2.cli import build_parser, main
+
+
+class TestModuleEntryPoint:
+    """`python -m cds2` must run the CLI.
+
+    Regression cover for a real defect: `cds2/__main__.py` did not exist, so
+    `python -m cds2` always exited 1 with "No module named cds2.__main__", and
+    the CLI fuzz harness passed on that failure because it only asserted
+    `returncode in (0, 1, 2)`.
+    """
+
+    def test_main_module_runs_cli_in_process(
+        self, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Executed in-process so `src/cds2/__main__.py` is measured by coverage;
+        # a subprocess would run it in a separate interpreter.
+        monkeypatch.setattr(sys, "argv", ["cds2", "info"])
+        with pytest.raises(SystemExit) as excinfo:
+            runpy.run_module("cds2", run_name="__main__")
+        assert excinfo.value.code == 0
+        assert "cds2" in capsys.readouterr().out
+
+    def test_python_dash_m_info_exits_zero(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-m", "cds2", "info"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "scientific-computing-system-2.0" in result.stdout
+
+    def test_python_dash_m_propagates_handler_failure(self) -> None:
+        # `_parse_numbers` raises SystemExit with a message for unparsable input,
+        # which the interpreter turns into exit status 1. The module wrapper must
+        # forward the handler's status rather than swallowing it.
+        result = subprocess.run(
+            [sys.executable, "-m", "cds2", "stats", "not-a-number"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 1, (result.returncode, result.stderr)
+        assert "could not parse numbers" in result.stderr
+        assert "Traceback (most recent call last)" not in result.stderr
+
+    def test_python_dash_m_help_exits_zero(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "-m", "cds2", "--help"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "usage: cds2" in result.stdout
+        # `python -m cds2.cli` would emit a runpy double-import warning here,
+        # because `cds2/__init__.py` imports `cli` eagerly. The module entry
+        # point must not.
+        assert "found in sys.modules" not in result.stderr, result.stderr
 
 
 class TestInfo:

@@ -89,8 +89,13 @@ cds2 guided-fit data.csv --x time --y response
 cds2 guided-fit-rerun guided-fit-results/guided_fit_manifest.json
 ```
 
-`python -m cds2` does **not** work — there is no `cds2.__main__`. Use the `cds2`
-console script, or `python -m cds2.cli`.
+`python -m cds2` works and is equivalent to the `cds2` console script, so either
+invocation is fine:
+
+```bash
+cds2 info
+python -m cds2 info
+```
 
 ## Modules
 
