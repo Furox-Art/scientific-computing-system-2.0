@@ -2,6 +2,68 @@
 
 ### Fixed
 
+- **Documentation claimed a provenance guarantee the project does not have.**
+  PR #37 added `docs/npm.md` and a SECURITY.md supply-chain section on the
+  assumption that the PyPI side carried a PEP 740 attestation while npm did not.
+  **Measurement shows neither registry serves one.** Verified live:
+
+  | Endpoint | Result |
+  |---|---|
+  | `pypi.org/integrity/scientific-computing-system-2.0/5.2.6/` | **404** |
+  | `pypi.org/integrity/scientific-computing-system-2.0/` (project-wide) | **404** |
+  | `pypi.org/integrity/scientific-computing-system-2.0/5.2.5/` | **404** |
+  | `registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@5.2.6` | **404** |
+  | `registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@5.2.5` | **404** |
+
+  The old wording discussed only npm's missing attestation, which implied the
+  PyPI side was attested. Every such statement is corrected, and the three things
+  that were being conflated are now separated explicitly:
+
+  - a **digest** (`sha256`/`blake2b_256` on PyPI, `dist.integrity` `sha512` on
+    npm) detects tampering with the bytes but proves nothing about origin;
+  - npm's **`dist.signatures`** are registry transport signatures proving the
+    tarball came from npm, *not* build provenance;
+  - a **PEP 740 / Sigstore attestation** is the missing piece, and is absent on
+    both channels.
+
+  New page `docs/supply-chain.md` carries the verified table, the distinction,
+  the digest values a consumer can pin, the build properties this repository
+  actually does guarantee, and the fix path. `SECURITY.md`, `docs/npm.md` and
+  `README.md` link to it and no longer imply provenance on either channel.
+- **`docs/release.md` claimed "no API tokens are stored in the repository".**
+  False as written: `release.yml` keeps a `PYPI_API_TOKEN` fallback for when
+  trusted publishing fails. The page now says trusted publishing is the intended
+  credential *and* that a token fallback exists, which is also the reason no
+  attestation is produced. The one-time publisher setup is now marked as
+  required for provenance, with a verification step.
+- **`python -m cds2` documentation made consistent.** `src/cds2/__main__.py` now
+  exists (5.2.6), so `python -m cds2 info` and `python -m cds2 --help` both exit
+  0 - verified. `docs/npm.md` stated the shim target without mentioning the
+  equivalent module invocation; it now notes all three forms work.
+
+### Added
+
+- **`tools/check_provenance_claims.py`**, a guard against unverified
+  provenance claims in both directions: it rejects affirmative "attested" /
+  "signed provenance" wording that no live check backs, and it re-probes the
+  attestation endpoints so a correct-today "no attestation" statement is itself
+  flagged as stale once a trusted publisher is registered. Unreachable endpoints
+  are reported as notes, never as failures, so an offline run cannot raise a
+  false alarm. Negative-controlled in both directions: injecting
+  "is attested and carries signed provenance" fails the text scan, and pointing
+  an endpoint at a URL that returns 200 fails the staleness check.
+
+  Not wired into CI in this change: that needs a step added to an existing
+  workflow, which is outside this change's file ownership. Wire it as
+  `python tools/check_provenance_claims.py`.
+
+### Not changed
+
+- No version bump, no tag, no release, no publish. `5.2.6` remains the live
+  version and was not touched.
+
+### Fixed
+
 - **Two pinned GitHub Actions pointed at commits that do not exist upstream.**
   `release.yml` pinned `pypa/cibuildwheel@cfbec09` and
   `softprops/action-gh-release@5113cdc`; the GitHub API returns

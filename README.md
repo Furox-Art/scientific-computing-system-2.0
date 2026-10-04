@@ -38,8 +38,15 @@ operations.
 
 **npm (optional).** A same-named npm package is a **thin Node launcher shim** —
 five files, ~8 KB, no Python — that calls `python -m cds2.cli`. You still need
-the PyPI install, so most people can skip it. Provenance caveats and the stale
-`2.0.0` on npm: [docs/npm.md](https://furox-art.github.io/scientific-computing-system-2.0/npm/).
+the PyPI install, so most people can skip it: [docs/npm.md](https://furox-art.github.io/scientific-computing-system-2.0/npm/).
+
+**Supply chain: no signed provenance.** No published release carries a
+provenance attestation, on **either** registry: `pypi.org/integrity/...` returns
+`404` and the npm attestation endpoint returns `404`, verified for the current
+`5.2.6` and for `5.2.5`. Pin digests instead. What the project does guarantee
+(reproducible wheel, an sdist that really ships the native kernels, version
+lockstep, cross-platform smoke) and what a consumer can check:
+[Supply chain](https://furox-art.github.io/scientific-computing-system-2.0/supply-chain/).
 
 ## Quick start
 

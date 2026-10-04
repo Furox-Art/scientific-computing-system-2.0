@@ -1,11 +1,21 @@
 # Release process
 
 Releases are fully automated from git tags. The `Release` workflow tests,
-builds distributions for every supported platform and publishes to PyPI via
-[Trusted Publishing](https://docs.pypi.org/trusted-publishers/) - no API
-tokens are stored in the repository.
+builds distributions for every supported platform and publishes to PyPI.
 
-## One-time PyPI setup (per distribution name)
+**Trusted Publishing is the intended credential, but it is not the only path and
+it is not currently proven in place.** The publish job requests `id-token: write`
+and runs `pypa/gh-action-pypi-publish` (trusted publishing) first, but it also
+retains a `PYPI_API_TOKEN` fallback for when trusted publishing fails. A token
+upload cannot mint a PEP 740 attestation, which is why
+`pypi.org/integrity/<project>/<version>/` currently returns `404` for every
+published release. Until the publisher below is registered and the
+trusted-publishing path is the one that actually succeeds, no release carries
+provenance. See [Supply chain and provenance](supply-chain.md).
+
+## One-time PyPI setup (per distribution name) - required for provenance
+
+Without this, uploads fall back to a token and carry no attestation.
 
 1. Sign in at [pypi.org](https://pypi.org) and open
    **Account management -> Publishing**.
@@ -16,6 +26,13 @@ tokens are stored in the repository.
    - Environment: `pypi`
 3. Create the matching **`pypi` environment** in the GitHub repository
    settings if it does not exist yet.
+4. Confirm afterwards that `pypi.org/integrity/scientific-computing-system-2.0/`
+   stops returning `404`.
+
+The equivalent npmjs.com trusted publisher (Owner `Furox-Art`, Repository
+`scientific-computing-system-2.0`, Workflow filename `npm-publish.yml`,
+Environment `npm`) is required for npm provenance; see
+[npm launcher shim](npm.md).
 
 ## Cutting a release
 
@@ -48,7 +65,9 @@ python -m twine check dist/*
 python -m twine upload dist/*
 ```
 
-Never commit tokens; pass them through the environment only.
+Never commit tokens; pass them through the environment only. Be aware that a
+token upload, like the workflow's own token fallback, produces **no provenance
+attestation** - so a release cut this way carries digests only.
 
 ## Notes
 

@@ -28,6 +28,7 @@ nav:
   - Getting started: getting-started.md
   - Modules overview: modules.md
   - Deprecated modules: deprecated.md
+  - Supply chain and provenance: supply-chain.md
   - npm launcher shim: npm.md
   - Examples: examples.md
   - Recipes: recipes.md
