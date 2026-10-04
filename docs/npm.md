@@ -6,7 +6,7 @@ is an optional Node launcher, not a second distribution of the code.
 
 ## What is actually in the npm tarball
 
-The published `5.2.5` tarball is about 8 KB unpacked and contains five files:
+The published `5.2.6` tarball is about 8 KB unpacked and contains five files:
 
 | File | Role |
 |---|---|
@@ -28,20 +28,28 @@ scs2 stats 1,2,3,4,5                           # from the PyPI install
 
 If you only want the command-line tool, stop after the `pip install`: it already
 provides a `cds2` console script, which is the same entry point the shim calls.
+`python -m cds2` also works and is equivalent, since `src/cds2/__main__.py`
+exists.
 
 ## Supply chain
 
-- **No provenance attestation on `5.2.5`.** The npm attestation endpoint for
-  this version returns `404`, and the published version document has no
-  `attestations` field. It was published with a long-lived automation token,
-  which cannot mint a Sigstore attestation, so `--provenance` was deliberately
-  not passed. Do not treat it as an attested build.
-- **What the `dist.signatures` field is.** npm attaches its own ECDSA registry
-  signatures to every published tarball. They prove the tarball came from npm;
-  they are *not* Sigstore build provenance and are not evidence about how the
-  release was built.
-- **Pin by integrity.** `npm view scientific-computing-system-2.0@5.2.5 dist.integrity`
-  returns the published `sha512` hash.
+**There is no signed build provenance for any published npm version.** The
+attestation endpoint for `5.2.6` returns `404`, and the published version
+document has no `attestations` field — the same is true of `5.2.5`. Do not
+treat any npm version of this package as an attested build.
+
+- **Why.** `npm-publish.yml` has an opt-in long-lived-token mode which
+  deliberately omits `--provenance`, because a classic automation token cannot
+  mint a Sigstore attestation. The token path is what produced these versions.
+  See [Supply chain and provenance](supply-chain.md) for the full picture,
+  including PyPI, which likewise has no attestation today.
+- **What `dist.signatures` is, and is not.** npm attaches its own ECDSA registry
+  signatures to every tarball. They prove the tarball came from npm; they are
+  **not** Sigstore build provenance and are not evidence about which source
+  commit or runner produced it.
+- **What you can check.** Pin `dist.integrity` (a `sha512`):
+  `npm view scientific-computing-system-2.0@5.2.6 dist.integrity`. That is a
+  digest, so it detects tampering with the bytes but proves nothing about origin.
 - **A stale `2.0.0` is still on the registry.** It shipped a broken entry point
   (a JavaScript syntax error, and it targeted an `scs2.cli` module that does not
   exist - the import root is `cds2`). npm versions are immutable, so it cannot be
