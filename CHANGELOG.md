@@ -1,3 +1,34 @@
+## [Unreleased]
+
+### Fixed
+
+- **`python -m cds2` now works.** `src/cds2/__main__.py` did not exist, so the
+  module invocation always failed with `No module named cds2.__main__`. It is the
+  conventional way to run a package and costs three lines, so it is now supported
+  rather than documented as a papercut. `python -m cds2 info` and
+  `python -m cds2 --help` both exit 0. As a side benefit the module entry point
+  does not emit the `runpy` double-import RuntimeWarning that `python -m cds2.cli`
+  triggers on every call, because `cds2/__init__.py` imports `cli` eagerly.
+- **The CLI fuzz harness now actually exercises the CLI.** It spawned
+  `python -m cds2` while no `__main__` module existed, so every invocation exited
+  1 without running anything, and the assertion `returncode in (0, 1, 2)` was
+  satisfied by that failure. Exit status alone cannot carry the property the
+  harness claims to test, because Python exits `1` both for a handled validation
+  error and for an uncaught exception. The assertion now also requires a
+  non-negative return code (no fatal signal), no traceback on stderr, and no
+  missing-module error, and a dedicated canary asserts that `python -m cds2 info`
+  exits 0 and prints the distribution banner.
+
+### Changed
+
+- The CLI fuzz subprocess timeout is 30 s. A cold `import cds2` was measured at a
+  median of 2.1 s with a worst observed cost of 7.7 s, which is what made the
+  previous 5.0 s timeout fail the macOS / Python 3.10 leg. 30 s is roughly 4x the
+  worst legitimate cost and still bounds a genuine hang: a control that sleeps for
+  60 s is caught at exactly 30 s.
+- The README no longer states that `python -m cds2` does not work; it documents
+  the equivalence with the `cds2` console script.
+
 ## [v5.2.6] - 2026-10-03
 
 Patch release whose main purpose is to let the PyPI project page pick up the
