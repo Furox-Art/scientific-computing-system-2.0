@@ -56,8 +56,8 @@ Executed against `scientific-computing-system-2.0==5.2.5`:
 import cds2
 
 print(cds2.linalg.solve([[3.0, 1.0], [1.0, 2.0]], [9.0, 8.0]))  # [2. 3.]
-print(cds2.montecarlo.pi_estimate(n=100_000, seed=42))           # 3.13776
-print(cds2.infotheory.entropy([0.25, 0.25, 0.25, 0.25]))          # 2.0
+print(cds2.montecarlo.pi_estimate(n=100_000, seed=42))  # 3.13776
+print(cds2.infotheory.entropy([0.25, 0.25, 0.25, 0.25]))  # 2.0
 print(cds2.graph.pagerank(cds2.graph.from_edges(4, [(0, 1), (0, 2), (1, 3), (2, 3)])))
 # [0.1375043  0.19594362 0.19594362 0.47060846]
 ```
