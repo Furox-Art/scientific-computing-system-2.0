@@ -15,7 +15,7 @@ repos:
   # UP038 (since retired) and rewrote 69 files that CI was perfectly happy
   # with, which is worse than having no hook at all.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.0
+    rev: v0.16.9
     hooks:
       - id: ruff
         # --exit-non-zero-on-fix so an auto-fix is never silently committed.
