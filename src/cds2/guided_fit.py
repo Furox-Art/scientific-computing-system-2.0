@@ -914,6 +914,23 @@ def rerun_manifest(
     )
 
     details: list[str] = []
+    saved_versions = cast(dict[str, str], cfg.get("package_versions", {}))
+    for package, current_version in rerun.package_versions.items():
+        saved_version = saved_versions.get(package)
+        if saved_version is None:
+            details.append(
+                f"runtime version was not recorded previously: {package}={current_version}"
+            )
+        elif saved_version != current_version:
+            details.append(
+                f"runtime version changed: {package} {saved_version} -> {current_version}"
+            )
+    for package, saved_version in saved_versions.items():
+        if package not in rerun.package_versions:
+            details.append(
+                f"runtime package no longer reported: {package} (saved {saved_version})"
+            )
+
     previous_hashes = cast(
         dict[str, str],
         cfg.get("rerun_data_hashes", cfg["data_hashes"]),
