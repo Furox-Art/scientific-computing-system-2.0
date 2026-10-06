@@ -11,14 +11,18 @@ permissions:
 
 jobs:
   probe:
-    name: probe SciPy ${{ matrix.scipy }}
+    name: probe ${{ matrix.label }} (NumPy ${{ matrix.numpy }}, SciPy ${{ matrix.scipy }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        scipy:
-          - "1.11.4"
-          - "1.18.1"
+        include:
+          - label: baseline
+            numpy: "1.26.4"
+            scipy: "1.11.4"
+          - label: upgraded
+            numpy: "2.3.5"
+            scipy: "1.18.1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
@@ -27,7 +31,7 @@ jobs:
       - name: Install pinned numerical environment
         run: |
           python -m pip install \
-            "numpy==1.26.4" \
+            "numpy==${{ matrix.numpy }}" \
             "scipy==${{ matrix.scipy }}" \
             "pandas==2.2.3" \
             "matplotlib==3.10.8"
@@ -35,10 +39,10 @@ jobs:
       - name: Run deterministic drift probe
         run: |
           python scripts/probe_guided_fit_dependency_drift.py \
-            --output "guided-fit-drift-scipy-${{ matrix.scipy }}.json"
+            --output "guided-fit-drift-${{ matrix.label }}.json"
       - name: Upload probe result
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: guided-fit-drift-scipy-${{ matrix.scipy }}
-          path: guided-fit-drift-scipy-${{ matrix.scipy }}.json
+          name: guided-fit-drift-${{ matrix.label }}
+          path: guided-fit-drift-${{ matrix.label }}.json
           if-no-files-found: error
