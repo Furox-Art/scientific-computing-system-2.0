@@ -27,6 +27,8 @@ detail    confidence intervals changed materially for experiment: relative=<...>
 
 The placeholders above are documentation only; an actual rerun prints the measured versions and interval values from that run. Version drift is surfaced even when the fit still agrees numerically, while confidence-interval drift is checked independently from RMSE and parameter drift.
 
+**Real archived replay (2026-10-06).** A saved fit from Python 3.12.14 / NumPy 1.26.4 / SciPy 1.11.4 was replayed with the same input hash and seed under Python 3.12.14 / NumPy 2.3.5 / SciPy 1.18.1. The real rerun emitted both exact version-change warnings. The largest 95% CI-bound shift was `1.1747583669e-4`, relative CI drift was **0.003364917%**, and the reliability label stayed `reliable -> reliable`; therefore the environment changed but the numerical result did **not** cross the 5% material-drift threshold. See the [case study](docs/case-studies.md#guided-fit-numerical-stack-upgrade-replay--2026-10-06) and the [archived result JSON](benchmarks/history/guided_fit_stack_upgrade_20261006.json).
+
 ## Installation
 
 Python 3.10+. [PyPI is the install path](https://pypi.org/project/scientific-computing-system-2.0/):

@@ -1,0 +1,70 @@
+name: guided-fit dependency drift case
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    name: baseline (NumPy 1.26.4, SciPy 1.11.4)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Install baseline numerical stack
+        run: |
+          python -m pip install \
+            "numpy==1.26.4" \
+            "scipy==1.11.4" \
+            "pandas==2.2.3" \
+            "matplotlib==3.10.8"
+          python -m pip install -e . --no-deps
+      - name: Create baseline manifest
+        run: |
+          python scripts/reproduce_guided_fit_dependency_drift.py \
+            baseline --output-dir case
+      - name: Upload baseline
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: guided-fit-drift-baseline
+          path: case
+          if-no-files-found: error
+
+  upgraded-rerun:
+    name: rerun (NumPy 2.3.5, SciPy 1.18.1)
+    needs: baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+      - name: Install upgraded numerical stack
+        run: |
+          python -m pip install \
+            "numpy==2.3.5" \
+            "scipy==1.18.1" \
+            "pandas==2.2.3" \
+            "matplotlib==3.10.8"
+          python -m pip install -e . --no-deps
+      - name: Download baseline manifest
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: guided-fit-drift-baseline
+          path: case
+      - name: Rerun saved analysis
+        run: |
+          python scripts/reproduce_guided_fit_dependency_drift.py \
+            rerun \
+            --manifest case/guided_fit_manifest.json \
+            --output case/upgraded-rerun.json
+      - name: Upload rerun
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: guided-fit-drift-upgraded-rerun
+          path: case
+          if-no-files-found: error

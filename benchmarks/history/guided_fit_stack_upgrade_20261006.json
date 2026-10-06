@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "case_id": "guided-fit-stack-upgrade-2026-10-06",
+  "provenance": {
+    "workflow_run_id": 37465811285,
+    "probe_commit": "0a17182587cd6cf5e118853923862fb45b1372ac",
+    "baseline_artifact": {
+      "artifact_id": 11414144509,
+      "sha256": "cfd5daef9d46d60c0dfbeccc8706fe879cde88555aa4fb3302b46548c8d174c5"
+    },
+    "upgraded_rerun_artifact": {
+      "artifact_id": 11414014964,
+      "sha256": "de5feb48faa134a7852595dde5c373d58499514840c07b48bf8aff6120d66091"
+    }
+  },
+  "invariants": {
+    "case": "exponential_weak_offset",
+    "model": "exponential",
+    "seed": 20261006,
+    "input_sha256": "ad0ed8c6ea4dce837528607c52c323c918594409d741a078170dcab05ebcc478",
+    "python": "3.12.14",
+    "pandas": "2.2.3",
+    "matplotlib": "3.10.8"
+  },
+  "baseline": {
+    "environment": {
+      "matplotlib": "3.10.8",
+      "numpy": "1.26.4",
+      "pandas": "2.2.3",
+      "python": "3.12.14",
+      "scipy": "1.11.4"
+    },
+    "result": {
+      "confidence_95": [
+        [
+          -0.36157717906625564,
+          3.6497280671117727
+        ],
+        [
+          -0.014296132519564811,
+          0.1762363050970558
+        ],
+        [
+          0.35012962013884863,
+          4.36319276235282
+        ]
+      ],
+      "cross_check_error": 1.1966534970838824e-9,
+      "cv_rmse": 0.0003329879947320039,
+      "model": "exponential",
+      "parameter_std": [
+        1.0099963695808758,
+        0.04797367900723475,
+        1.0104389857632503
+      ],
+      "params": [
+        1.6440754440227585,
+        0.0809700862887455,
+        2.356661191245834
+      ],
+      "r_squared": 0.999920691932624,
+      "rmse": 0.000322850056638755,
+      "trust": "reliable"
+    }
+  },
+  "upgraded_rerun": {
+    "environment": {
+      "matplotlib": "3.10.8",
+      "numpy": "2.3.5",
+      "pandas": "2.2.3",
+      "python": "3.12.14",
+      "scipy": "1.18.1"
+    },
+    "stability_warning": true,
+    "stability_details": [
+      "runtime version changed: numpy 1.26.4 -> 2.3.5",
+      "runtime version changed: scipy 1.11.4 -> 1.18.1"
+    ],
+    "result": {
+      "confidence_95": [
+        [
+          -0.3614597090067182,
+          3.6496596670553103
+        ],
+        [
+          -0.014296161430744844,
+          0.17623400317245774
+        ],
+        [
+          0.35019800453570715,
+          4.36307528651613
+        ]
+      ],
+      "cross_check_error": 3.729950705948559e-9,
+      "cv_rmse": 0.00033298832259521073,
+      "model": "exponential",
+      "parameter_std": [
+        1.0099495697619252,
+        0.047973106688385315,
+        1.0103921884325537
+      ],
+      "params": [
+        1.644099979024296,
+        0.08096892087085644,
+        2.356636645525919
+      ],
+      "r_squared": 0.9999206919326139,
+      "rmse": 0.0003228500566592569,
+      "trust": "reliable"
+    }
+  },
+  "comparison": {
+    "max_abs_ci_bound_shift": 0.00011747583668952899,
+    "relative_ci_l2": 0.000033649170087506446,
+    "relative_ci_percent": 0.0033649170087506446,
+    "parameter_l2_shift": 0.000034724873872523174,
+    "rmse_relative_change": 6.350280320340965e-11,
+    "cv_rmse_relative_change": 9.846096917599376e-7,
+    "material_ci_threshold": 0.05,
+    "material_ci_drift": false,
+    "trust_changed": false
+  },
+  "interpretation": "The numerical stack changed and the rerun correctly surfaced environment drift. The fitted result remained numerically stable under this upgrade: confidence-interval drift stayed far below the 5% materiality threshold and the reliability label remained unchanged."
+}
