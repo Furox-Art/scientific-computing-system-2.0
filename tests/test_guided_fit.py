@@ -206,6 +206,25 @@ def test_plot_manifest_reports_and_rerun(tmp_path) -> None:  # type: ignore[no-u
     assert rerun.stability_warning is False
     assert rerun.stability_details == ()
 
+    payload["result"]["package_versions"]["numpy"] = "0.0.0-saved"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    version_drift = gf.rerun_manifest(manifest)
+    assert version_drift.stability_warning is True
+    assert any(
+        "runtime version changed: numpy" in detail
+        for detail in version_drift.stability_details
+    )
+
+    payload["result"]["package_versions"] = result.package_versions
+    payload["result"]["datasets"][0]["confidence_95"] = [[0.0, 0.0], [0.0, 0.0]]
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    ci_drift = gf.rerun_manifest(manifest)
+    assert ci_drift.stability_warning is True
+    assert any(
+        "confidence intervals changed materially" in detail
+        for detail in ci_drift.stability_details
+    )
+
     for report_format, suffix in [("markdown", ".md"), ("html", ".html"), ("pdf", ".pdf")]:
         report = gf.write_report(result, tmp_path, report_format)
         assert report.suffix == suffix
