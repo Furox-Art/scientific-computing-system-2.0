@@ -26,7 +26,6 @@
 - Full repository CI remained green after the reproducibility changes, including
   the 100% coverage gate and the cross-platform Python test matrix.
 
-
 ### Fixed
 
 - **Documentation claimed a provenance guarantee the project does not have.**
