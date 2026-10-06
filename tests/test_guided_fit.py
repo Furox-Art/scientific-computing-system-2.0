@@ -247,9 +247,15 @@ def test_plot_manifest_reports_and_rerun(tmp_path) -> None:  # type: ignore[no-u
     manifest.write_text(json.dumps(payload), encoding="utf-8")
     ci_drift = gf.rerun_manifest(manifest)
     assert ci_drift.stability_warning is True
-    assert any(
-        "confidence intervals changed materially" in detail for detail in ci_drift.stability_details
+    ci_detail = next(
+        detail
+        for detail in ci_drift.stability_details
+        if "confidence intervals changed materially" in detail
     )
+    assert "relative=" in ci_detail
+    assert "max_bound_shift=" in ci_detail
+    assert "saved=" in ci_detail
+    assert "rerun=" in ci_detail
 
     for report_format, suffix in [("markdown", ".md"), ("html", ".html"), ("pdf", ".pdf")]:
         report = gf.write_report(result, tmp_path, report_format)

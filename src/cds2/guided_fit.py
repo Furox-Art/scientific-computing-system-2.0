@@ -964,11 +964,28 @@ def rerun_manifest(
         if old_ci.shape != dataset_result.confidence_95.shape:
             details.append(f"confidence interval shape changed for {key}")
         else:
+            new_ci = dataset_result.confidence_95
+            ci_delta = new_ci - old_ci
             ci_scale = max(float(np.linalg.norm(old_ci)), 1e-12)
-            ci_change = float(np.linalg.norm(dataset_result.confidence_95 - old_ci)) / ci_scale
+            ci_change = float(np.linalg.norm(ci_delta)) / ci_scale
             if ci_change > 0.05:
+                max_bound_shift = float(np.max(np.abs(ci_delta)))
+                saved_text = np.array2string(
+                    old_ci,
+                    precision=8,
+                    separator=", ",
+                    suppress_small=False,
+                )
+                rerun_text = np.array2string(
+                    new_ci,
+                    precision=8,
+                    separator=", ",
+                    suppress_small=False,
+                )
                 details.append(
-                    f"confidence intervals changed materially for {key}: {ci_change:.1%}"
+                    f"confidence intervals changed materially for {key}: "
+                    f"relative={ci_change:.1%}; max_bound_shift={max_bound_shift:.8g}; "
+                    f"saved={saved_text}; rerun={rerun_text}"
                 )
 
         old_params = np.asarray(cast(list[float], previous["params"]), dtype=np.float64)

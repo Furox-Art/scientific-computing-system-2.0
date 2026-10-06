@@ -13,6 +13,20 @@ This is the **NumPy build** of [scientific-computing-system](https://github.com/
 
 **52 importable names, 535 public exports, 1,805 tests, 100% branch coverage, MIT.** Every count here is generated from the tree by `scripts/make_promo.py` and CI, not typed by hand.
 
+## Reproducibility drift is a result, not hidden state
+
+`guided-fit` saves the random seed, input hashes and exact Python/NumPy/SciPy/pandas/Matplotlib versions in its manifest. A later `guided-fit-rerun` compares the saved analysis with the new one instead of silently treating the rerun as equivalent.
+
+When something moves, the warning is concrete. The CLI reports the exact saved and current dependency versions, and confidence-interval drift includes the relative change, the largest bound shift, and the saved and rerun interval bounds:
+
+```text
+warning   rerun differs materially from the saved analysis
+detail    runtime version changed: scipy <saved-version> -> <current-version>
+detail    confidence intervals changed materially for experiment: relative=<...>; max_bound_shift=<...>; saved=[[...]]; rerun=[[...]]
+```
+
+The placeholders above are documentation only; an actual rerun prints the measured versions and interval values from that run. Version drift is surfaced even when the fit still agrees numerically, while confidence-interval drift is checked independently from RMSE and parameter drift.
+
 ## Installation
 
 Python 3.10+. [PyPI is the install path](https://pypi.org/project/scientific-computing-system-2.0/):
