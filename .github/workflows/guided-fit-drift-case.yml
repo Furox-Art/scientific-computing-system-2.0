@@ -1,9 +1,6 @@
 name: guided-fit dependency drift case
 
 on:
-  push:
-    branches:
-      - feat/guided-fit-real-drift-case
   workflow_dispatch:
 
 permissions:
