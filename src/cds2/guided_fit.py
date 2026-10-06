@@ -958,6 +958,23 @@ def rerun_manifest(
         key = saved_keys[index] if index < len(saved_keys) else runtime_keys[index]
         old_rmse = float(cast(float, previous["rmse"]))
         rmse_change = abs(dataset_result.rmse - old_rmse) / max(abs(old_rmse), 1e-12)
+
+        old_ci = np.asarray(
+            cast(list[list[float]], previous["confidence_95"]),
+            dtype=np.float64,
+        )
+        if old_ci.shape != dataset_result.confidence_95.shape:
+            details.append(f"confidence interval shape changed for {key}")
+        else:
+            ci_scale = max(float(np.linalg.norm(old_ci)), 1e-12)
+            ci_change = (
+                float(np.linalg.norm(dataset_result.confidence_95 - old_ci)) / ci_scale
+            )
+            if ci_change > 0.05:
+                details.append(
+                    f"confidence intervals changed materially for {key}: {ci_change:.1%}"
+                )
+
         old_params = np.asarray(cast(list[float], previous["params"]), dtype=np.float64)
         if old_params.shape != dataset_result.params.shape:
             details.append(f"parameter shape changed for {key}")
