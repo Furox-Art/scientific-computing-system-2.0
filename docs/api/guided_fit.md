@@ -17,7 +17,7 @@ The workflow:
 11. labels the overall result `reliable`, `caution` or `unreliable`;
 12. recommends a different model when the selected fit is weak;
 13. recommends dataset-specific models when a single common model is materially weaker;
-14. compares manifest reruns with the saved analysis and warns when inputs, fit parameters, RMSE or the reliability label change materially.
+14. compares manifest reruns with the saved analysis and warns when runtime versions, inputs, confidence intervals, fit parameters, RMSE or the reliability label change materially.
 
 ## CLI
 
@@ -57,6 +57,18 @@ cds2 guided-fit-rerun results/guided_fit_manifest.json
 ```
 
 The manifest stores the selected model, policies, seed, data hashes, input source metadata and NumPy/SciPy/pandas/Matplotlib/Python versions. Reruns compare those saved results with the new calculation and surface material instability instead of silently replacing the prior result.
+
+### What a drift warning looks like
+
+When the runtime environment or numerical result has moved, the CLI makes that visible instead of silently treating the rerun as equivalent:
+
+```text
+warning   rerun differs materially from the saved analysis
+detail    runtime version changed: scipy <saved-version> -> <current-version>
+detail    confidence intervals changed materially for experiment: <relative-change>
+```
+
+The placeholders above are replaced by the versions and measured relative change from the actual rerun. A version drift is reported even when the numerical fit still happens to agree; confidence-interval drift is checked independently from RMSE and parameter drift.
 
 ## API
 
