@@ -214,7 +214,36 @@ def test_plot_manifest_reports_and_rerun(tmp_path) -> None:  # type: ignore[no-u
         "runtime version changed: numpy" in detail for detail in version_drift.stability_details
     )
 
-    payload["result"]["package_versions"] = result.package_versions
+    payload["result"]["package_versions"] = dict(result.package_versions)
+    payload["result"]["package_versions"].pop("numpy")
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    missing_version = gf.rerun_manifest(manifest)
+    assert missing_version.stability_warning is True
+    assert any(
+        "runtime version was not recorded previously: numpy=" in detail
+        for detail in missing_version.stability_details
+    )
+
+    payload["result"]["package_versions"] = dict(result.package_versions)
+    payload["result"]["package_versions"]["legacy-only"] = "1.0"
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    removed_package = gf.rerun_manifest(manifest)
+    assert removed_package.stability_warning is True
+    assert any(
+        "runtime package no longer reported: legacy-only" in detail
+        for detail in removed_package.stability_details
+    )
+
+    payload["result"]["package_versions"] = dict(result.package_versions)
+    payload["result"]["datasets"][0]["confidence_95"] = [[0.0, 0.0]]
+    manifest.write_text(json.dumps(payload), encoding="utf-8")
+    ci_shape_drift = gf.rerun_manifest(manifest)
+    assert ci_shape_drift.stability_warning is True
+    assert any(
+        "confidence interval shape changed" in detail
+        for detail in ci_shape_drift.stability_details
+    )
+
     payload["result"]["datasets"][0]["confidence_95"] = [[0.0, 0.0], [0.0, 0.0]]
     manifest.write_text(json.dumps(payload), encoding="utf-8")
     ci_drift = gf.rerun_manifest(manifest)
