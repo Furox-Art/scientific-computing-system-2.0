@@ -1,5 +1,31 @@
 ## [Unreleased]
 
+## [v5.3.0] - 2026-10-06
+
+### Added
+
+- **Guided-fit dependency drift is now explicit on replay.** Saved manifests are
+  compared against the rerun environment, with exact Python/NumPy/SciPy/pandas/
+  Matplotlib version changes surfaced in `stability_details`.
+- **Confidence-interval drift is independently audited.** Reruns compare saved
+  and current 95% confidence intervals, report relative movement, the maximum
+  absolute bound shift, and the exact saved/rerun interval values when the
+  configured materiality threshold is crossed.
+- **A real numerical-stack upgrade replay is archived.** The repository now
+  contains a reproducible baseline-to-upgraded-stack workflow, executable
+  reproduction script, provenance-rich JSON record and case-study documentation.
+  The archived 2026-10-06 replay moves from NumPy 1.26.4 / SciPy 1.11.4 to
+  NumPy 2.3.5 / SciPy 1.18.1 while preserving the same input hash and seed.
+
+### Validation
+
+- The archived stack-upgrade replay correctly reports both environment changes
+  while preserving the negative/stable numerical result: relative 95% CI drift
+  is 0.003364917%, below the 5% materiality threshold, and the reliability label
+  remains `reliable -> reliable`.
+- Full repository CI remained green after the reproducibility changes, including
+  the 100% coverage gate and the cross-platform Python test matrix.
+
 ### Fixed
 
 - **Documentation claimed a provenance guarantee the project does not have.**
