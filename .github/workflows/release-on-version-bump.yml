@@ -41,4 +41,11 @@ jobs:
       - name: Dispatch npm publish workflow on main
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run npm-publish.yml --ref main --repo "$GITHUB_REPOSITORY"
+        # npmjs trusted publishing is not configured for this package yet.
+        # The repository NPM_TOKEN path is known-good, so automatic version
+        # bumps explicitly select it instead of first failing the OIDC path.
+        run: >-
+          gh workflow run npm-publish.yml
+          --ref main
+          --repo "$GITHUB_REPOSITORY"
+          -f use_token_fallback=true
