@@ -927,9 +927,7 @@ def rerun_manifest(
             )
     for package, saved_version in saved_versions.items():
         if package not in rerun.package_versions:
-            details.append(
-                f"runtime package no longer reported: {package} (saved {saved_version})"
-            )
+            details.append(f"runtime package no longer reported: {package} (saved {saved_version})")
 
     previous_hashes = cast(
         dict[str, str],
@@ -967,9 +965,7 @@ def rerun_manifest(
             details.append(f"confidence interval shape changed for {key}")
         else:
             ci_scale = max(float(np.linalg.norm(old_ci)), 1e-12)
-            ci_change = (
-                float(np.linalg.norm(dataset_result.confidence_95 - old_ci)) / ci_scale
-            )
+            ci_change = float(np.linalg.norm(dataset_result.confidence_95 - old_ci)) / ci_scale
             if ci_change > 0.05:
                 details.append(
                     f"confidence intervals changed materially for {key}: {ci_change:.1%}"
