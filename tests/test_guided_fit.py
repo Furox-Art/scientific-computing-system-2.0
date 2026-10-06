@@ -240,8 +240,7 @@ def test_plot_manifest_reports_and_rerun(tmp_path) -> None:  # type: ignore[no-u
     ci_shape_drift = gf.rerun_manifest(manifest)
     assert ci_shape_drift.stability_warning is True
     assert any(
-        "confidence interval shape changed" in detail
-        for detail in ci_shape_drift.stability_details
+        "confidence interval shape changed" in detail for detail in ci_shape_drift.stability_details
     )
 
     payload["result"]["datasets"][0]["confidence_95"] = [[0.0, 0.0], [0.0, 0.0]]
