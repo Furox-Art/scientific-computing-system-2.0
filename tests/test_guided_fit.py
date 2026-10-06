@@ -211,8 +211,7 @@ def test_plot_manifest_reports_and_rerun(tmp_path) -> None:  # type: ignore[no-u
     version_drift = gf.rerun_manifest(manifest)
     assert version_drift.stability_warning is True
     assert any(
-        "runtime version changed: numpy" in detail
-        for detail in version_drift.stability_details
+        "runtime version changed: numpy" in detail for detail in version_drift.stability_details
     )
 
     payload["result"]["package_versions"] = result.package_versions
@@ -221,8 +220,7 @@ def test_plot_manifest_reports_and_rerun(tmp_path) -> None:  # type: ignore[no-u
     ci_drift = gf.rerun_manifest(manifest)
     assert ci_drift.stability_warning is True
     assert any(
-        "confidence intervals changed materially" in detail
-        for detail in ci_drift.stability_details
+        "confidence intervals changed materially" in detail for detail in ci_drift.stability_details
     )
 
     for report_format, suffix in [("markdown", ".md"), ("html", ".html"), ("pdf", ".pdf")]:
