@@ -23,6 +23,12 @@ import { dirname, join } from "node:path";
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, "..");
 const workflowPath = join(repoRoot, ".github", "workflows", "npm-publish.yml");
+const versionBumpWorkflowPath = join(
+  repoRoot,
+  ".github",
+  "workflows",
+  "release-on-version-bump.yml",
+);
 
 const checks = [];
 function check(name, fn) {
@@ -35,6 +41,7 @@ function check(name, fn) {
 }
 
 const workflow = readFileSync(workflowPath, "utf8");
+const versionBumpWorkflow = readFileSync(versionBumpWorkflowPath, "utf8");
 
 /** Return the YAML block of a single step that starts with `name: <name>`. */
 function stepBlock(stepName) {
@@ -70,6 +77,14 @@ check("use_token_fallback input exists and defaults to false", () => {
   );
   assert.match(inputBlock, /required:\s*false/);
   assert.match(inputBlock, /default:\s*false/);
+});
+
+check("automatic version bumps select the verified npm token path", () => {
+  assert.match(
+    versionBumpWorkflow,
+    /gh workflow run npm-publish\.yml[\s\S]*-f use_token_fallback=true/,
+    "release-on-version-bump.yml must select the known-good token path",
+  );
 });
 
 check("both publish modes are present and are distinct steps", () => {
