@@ -1,0 +1,79 @@
+name: npm 5.3.0 token retry
+
+on:
+  push:
+    branches:
+      - release/npm-5.3.0-token-retry
+
+concurrency:
+  group: npm-5.3.0-token-retry
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - name: Ensure modern npm
+        run: npm install -g npm@^11.5.1
+
+      - name: Verify exact release version and package contract
+        run: |
+          set -euo pipefail
+          test "$(node -p "require('./package.json').version")" = "5.3.0"
+          node --check index.js
+          node --check bin/scs2.js
+          npm test
+          node -e "
+            const { execFileSync } = require('child_process');
+            const packed = JSON.parse(
+              execFileSync('npm pack --dry-run --json', { encoding: 'utf8', shell: true }),
+            )[0];
+            const actual = packed.files.map((f) => f.path).sort();
+            const expected = ['LICENSE', 'README.md', 'bin/scs2.js', 'index.js', 'package.json'];
+            const missing = expected.filter((f) => !actual.includes(f));
+            const unexpected = actual.filter((f) => !expected.includes(f));
+            if (missing.length || unexpected.length) {
+              throw new Error('unexpected npm tarball contents');
+            }
+          "
+
+      - name: Check registry
+        id: exists
+        run: |
+          set -euo pipefail
+          if npm view "scientific-computing-system-2.0@5.3.0" version > /dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "scientific-computing-system-2.0@5.3.0 already exists; nothing to publish."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish 5.3.0 with NPM_TOKEN
+        if: steps.exists.outputs.exists == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "ERROR: NPM_TOKEN is empty" >&2
+            exit 1
+          fi
+          npm publish --access public
+
+      - name: Verify registry visibility
+        if: steps.exists.outputs.exists == 'false'
+        run: node scripts/wait-for-npm-visibility.mjs "scientific-computing-system-2.0" "5.3.0" 12
