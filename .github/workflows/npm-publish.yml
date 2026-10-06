@@ -1,13 +1,12 @@
 name: npm Publish
 
 # Two dispatch paths, and deliberately no `push` path trigger:
-#   * release-on-version-bump.yml dispatches this workflow, so one version bump
-#     updates PyPI and npm together. That dispatch never sets inputs, so the
-#     default OIDC mode applies.
-#   * workflow_dispatch is also used for the one-time catch-up publish of an
-#     already-released version. PyPI 5.2.5 shipped before npm publishing was
-#     re-enabled, and no future version bump will ever occur for 5.2.5, so it
-#     must be published by hand once.
+#   * release-on-version-bump.yml dispatches this workflow for each version
+#     bump and explicitly selects use_token_fallback=true. The current npmjs
+#     trusted-publisher mapping is not configured for this package, while the
+#     repository NPM_TOKEN path is verified and automatic.
+#   * workflow_dispatch remains available for manual recovery or for testing
+#     the preferred OIDC path after an npmjs trusted publisher is configured.
 # A `push` path trigger was dropped on purpose: a version bump normally touches
 # package.json too, which would fire both this trigger and the dispatch, running
 # the same publish twice. One bump therefore produces exactly one publish run.
