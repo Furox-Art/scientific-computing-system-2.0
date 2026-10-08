@@ -1,5 +1,29 @@
 ## [Unreleased]
 
+## [v5.4.0] - 2026-10-09
+
+### Added
+
+- **A runnable NumPy/SciPy version-drift case study is packaged.** `examples/version_drift_fit.py`
+  runs a real guided fit and `scripts/compare_drift_results.py` derives side-by-side drift
+  metrics from a baseline/rerun JSON pair, reporting absolute and relative deviation for every
+  fitted quantity.
+
+### Validation
+
+- Real measured drift for NumPy 1.26.4 / SciPy 1.11.4 -> NumPy 2.3.5 / SciPy 1.18.1 (case
+  `exponential_weak_offset`, seed 20261006): relative 95% CI L2 **0.00468%**, RMSE relative
+  change **3.2e-12**, trust label unchanged (`reliable -> reliable`).
+- That CI drift sits roughly 1000x below the 5% materiality threshold
+  (`relative_ci_l2` 4.68e-05 vs 5e-02). The gate (`compare_drift_results.py`) exits 1 on
+  material drift; verified to escalate correctly at a 1e-5 threshold and to exit 0 at 1e-4.
+
+### Limits
+
+- This is a numerical-stack upgrade, not an isolated SciPy bump: NumPy and SciPy move together.
+- One dataset, one model, one seed. Exact digits are build-dependent; the magnitudes, not the
+  digits, are the reproducible claim.
+
 ## [v5.3.0] - 2026-10-06
 
 ### Added
