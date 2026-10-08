@@ -25,6 +25,7 @@ Each one prints its analysis; several also save figures.
 | [`examples/game_tournament.py`](https://github.com/Furox-Art/scientific-computing-system-2.0/blob/main/examples/game_tournament.py) | Pure Nash enumeration, round-robin iterated PD tournament, zero-sum minimax (`cds2.game_theory`) |
 | [`examples/route_optimization.py`](https://github.com/Furox-Art/scientific-computing-system-2.0/blob/main/examples/route_optimization.py) | Nearest-neighbor TSP + 2-opt gain, optimal courier assignment, knapsack packing, LCS (`cds2.combinatorial`) |
 | [`examples/spatial_autocorrelation.py`](https://github.com/Furox-Art/scientific-computing-system-2.0/blob/main/examples/spatial_autocorrelation.py) | Row-standardized weights, Moran's I / Geary's C z-scores, Clark-Evans point patterns (`cds2.spatial`) |
+| [`examples/version_drift_fit.py`](https://github.com/Furox-Art/scientific-computing-system-2.0/blob/main/examples/version_drift_fit.py) | NumPy/SciPy version-drift detection: manifest replay, side-by-side old-vs-new results, absolute/relative deviation, materiality-threshold warning (`cds2.guided_fit`) |
 
 Run any of them from a repository checkout:
 
