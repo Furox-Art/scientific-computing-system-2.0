@@ -1,0 +1,85 @@
+{
+  "result": {
+    "model": "exponential",
+    "trust": "reliable",
+    "comment": "Fit is stable across held-out data and the independent numerical cross-check.",
+    "seed": 20261006,
+    "missing_policy": "interpolate",
+    "outlier_policy": "keep",
+    "operations": [
+      "missing-data policy: interpolate",
+      "model selected by user: exponential",
+      "outlier policy: keep",
+      "outlier influence quantified on the same retained observations",
+      "3x repeated 5-fold cross-validation completed",
+      "measurement uncertainty used in weighted fitting",
+      "independent numerical cross-check completed with a separate optimizer"
+    ],
+    "package_versions": {
+      "python": "3.12.3",
+      "numpy": "1.26.4",
+      "scipy": "1.11.4",
+      "pandas": "2.2.3",
+      "matplotlib": "3.10.8"
+    },
+    "data_hashes": {
+      "input": "d68a7daa3a5edee2db0e7b10dc78f816dffceffff6860062d07d56cbdcaf7437"
+    },
+    "rerun_data_hashes": {
+      "input": "d68a7daa3a5edee2db0e7b10dc78f816dffceffff6860062d07d56cbdcaf7437"
+    },
+    "stability_warning": false,
+    "stability_details": [],
+    "datasets": [
+      {
+        "name": "input",
+        "rmse": 0.0003228500566412995,
+        "r_squared": 0.9999206919326228,
+        "cv_rmse": 0.00033298799034287615,
+        "cross_check_error": 1.7425145230999672e-09,
+        "n_points": 96,
+        "x_min": 0.0,
+        "x_max": 0.9,
+        "y_mean": 4.06213103895356,
+        "y_std": 0.036252852454099274,
+        "outlier_rmse_reduction_pct": 0.0,
+        "dataset_key": "input",
+        "params": [
+          1.6440895768464736,
+          0.08096941494153656,
+          2.356647052271121
+        ],
+        "parameter_std": [
+          1.010036629592928,
+          0.04797379326504531,
+          1.0104792528312694
+        ],
+        "confidence_95": [
+          [
+            -0.36164299464751504,
+            3.649822148340462
+          ],
+          [
+            -0.014297030760141258,
+            0.1762358606432144
+          ],
+          [
+            0.3500355187474091,
+            4.363258585794833
+          ]
+        ],
+        "outlier_indices": []
+      }
+    ]
+  },
+  "inputs": [
+    {
+      "name": "input",
+      "dataset_key": "input",
+      "source_path": "/tmp/drift-baseline-out/input.csv",
+      "x_column": "x",
+      "y_column": "y",
+      "sigma_column": "sigma"
+    }
+  ]
+}

@@ -36,6 +36,7 @@ nav:
       - Validation & reproducibility: validation-and-reproducibility.md
       - Research-readiness checklist: research-readiness.md
       - Reproducible case studies: case-studies.md
+      - NumPy/SciPy version-drift example: version-drift-example.md
       - Benchmark methodology: benchmark-methodology.md
   - Industrial computing: industrial.md
   - Benchmarks: benchmarks.md

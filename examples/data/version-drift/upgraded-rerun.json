@@ -1,0 +1,49 @@
+{
+  "case": "exponential_weak_offset",
+  "environment": {
+    "matplotlib": "3.10.8",
+    "numpy": "2.3.5",
+    "pandas": "2.2.3",
+    "python": "3.12.3",
+    "scipy": "1.18.1"
+  },
+  "mode": "rerun",
+  "result": {
+    "confidence_95": [
+      [
+        -0.36152860732685665,
+        3.6496717849237172
+      ],
+      [
+        -0.01429549025034596,
+        0.17623602864763072
+      ],
+      [
+        0.35018588393740036,
+        4.363144212398222
+      ]
+    ],
+    "cross_check_error": 1.916612905299271e-09,
+    "cv_rmse": 0.00033298800964064813,
+    "model": "exponential",
+    "parameter_std": [
+      1.0099699686224661,
+      0.04797344768283006,
+      1.0104125949202034
+    ],
+    "params": [
+      1.6440715887984303,
+      0.08097026919864238,
+      2.356665048167811
+    ],
+    "r_squared": 0.9999206919326222,
+    "rmse": 0.0003228500566423448,
+    "trust": "reliable"
+  },
+  "seed": 20261006,
+  "stability_details": [
+    "runtime version changed: numpy 1.26.4 -> 2.3.5",
+    "runtime version changed: scipy 1.11.4 -> 1.18.1"
+  ],
+  "stability_warning": true
+}
