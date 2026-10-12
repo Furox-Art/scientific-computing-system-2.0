@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [v5.4.1] - 2026-10-12
+
+### Housekeeping — release alignment
+
+- Publishes the post-5.4.0 repository state (release/5.4.0 merge, #50) to PyPI
+  and npm: both registries were one commit behind `main`. No behavioural change.
+
 ## [v5.4.0] - 2026-10-09
 
 ### Added
