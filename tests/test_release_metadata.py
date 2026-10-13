@@ -35,6 +35,13 @@ def _citation_cff_version() -> str:
     return match.group(1)
 
 
+def _conda_meta_version() -> str:
+    text = (ROOT / "packaging" / "conda" / "meta.yaml").read_text(encoding="utf-8")
+    match = re.search(r'{%\s*set\s+version\s*=\s*"([^"]+)"\s*%}', text)
+    assert match is not None, "version not pinned by conda meta.yaml"
+    return match.group(1)
+
+
 def test_package_version_matches_pyproject() -> None:
     assert cds2.__version__ == _pyproject_version()
 
@@ -49,3 +56,9 @@ def test_npm_package_version_matches_pyproject() -> None:
 
 def test_citation_version_matches_pyproject() -> None:
     assert _citation_cff_version() == _pyproject_version()
+
+
+def test_conda_recipe_version_matches_pyproject() -> None:
+    # The conda recipe drifted to a stale 5.2.5 while the package shipped 5.4.2;
+    # keep it on the release line. Same lockstep the other version files enjoy.
+    assert _conda_meta_version() == _pyproject_version()
