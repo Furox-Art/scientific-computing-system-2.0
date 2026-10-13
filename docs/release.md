@@ -38,21 +38,62 @@ Environment `npm`) is required for npm provenance; see
 
 1. Update `CHANGELOG.md` with a new `## [vX.Y.Z] - YYYY-MM-DD` section.
 2. Mirror the version in both places that must stay in lockstep:
-   - `pyproject.toml` -> `version = "X.Y.Z"`
-   - `src/cds2/_version.py` -> `__version__ = "X.Y.Z"`
+    - `pyproject.toml` -> `version = "X.Y.Z"`
+    - `src/cds2/_version.py` -> `__version__ = "X.Y.Z"`
 3. Commit, push to `main`, then tag and push the tag:
 
-   ```bash
-   git tag vX.Y.Z
-   git push origin main vX.Y.Z
-   ```
+    ```bash
+    git tag vX.Y.Z
+    git push origin main vX.Y.Z
+    ```
 
 4. The workflow then runs:
-   - full CI (lint, strict mypy, 100% coverage gate, 12 OS/Python matrix)
-   - sdist + pure-Python fallback wheel build (`CDS_PURE=1`)
-   - compiled wheels via cibuildwheel for Linux/macOS/Windows on CPython
-     3.10-3.13
-   - PyPI upload and a GitHub Release with generated notes.
+    - full CI (lint, strict mypy, 100% coverage gate, 12 OS/Python matrix)
+    - sdist + pure-Python fallback wheel build (`CDS_PURE=1`)
+    - compiled wheels via cibuildwheel for Linux/macOS/Windows on CPython
+      3.10-3.13
+    - PyPI upload and a GitHub Release with generated notes.
+
+### One bump, both registries
+
+`src/cds2/_version.py` is the single automatic trigger. Pushing a commit that
+changes only that file on `main` runs `release-on-version-bump.yml`, which
+dispatches **both** publish workflows:
+
+| Registry | Workflow | Credential path selected by the bump |
+|---|---|---|
+| PyPI | `release.yml` | trusted publishing, `PYPI_API_TOKEN` fallback |
+| npm | `npm-publish.yml` | `use_token_fallback=true` (the `NPM_TOKEN` path) |
+
+This coverage is enforced, not assumed. `scripts/check_workflows.py` reads the
+workflow graph and fails if the bump path stops dispatching a publish
+workflow, if a publish workflow becomes unreachable, if the bump trigger stops
+watching `src/cds2/_version.py`, or if a publisher stops running its own guard
+(`pytest` for PyPI, `npm test` for npm) before uploading:
+
+```bash
+python scripts/check_workflows.py
+```
+
+It runs on every commit through `tests/test_workflow_graph.py`, so CI picks it
+up with no extra job.
+
+The same script also locks the CI side of the contract: `tests.yml` must not
+filter `push`/`pull_request` by path. A path filter there is exactly how a
+change to `release.yml`, `npm-publish.yml`, `package.json` or `index.js` would
+stop re-running the tests that guard publishing.
+
+### Manual dispatch is the deliberate exception
+
+Both `release.yml` and `npm-publish.yml` also accept `workflow_dispatch`, and
+dispatching either one publishes **only that registry**. That asymmetry with
+the bump path is intentional (an escape hatch for recovery, and manual
+re-dispatches are idempotent because both publishers refuse an
+already-published version), but it means a manual publish must be dispatched
+twice, once per registry. Do not "fix" it by adding a `push` trigger to
+`npm-publish.yml`: a version bump touches `package.json` too, which would fire
+both that trigger and the bump dispatch and publish the same version twice.
+
 
 ## Manual local publish (fallback)
 
