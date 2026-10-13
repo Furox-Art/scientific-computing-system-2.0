@@ -28,11 +28,7 @@ class TestWorkflowGraph:
 
     def test_the_version_bump_dispatches_every_publish_workflow(self) -> None:
         workflows = check_workflows._workflow_texts()
-        publishes = {
-            name
-            for name, text in workflows.items()
-            if check_workflows._registries(text)
-        }
+        publishes = {name for name, text in workflows.items() if check_workflows._registries(text)}
         dispatched = check_workflows._dispatched(workflows[check_workflows.BUMP_WORKFLOW])
         assert publishes, "no publish workflow found"
         assert publishes <= dispatched
@@ -85,13 +81,7 @@ class TestWorkflowGraphParsers:
         assert check_workflows._registries(text) == {"pypi"}
 
     def test_path_filters_read_nested_lists(self) -> None:
-        text = (
-            "on:\n"
-            "  push:\n"
-            "    branches: [main]\n"
-            "    paths:\n"
-            '      - "src/cds2/_version.py"\n'
-        )
+        text = 'on:\n  push:\n    branches: [main]\n    paths:\n      - "src/cds2/_version.py"\n'
         assert check_workflows._path_filters(text, "push") == ["src/cds2/_version.py"]
         assert check_workflows._path_filters(text, "pull_request") == []
 

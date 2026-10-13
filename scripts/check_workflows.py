@@ -227,8 +227,7 @@ def coverage_problems() -> list[str]:
             guard = REGISTRY_GUARDS[registry]
             if not _runs_guard(text, guard):
                 problems.append(
-                    f"{name} publishes to {registry} without running its guard "
-                    f"({guard}) first"
+                    f"{name} publishes to {registry} without running its guard ({guard}) first"
                 )
 
     return problems
