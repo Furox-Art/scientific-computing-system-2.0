@@ -1,4 +1,18 @@
 {
+  "_snapshot": {
+    "kind": "generated",
+    "generator": "benchmarks/run_benchmarks.py",
+    "recorded_cds2_version": "3.0.0",
+    "recorded_commit": "6ea5a02",
+    "recorded_at_utc": "2026-08-22T15:13:41.352145+00:00",
+    "is_current_release": false,
+    "regenerate": [
+      "python -m benchmarks.research_run --quick --core-only",
+      "python -m benchmarks.run_benchmarks --quick --json <dir>"
+    ],
+    "fresh_output": "benchmarks/artifacts/latest/",
+    "note": "Archived engineering measurement of cds2 3.0.0 on one machine, kept because docs/benchmarks.md and scripts/make_promo.py read it. It is not a claim about any current release. Never hand-edit: regenerate and re-transcribe instead."
+  },
   "environment": {
     "timestamp_utc": "2026-08-22T15:13:41.352145+00:00",
     "git_commit": "6ea5a02",

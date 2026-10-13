@@ -68,6 +68,49 @@ def _repeats_times(func: Callable[[], object], repeats: int) -> tuple[list[float
     return walls, cpus
 
 
+def _callable_name(func: Callable[..., object]) -> str:
+    """Best-available display name for a callable."""
+    return str(getattr(func, "__qualname__", None) or getattr(func, "__name__", repr(func)))
+
+
+def _measure_once(
+    func: Callable[..., object], args: tuple[Any, ...], kw: dict[str, Any]
+) -> tuple[Any, float, float, int]:
+    """Call ``func(*args, **kw)`` exactly once and measure that single call.
+
+    Returns the callable's own return value together with the wall-clock
+    seconds, the process CPU seconds (user + system) and the peak traced
+    memory in bytes observed for that one call. Memory tracking is scoped to
+    the call so imports and module-level setup are not counted.
+    """
+    tracemalloc.start()
+    try:
+        t0 = time.perf_counter()
+        c0 = os.times()
+        result = func(*args, **kw)
+        t1 = time.perf_counter()
+        c1 = os.times()
+    finally:
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+    return result, t1 - t0, (c1.user + c1.system) - (c0.user + c0.system), peak
+
+
+def _single_call_profile(name: str, wall: float, cpu: float, peak: int) -> ProfileResult:
+    """Build a one-repetition ProfileResult from a single measured call."""
+    return ProfileResult(
+        name=name,
+        repeats=1,
+        wall_min=wall,
+        wall_median=wall,
+        wall_max=wall,
+        cpu_min=cpu,
+        cpu_median=cpu,
+        cpu_max=cpu,
+        peak_rss_mb=peak / (1024 * 1024),
+    )
+
+
 def profile(
     fn: Callable[..., object],
     *args: Any,
@@ -89,7 +132,7 @@ def profile(
     """
     if repeats < 1:
         raise ValueError("repeats must be >= 1")
-    name = str(getattr(fn, "__qualname__", None) or getattr(fn, "__name__", repr(fn)))
+    name = _callable_name(fn)
     bound = functools.partial(fn, *args, **kw)
 
     tracemalloc.start()
@@ -115,9 +158,12 @@ def profile(
 def timed(func: Callable[..., object]) -> Callable[..., object]:
     """Decorator that attaches a ``last_profile`` attribute to each call.
 
-    The decorated function runs exactly as before; after the call returns,
-    ``call.last_profile`` holds the :class:`ProfileResult`. Repeats is fixed at
-    1 for the decorator path — use :func:`profile` directly for multi-repeat
+    The decorated function runs **exactly once** per call. The single real call
+    is timed directly, so the value returned to the caller and the profile
+    stored on ``call.last_profile`` always describe the same invocation: a
+    side-effecting function cannot be observed twice, and the result is never
+    taken from a second, separately-timed call. Repeats is fixed at 1 for the
+    decorator path — use :func:`profile` directly for multi-repeat
     measurements.
 
     Example::
@@ -132,8 +178,10 @@ def timed(func: Callable[..., object]) -> Callable[..., object]:
 
     @functools.wraps(func)
     def wrapper(*args: Any, **kw: Any) -> Any:
-        result = func(*args, **kw)
-        wrapper.last_profile = profile(func, *args, repeats=1, **kw)  # type: ignore[attr-defined]
+        result, wall, cpu, peak = _measure_once(func, args, kw)
+        wrapper.last_profile = _single_call_profile(  # type: ignore[attr-defined]
+            _callable_name(func), wall, cpu, peak
+        )
         return result
 
     return wrapper

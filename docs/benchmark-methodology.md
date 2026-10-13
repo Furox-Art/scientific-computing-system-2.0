@@ -49,8 +49,19 @@ A benchmark result is valid only if compared implementations solve the same prob
 
 The CI regression gate is intended to catch substantial regressions, not normal cloud-runner noise. Changes that intentionally trade speed for correctness, stability, or richer diagnostics should document the reason and update the baseline in a reviewable commit.
 
+The gate is deliberately two-sided and fitted on the runs that *precede* the latest one:
+
+- the acceptance band is `[baseline / (1 + tolerance), baseline * (1 + tolerance)]`, where `baseline` is the median ratio of up to `lookback` prior runs;
+- the latest ratio must land inside that band, so a *suspiciously fast* result fails too — a sudden large speedup is far more often a no-op measurement than a real win;
+- the latest ratio is never part of the set the band is fitted on. Fitting on a window that contains it is self-referential: a one-row window compares the value against itself and passes every profile, and a gradual drift just re-centres the band on itself;
+- a benchmark with no prior run at all has nothing to regress against and passes vacuously.
+
+Tune the band with `python -m cds2.bench.regression --tolerance 0.10 --lookback 10`.
+
 ## Publishing results
 
 Generated benchmark artifacts should use a machine-readable format in addition to Markdown when practical. Keep `results.json` and `provenance.json` together so another researcher can determine exactly what code, software stack, and machine context produced the timings.
+
+Fresh runs write to `benchmarks/artifacts/latest/`, which is git-ignored, so a machine-local measurement never looks like a repository claim. The one committed results file, `benchmarks/results.json`, is an archived snapshot of cds2 3.0.0 (commit `6ea5a02`); it carries a `_snapshot` block that records the generator, the version it was measured from, `is_current_release: false`, and the regeneration commands. `tests/test_benchmark_snapshot.py` fails if that block is missing or starts claiming to be current, so the file can never quietly drift into being read as today's numbers.
 
 The current scoreboard is in `docs/benchmarks.md`; the executable suite lives in `benchmarks/run_benchmarks.py`, with research-oriented provenance collection in `benchmarks/research_run.py`.

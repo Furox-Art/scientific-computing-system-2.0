@@ -39,3 +39,8 @@ guided-fit-results/
 
 # MkDocs output
 site/
+
+# Fresh benchmark reports: `python -m benchmarks.research_run` writes here by
+# default. Only the deliberately archived, hand-transcribed
+# benchmarks/results.json snapshot is committed.
+benchmarks/artifacts/

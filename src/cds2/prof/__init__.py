@@ -13,7 +13,8 @@ Public API::
     hist.append(entries=[{"name": "solve", "ratio": 1.05}])
     df = hist.load_range("2026-01-01", "2026-12-31")
 
-    # Regression gate (used by pytest --regression)
+    # Regression gate (used by pytest --regression): the band is fitted on the
+    # runs that precede the latest one and applied in both directions.
     gate = RegressionGate(tolerance=0.10)
     gate.check_latest(df, name="solve")
 """
