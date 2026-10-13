@@ -7,6 +7,12 @@ This table is a transcription of the committed machine-readable results in
 Do not edit the numbers by hand; regenerate them with
 `benchmarks/run_benchmarks.py`.
 
+The committed snapshot is **generated, archived, and explicitly not current**:
+its `_snapshot` block names the generator, the commit and release it was
+recorded from (`is_current_release: false`), and the commands that produce a
+fresh one. It is not a claim about any current release: read it as "cds2 3.0.0
+versus the baseline libraries on one machine".
+
 | Field | Value |
 |---|---|
 | CDS2 version | **3.0.0** (not the current release) |
@@ -20,6 +26,23 @@ Do not edit the numbers by hand; regenerate them with
 > These timings predate the current release line and one contributor machine.
 > They are engineering measurements, not universal performance claims. See
 > [Benchmark methodology](benchmark-methodology.md) before quoting any ratio.
+
+## Where fresh numbers come from
+
+Nothing in this file is a live measurement. To produce current timings:
+
+```bash
+# provenance-rich run; writes results.json + provenance.json
+python -m benchmarks.research_run --quick --core-only
+
+# or the low-level suite directly
+python -m benchmarks.run_benchmarks --quick --json benchmarks/artifacts/latest
+```
+
+Fresh output lands in `benchmarks/artifacts/latest/`, which is git-ignored:
+only the archived snapshot above is committed. Updating the committed snapshot
+is a deliberate, reviewable act — regenerate, re-transcribe the table here, and
+keep `_snapshot.is_current_release` honest about what the numbers describe.
 
 ## Results
 
