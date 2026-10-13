@@ -80,7 +80,8 @@ class TestWorkflowGraphParsers:
         assert check_workflows._registries(text) == set()
 
     def test_uses_lines_are_publish_markers(self) -> None:
-        text = "        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33\n"
+        pin = "dc37677b2e1c63e2034f94d8a5b11f265b73ba33"
+        text = f"        uses: pypa/gh-action-pypi-publish@{pin}\n"
         assert check_workflows._registries(text) == {"pypi"}
 
     def test_path_filters_read_nested_lists(self) -> None:
