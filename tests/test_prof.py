@@ -304,8 +304,98 @@ class TestRegressionGate:
         gate = RegressionGate(tolerance=0.10)
         assert gate._band(pd.Series(dtype=float)) == pytest.approx(1.10)
 
+    def test_empty_series_lower_band_is_tolerance_floor(self) -> None:
+        gate = RegressionGate(tolerance=0.10)
+        assert gate._lower_band(pd.Series(dtype=float)) == pytest.approx(1 / 1.10)
+
+    def test_band_is_fitted_on_the_runs_before_the_latest(self) -> None:
+        # A gradual drift must fail. Fitting the band on a window that still
+        # contains the latest ratio re-centres it on the drift and passes.
+        gate = RegressionGate(tolerance=0.10)
+        df = _frame(
+            [
+                {"name": "solve", "timestamp": f"2026-01-0{i}T00:00:00", "ratio": r}
+                for i, r in enumerate([1.00, 1.05, 1.10, 1.15, 1.20], start=1)
+            ]
+        )
+        results = gate.check_latest(df)
+        assert len(results) == 1
+        assert not results[0].passed
+        assert results[0].latest_ratio == pytest.approx(1.20)
+        assert results[0].lower_limit == pytest.approx(1.075 / 1.10)
+        assert results[0].limit == pytest.approx(1.075 * 1.10)
+        with pytest.raises(AssertionError):
+            gate.assert_latest(df)
+
+    def test_identical_profile_passes(self) -> None:
+        gate = RegressionGate(tolerance=0.10)
+        df = _frame(
+            [
+                {"name": "solve", "timestamp": "2026-01-01T00:00:00", "ratio": 0.95},
+                {"name": "solve", "timestamp": "2026-01-02T00:00:00", "ratio": 0.95},
+                {"name": "solve", "timestamp": "2026-01-03T00:00:00", "ratio": 0.95},
+            ]
+        )
+        results = gate.check_latest(df)
+        assert len(results) == 1
+        assert results[0].passed
+        assert gate.assert_latest(df) is None
+
+    def test_suspicious_speedup_fails_in_both_directions(self) -> None:
+        gate = RegressionGate(tolerance=0.10)
+        df = _frame(
+            [
+                {"name": "solve", "timestamp": "2026-01-01T00:00:00", "ratio": 1.0},
+                {"name": "solve", "timestamp": "2026-01-02T00:00:00", "ratio": 1.0},
+                {"name": "solve", "timestamp": "2026-01-03T00:00:00", "ratio": 0.5},
+            ]
+        )
+        results = gate.check_latest(df)
+        assert not results[0].passed
+        assert results[0].latest_ratio < results[0].lower_limit
+        with pytest.raises(AssertionError):
+            gate.assert_latest(df)
+
+    def test_first_run_has_no_baseline_and_passes_vacuously(self) -> None:
+        gate = RegressionGate(tolerance=0.10)
+        df = _frame([{"name": "solve", "timestamp": "2026-01-01T00:00:00", "ratio": 42.0}])
+        results = gate.check_latest(df)
+        assert len(results) == 1
+        assert results[0].passed
+        assert results[0].lower_limit is None
+        assert "no prior baseline" in str(results[0])
+
+    def test_lookback_limits_the_baseline_window(self) -> None:
+        gate = RegressionGate(tolerance=0.10, lookback=2)
+        df = _frame(
+            [
+                {"name": "solve", "timestamp": "2026-01-01T00:00:00", "ratio": 1.0},
+                {"name": "solve", "timestamp": "2026-01-02T00:00:00", "ratio": 1.0},
+                {"name": "solve", "timestamp": "2026-01-03T00:00:00", "ratio": 1.0},
+                {"name": "solve", "timestamp": "2026-01-04T00:00:00", "ratio": 1.0},
+                {"name": "solve", "timestamp": "2026-01-05T00:00:00", "ratio": 1.30},
+            ]
+        )
+        results = gate.check_latest(df)
+        # Only the two runs immediately before the latest one fit the band.
+        assert results[0].limit == pytest.approx(1.10)
+        assert not results[0].passed
+
     def test_gate_result_str(self) -> None:
         assert "PASS" in str(GateResult(name="a", latest_ratio=1.0, limit=1.1, passed=True))
+
+    def test_gate_result_str_reports_the_band(self) -> None:
+        line = str(
+            GateResult(
+                name="a",
+                latest_ratio=1.0,
+                limit=1.1,
+                passed=True,
+                lower_limit=0.909,
+            )
+        )
+        assert "[0.909, 1.100]" in line
+        assert "PASS" in line
 
     def test_pytest_plugin_hooks(self) -> None:
         seen: dict = {}
