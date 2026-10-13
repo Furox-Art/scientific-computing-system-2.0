@@ -1,12 +1,3 @@
-## [v5.4.2] - 2026-10-12
-### Housekeeping — audit hardening
-
-- Closes the findings of the full-repository audit: patched the concrete
-  defects (correctness, fail-closed behaviour, platform independence),
-  wired every standalone guard into CI, removed dead or duplicated code
-  paths, and pinned every doc claim to a test so it cannot silently
-  drift again. Regression tests fail without the corresponding fix.
-
 ## [v5.4.3] - 2026-10-13
 
 Packaging + docs hardening: conda recipe pinned to the release line with the
@@ -15,7 +6,14 @@ runnable-example count corrected to 21 with a docs-counts guard test that
 regenerates every published number from the tree; the timed and regression-gate
 fixes from 5.4.2 keep their GPU-free small-N coverage in the default suite.
 
-## [Unreleased]
+## [v5.4.2] - 2026-10-12
+### Housekeeping — audit hardening
+
+- Closes the findings of the full-repository audit: patched the concrete
+  defects (correctness, fail-closed behaviour, platform independence),
+  wired every standalone guard into CI, removed dead or duplicated code
+  paths, and pinned every doc claim to a test so it cannot silently
+  drift again. Regression tests fail without the corresponding fix.
 
 ## [v5.4.1] - 2026-10-12
 
@@ -1088,3 +1086,5 @@ new domain modules on top.
   The zero-dependency philosophy of v1.x is intentionally retired in favor of
   a faster, richer stack. The v1 line remains maintained separately at its own
   repository.
+## [Unreleased]
+
