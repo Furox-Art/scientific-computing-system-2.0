@@ -101,6 +101,20 @@ if package_json.get("version") != pyproject_version:
         f"does not match pyproject.toml {pyproject_version!r}"
     )
 
+# The conda recipe pins the released version too. It drifted to 5.2.5 while the
+# package moved on to 5.4.2, so it is now folded into the offline lockstep. The
+# version is read from the Jinja `{% set version = "..." %}` directive with a
+# regex, keeping the audit runnable without PyYAML (see `_iter_jobs`).
+conda_meta = (ROOT / "packaging" / "conda" / "meta.yaml").read_text(encoding="utf-8")
+conda_match = re.search(r'{%\s*set\s+version\s*=\s*"([^"]+)"\s*%}', conda_meta)
+conda_version = conda_match.group(1) if conda_match else "?"
+if conda_version != pyproject_version:
+    issues.append(
+        f"conda packaging/conda/meta.yaml version {conda_version!r} "
+        f"does not match pyproject.toml {pyproject_version!r}"
+    )
+versions["conda"] = conda_version
+
 # 4. Every mkdocs api page exists and every src module has an api page
 mkdocs = (ROOT / "mkdocs.yml").read_text(encoding="utf-8")
 api_refs = re.findall(r"api/([\w_]+)\.md", mkdocs)

@@ -1,5 +1,5 @@
 {% set name = "scientific-computing-system-2.0" %}
-{% set version = "5.2.5" %}
+{% set version = "5.4.2" %}
 
 package:
   name: {{ name|lower }}
@@ -7,7 +7,13 @@ package:
 
 source:
   url: https://pypi.org/packages/source/s/scientific-computing-system-2.0/scientific_computing_system_2_0-{{ version }}.tar.gz
-  sha256: 9e53f8d75d3ecb56211679c6d6785ac6efca6f73825f1b3b19bf0e6fe414e7c5
+  # sha256 of the PyPI sdist for this exact version (verified against the
+  # published scientific_computing_system_2_0-5.4.2.tar.gz digest). It MUST be
+  # refreshed deliberately on every release: bump `version` above to the new tag
+  # and set this to the `sha256` pip/PyPI publishes for that sdist. conda-build
+  # fails closed if the digest does not match the downloaded artifact, so a stale
+  # value is a release-train blocker rather than a silent drift.
+  sha256: 5b38ea0fef12549827c17c00423dca8d8374595fed6917f2b702471624aa4407
 
 build:
   noarch: python
