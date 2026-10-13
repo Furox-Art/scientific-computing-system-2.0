@@ -7,6 +7,14 @@
   paths, and pinned every doc claim to a test so it cannot silently
   drift again. Regression tests fail without the corresponding fix.
 
+## [v5.4.3] - 2026-10-13
+
+Packaging + docs hardening: conda recipe pinned to the release line with the
+real sdist sha256 (consistency_audit now gates the conda version too); README
+runnable-example count corrected to 21 with a docs-counts guard test that
+regenerates every published number from the tree; the timed and regression-gate
+fixes from 5.4.2 keep their GPU-free small-N coverage in the default suite.
+
 ## [Unreleased]
 
 ## [v5.4.1] - 2026-10-12
