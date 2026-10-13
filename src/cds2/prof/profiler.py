@@ -70,7 +70,7 @@ def _repeats_times(func: Callable[[], object], repeats: int) -> tuple[list[float
 
 def _callable_name(func: Callable[..., object]) -> str:
     """Best-available display name for a callable."""
-    return str(getattr(func, "__qualname__", None) or getattr(func, "__name__", repr(fn)))
+    return str(getattr(func, "__qualname__", None) or getattr(func, "__name__", repr(func)))
 
 
 def _measure_once(
