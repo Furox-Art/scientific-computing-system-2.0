@@ -31,6 +31,27 @@ def _frame(ratios, name="bench", step=1.0):
     )
 
 
+def test_band_is_built_from_the_median_and_tolerance() -> None:
+    gate = RegressionGate(tolerance=0.2)
+    ratios = pd.Series([1.0, 2.0])
+    assert gate._band(ratios) == pytest.approx(2.4)
+    assert gate._lower_band(ratios) == pytest.approx(2.0 / 1.2)
+    assert gate._baseline_window(ratios).tolist() == [1.0, 2.0]
+
+
+def test_lookback_trims_the_baseline_window() -> None:
+    gate = RegressionGate(lookback=2)
+    ratios = pd.Series([1.0] * 5)
+    assert gate._baseline_window(ratios).tolist() == [1.0, 1.0]
+
+
+def test_band_with_invalid_tolerance_is_rejected() -> None:
+    with pytest.raises(ValueError):
+        RegressionGate(tolerance=-0.1)
+    with pytest.raises(ValueError):
+        RegressionGate(lookback=0)
+
+
 def test_band_is_independent_of_row_order_for_equal_timestamps() -> None:
     ratios = [1.00, 1.01, 0.99, 1.02, 1.00, 0.98, 1.01, 1.00, 0.99, 1.01]
     df = _frame(ratios)

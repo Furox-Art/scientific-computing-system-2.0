@@ -1,5 +1,5 @@
 {% set name = "scientific-computing-system-2.0" %}
-{% set version = "5.4.3" %}
+{% set version = "5.4.4" %}
 
 package:
   name: {{ name|lower }}
@@ -8,7 +8,7 @@ package:
 source:
   url: https://pypi.org/packages/source/s/scientific-computing-system-2.0/scientific_computing_system_2_0-{{ version }}.tar.gz
   # sha256 of the PyPI sdist for this exact version (verified against the
-  # published scientific_computing_system_2_0-5.4.3.tar.gz digest). It MUST be
+  # published scientific_computing_system_2_0-5.4.4.tar.gz digest). It MUST be
   # refreshed deliberately on every release: bump `version` above to the new tag
   # and set this to the `sha256` pip/PyPI publishes for that sdist. conda-build
   # fails closed if the digest does not match the downloaded artifact, so a stale
