@@ -31,6 +31,34 @@ def _frame(ratios, name="bench", step=1.0):
     )
 
 
+def test_band_follows_the_baseline_median() -> None:
+    """The band is centred on the median of the runs before the latest one."""
+    # Five runs at 1.0 then one at 2.0: the baseline window is the five runs
+    # before the last, so the fitted median is 1.0 and the band is 0.9-1.1.
+    result = RegressionGate().check_latest(_frame([1.0] * 5 + [2.0]))[0]
+    assert result.passed is False
+    assert result.lower_limit == pytest.approx(1.0 / 1.1)
+    assert result.limit == pytest.approx(1.0 * 1.1)
+
+
+def test_lookback_limits_the_baseline_window() -> None:
+    # With lookback=1 the band is fitted on the single run before the latest,
+    # so a spike starting from a drifted baseline is judged against that run.
+    ratios = [1.0, 1.0, 1.0, 1.0, 5.0]
+    gate = RegressionGate(lookback=1)
+    result = gate.check_latest(_frame(ratios))[0]
+    assert result.passed is False
+    # baseline median = 1.0 → band [0.9, 1.1]; latest 5.0 must fail.
+    assert result.limit == pytest.approx(1.1)
+
+
+def test_invalid_gate_configuration_is_rejected() -> None:
+    with pytest.raises(ValueError):
+        RegressionGate(tolerance=-0.1)
+    with pytest.raises(ValueError):
+        RegressionGate(lookback=0)
+
+
 def test_band_is_independent_of_row_order_for_equal_timestamps() -> None:
     ratios = [1.00, 1.01, 0.99, 1.02, 1.00, 0.98, 1.01, 1.00, 0.99, 1.01]
     df = _frame(ratios)

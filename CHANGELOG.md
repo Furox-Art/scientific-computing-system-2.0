@@ -1,3 +1,19 @@
+## [Unreleased]
+
+## [v5.4.4] - 2026-10-15
+
+Gate determinism:
+
+- Real defect fixed: the regression gate returned unconditional PASS when the
+  baseline window was empty (a first run), so a NaN or infinite ratio — a
+  division by zero, a timeout, an instrumentation fault — passed silently. A
+  first finite run still passes; a broken measurement never does.
+- Equal timestamps are now ordered by ratio before the band is fitted, so the
+  verdict does not depend on the row order the caller happened to use.
+- 11-test determinism suite: order independence, same-runs-same-verdict,
+  genuine regression fails, reproducible noise passes, first-run finite check,
+  and `timed` propagates exceptions while measuring exactly once.
+
 ## [v5.4.3] - 2026-10-13
 
 Packaging + docs hardening: conda recipe pinned to the release line with the
@@ -1086,5 +1102,3 @@ new domain modules on top.
   The zero-dependency philosophy of v1.x is intentionally retired in favor of
   a faster, richer stack. The v1 line remains maintained separately at its own
   repository.
-## [Unreleased]
-
