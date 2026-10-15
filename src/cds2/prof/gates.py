@@ -112,9 +112,7 @@ class RegressionGate:
         for bench, group in df.groupby("name"):
             if name and bench != name:
                 continue
-            ratios = group.sort_values(
-                ["timestamp", "ratio"], kind="stable"
-            )["ratio"]
+            ratios = group.sort_values(["timestamp", "ratio"], kind="stable")["ratio"]
             latest = float(ratios.iloc[-1])
             # Drop the latest row *before* trimming to `lookback`, so the band
             # is always fitted on prior runs only.

@@ -10,6 +10,7 @@ must be a pure function of the measured runs. These tests pin:
   passes silently;
 - `timed` measures exactly one execution and preserves exceptions.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -21,11 +22,13 @@ from cds2.prof.profiler import timed
 
 
 def _frame(ratios, name="bench", step=1.0):
-    return pd.DataFrame({
-        "name": [name] * len(ratios),
-        "timestamp": [step * (i + 1) for i in range(len(ratios))],
-        "ratio": ratios,
-    })
+    return pd.DataFrame(
+        {
+            "name": [name] * len(ratios),
+            "timestamp": [step * (i + 1) for i in range(len(ratios))],
+            "ratio": ratios,
+        }
+    )
 
 
 def test_band_is_independent_of_row_order_for_equal_timestamps() -> None:
