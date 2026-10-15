@@ -31,23 +31,28 @@ def _frame(ratios, name="bench", step=1.0):
     )
 
 
-def test_band_is_built_from_the_median_and_tolerance() -> None:
-    gate = RegressionGate(tolerance=0.2)
-    ratios = pd.Series([1.0, 2.0])  # median = 1.5
-    assert gate._band(ratios) == pytest.approx(1.5 * 1.2)
-    assert gate._lower_band(ratios) == pytest.approx(1.5 / 1.2)
-    assert gate._baseline_window(ratios).tolist() == [1.0, 2.0]
+def test_band_follows_the_baseline_median() -> None:
+    """The band is centred on the median of the runs before the latest one."""
+    # Five runs at 1.0 then one at 2.0: the baseline window is the five runs
+    # before the last, so the fitted median is 1.0 and the band is 0.9-1.1.
+    result = RegressionGate().check_latest(_frame([1.0] * 5 + [2.0]))[0]
+    assert result.passed is False
+    assert result.lower_limit == pytest.approx(1.0 / 1.1)
+    assert result.limit == pytest.approx(1.0 * 1.1)
 
 
-def test_lookback_trims_the_baseline_window() -> None:
-    gate = RegressionGate(lookback=2)
-    # The band is fitted on the runs *before* the latest, so the latest row is
-    # dropped first, then only `lookback` rows are kept.
-    ratios = pd.Series([1.0, 1.0, 1.0, 1.0, 1.0])
-    assert gate._baseline_window(ratios).tolist() == [1.0, 1.0]
+def test_lookback_limits_the_baseline_window() -> None:
+    # With lookback=1 the band is fitted on the single run before the latest,
+    # so a spike starting from a drifted baseline is judged against that run.
+    ratios = [1.0, 1.0, 1.0, 1.0, 5.0]
+    gate = RegressionGate(lookback=1)
+    result = gate.check_latest(_frame(ratios))[0]
+    assert result.passed is False
+    # baseline median = 1.0 → band [0.9, 1.1]; latest 5.0 must fail.
+    assert result.limit == pytest.approx(1.1)
 
 
-def test_band_with_invalid_tolerance_is_rejected() -> None:
+def test_invalid_gate_configuration_is_rejected() -> None:
     with pytest.raises(ValueError):
         RegressionGate(tolerance=-0.1)
     with pytest.raises(ValueError):
