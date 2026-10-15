@@ -11,6 +11,7 @@ from __future__ import annotations
 import dataclasses
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from .history import BenchHistory
@@ -111,19 +112,24 @@ class RegressionGate:
         for bench, group in df.groupby("name"):
             if name and bench != name:
                 continue
-            ratios = group.sort_values("timestamp", kind="stable")["ratio"]
+            ratios = group.sort_values(["timestamp", "ratio"], kind="stable")["ratio"]
             latest = float(ratios.iloc[-1])
             # Drop the latest row *before* trimming to `lookback`, so the band
             # is always fitted on prior runs only.
             baseline = ratios.iloc[:-1].tail(self.lookback)
             if baseline.empty:
-                # A first run has nothing to regress against.
+                # A first run has nothing to regress against — but a non-finite
+                # ratio is a broken measurement (division by zero, a timeout, an
+                # instrumentation fault) and must not pass silently: an
+                # unconditional PASS here is exactly how the gate stops
+                # catching anything at all. A first, finite run still passes:
+                # there is genuinely nothing to compare it against.
                 results.append(
                     GateResult(
                         name=str(bench),
                         latest_ratio=latest,
                         limit=self._band(baseline),
-                        passed=True,
+                        passed=bool(np.isfinite(latest)),
                         lower_limit=None,
                     )
                 )
