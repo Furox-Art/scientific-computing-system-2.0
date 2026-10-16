@@ -96,6 +96,8 @@ def kl_divergence(
     if p_array.shape != q_array.shape:
         msg = "p and q must have the same length"
         raise ValueError(msg)
+    if np.any((p_array > 0) & (q_array == 0)):
+        return math.inf
     support = (q_array > 0) & (p_array > 0)
     ratio_terms = p_array[support] * (np.log(p_array[support]) - np.log(q_array[support]))
     return float(ratio_terms.sum() / math.log(base))
@@ -123,6 +125,8 @@ def cross_entropy(
     if p_array.shape != q_array.shape:
         msg = "p and q must have the same length"
         raise ValueError(msg)
+    if np.any((p_array > 0) & (q_array == 0)):
+        return math.inf
     support = (q_array > 0) & (p_array > 0)
     terms = -p_array[support] * np.log(q_array[support])
     return float(terms.sum() / math.log(base))
