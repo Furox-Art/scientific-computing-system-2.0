@@ -68,6 +68,10 @@ def conditional_entropy(
     if matrix.ndim != 2 or matrix.size == 0:
         msg = "joint distribution must be a non-empty 2-D table"
         raise ValueError(msg)
+    if not math.isfinite(base) or base <= 0 or math.isclose(base, 1.0):
+        raise ValueError("base must be finite, positive and different from 1")
+    # Normalize input validation to the same contract as joint_entropy.
+    _as_probabilities(matrix.ravel())
     row_sums = matrix.sum(axis=1)
     if marginal is None:
         marginal_values = row_sums
@@ -76,6 +80,9 @@ def conditional_entropy(
         if marginal_values.shape != (matrix.shape[0],):
             msg = "marginal shape does not match the joint table rows"
             raise ValueError(msg)
+        _as_probabilities(marginal_values)
+        if not np.allclose(marginal_values, row_sums, rtol=0.0, atol=1e-9):
+            raise ValueError("marginal probabilities must match joint row sums")
     total = float(row_sums.sum())
     entropy_value = 0.0
     for row, p_x in zip(matrix, marginal_values, strict=True):
@@ -168,17 +175,19 @@ def permutation_entropy(
 ) -> float:
     """Bandt-Pompe permutation entropy of an ordinal-pattern histogram."""
     series = np.asarray(signal, dtype=float)
-    if order < 2:
-        msg = "order must be at least 2"
-        raise ValueError(msg)
-    if delay < 1:
-        msg = "delay must be at least 1"
-        raise ValueError(msg)
+    if not isinstance(order, (int, np.integer)) or isinstance(order, (bool, np.bool_)) or order < 2:
+        raise ValueError("order must be an integer of at least 2")
+    if not isinstance(delay, (int, np.integer)) or isinstance(delay, (bool, np.bool_)) or delay < 1:
+        raise ValueError("delay must be a positive integer")
+    if series.ndim != 1 or not bool(np.all(np.isfinite(series))):
+        raise ValueError("signal must be a finite 1-D sequence")
     needed = (order - 1) * delay + 1
     if series.size < needed:
         msg = f"signal needs at least {needed} samples for order={order}, delay={delay}"
         raise ValueError(msg)
-    windows = np.lib.stride_tricks.sliding_window_view(series, needed)[::delay]
+    # Every valid starting position is a distinct ordinal-pattern sample.
+    # Delay separates observations *within* a window, not successive windows.
+    windows = np.lib.stride_tricks.sliding_window_view(series, needed)
     embedded = windows[:, ::delay][:, :order]
     codes = np.argsort(embedded, axis=1, kind="stable")
     weights = np.array([order**i for i in range(order)], dtype=np.int64)
