@@ -18,6 +18,7 @@ from typing import Any
 __all__ = [
     "cupy",
     "is_available",
+    "is_usable",
     "synchronize",
 ]
 
@@ -50,6 +51,22 @@ def is_available() -> bool:
         _ensure_cupy()
         return True  # pragma: no cover - requires CuPy
     except RuntimeError:
+        return False
+
+
+
+def is_usable() -> bool:
+    """Return True only when a CUDA device can actually be queried.
+
+    Unlike ``is_available()``, this probes the CUDA runtime rather than only
+    checking that CuPy imports. It does not claim that a kernel has run.
+    """
+    try:
+        cp = _ensure_cupy()
+        return cp.cuda.runtime.getDeviceCount() > 0
+    except Exception:
+        # A missing driver, incompatible runtime, or absent device must never
+        # be reported as working GPU hardware.
         return False
 
 
