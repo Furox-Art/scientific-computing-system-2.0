@@ -54,7 +54,6 @@ def is_available() -> bool:
         return False
 
 
-
 def is_usable() -> bool:
     """Return True only when a CUDA device can actually be queried.
 
@@ -63,7 +62,7 @@ def is_usable() -> bool:
     """
     try:
         cp = _ensure_cupy()
-        return cp.cuda.runtime.getDeviceCount() > 0
+        return bool(cp.cuda.runtime.getDeviceCount() > 0)
     except Exception:
         # A missing driver, incompatible runtime, or absent device must never
         # be reported as working GPU hardware.
