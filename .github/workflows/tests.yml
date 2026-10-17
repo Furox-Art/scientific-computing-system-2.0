@@ -2,9 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # Validate the active development branch before changes reach main.
+    branches: [main, dev/parallel-hardening-20261016]
   pull_request:
     branches: [main]
+  # Explicit revalidation is available without opening a pull request.
+  workflow_dispatch:
   workflow_call:
 
 concurrency:
