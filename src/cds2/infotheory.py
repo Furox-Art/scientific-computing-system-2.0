@@ -145,10 +145,11 @@ def mutual_information(joint: Sequence[Sequence[float]] | FloatArray, base: floa
     if matrix.ndim != 2 or matrix.size == 0:
         msg = "joint distribution must be a non-empty 2-D table"
         raise ValueError(msg)
-    total = float(matrix.sum())
-    if not math.isclose(total, 1.0, abs_tol=1e-9):
-        msg = "joint probabilities must sum to 1"
-        raise ValueError(msg)
+    if not math.isfinite(base) or base <= 0 or math.isclose(base, 1.0):
+        raise ValueError("base must be finite, positive and different from 1")
+    # A total of one alone is insufficient: negative cells can cancel
+    # positive mass and yield a plausible-looking but invalid MI value.
+    _as_probabilities(matrix.ravel())
     row_sums = matrix.sum(axis=1, keepdims=True)
     col_sums = matrix.sum(axis=0, keepdims=True)
     independent = row_sums @ col_sums
@@ -162,12 +163,13 @@ def normalized_mutual_information(
 ) -> float:
     """I(X; Y) scaled into [0, 1] by the square-root entropy product."""
     matrix = np.asarray(joint, dtype=float)
+    information = mutual_information(matrix, base)
     h_x = entropy(matrix.sum(axis=1), base)
     h_y = entropy(matrix.sum(axis=0), base)
     denominator = math.sqrt(h_x * h_y)
     if denominator == 0:
         return 0.0
-    return mutual_information(matrix, base) / denominator
+    return information / denominator
 
 
 def permutation_entropy(
@@ -190,8 +192,8 @@ def permutation_entropy(
     windows = np.lib.stride_tricks.sliding_window_view(series, needed)
     embedded = windows[:, ::delay][:, :order]
     codes = np.argsort(embedded, axis=1, kind="stable")
-    weights = np.array([order**i for i in range(order)], dtype=np.int64)
-    patterns = codes @ weights
-    _, counts = np.unique(patterns, return_counts=True)
+    # Rank every permutation by the complete ordinal tuple. Encoding
+    # permutations as a single int64 polynomial overflows for order >= 17.
+    _, counts = np.unique(codes, axis=0, return_counts=True)
     probabilities = counts / counts.sum()
     return entropy(probabilities, base)
