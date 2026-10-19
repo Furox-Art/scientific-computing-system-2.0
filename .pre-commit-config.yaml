@@ -9,13 +9,13 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
 
-  # Keep this rev current with the ruff that CI installs. tests.yml runs
-  # `pip install ruff` unpinned, i.e. latest — so a stale pin here means the
-  # hook enforces a different rule set than the gate. At v0.5.5 it applied
+  # Keep this rev current with the ruff that CI installs. tests.yml installs
+  # the pinned version from constraints/ci-tools.txt, so a stale pin here means
+  # the hook enforces a different rule set than the gate. At v0.5.5 it applied
   # UP038 (since retired) and rewrote 69 files that CI was perfectly happy
   # with, which is worse than having no hook at all.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.9
+    rev: v0.17.1
     hooks:
       - id: ruff
         # --exit-non-zero-on-fix so an auto-fix is never silently committed.
