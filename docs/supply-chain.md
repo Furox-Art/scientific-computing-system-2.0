@@ -117,7 +117,7 @@ registered. Until then, treat every release as digest-verifiable only.
 
 The npm package is a thin Node launcher, not a second distribution of the
 library: it contains no Python and calls into the PyPI-installed package. See
-[npm launcher shim](npm.md). Two npm versions are unusable and cannot be
+[npm launcher shim](npm.md). One npm version is unusable and cannot be
 repaired because npm versions are immutable: `2.0.0` shipped a broken entry
 point, and the stale channel predates this repository taking over the name.
 Install `5.2.5` or later.
