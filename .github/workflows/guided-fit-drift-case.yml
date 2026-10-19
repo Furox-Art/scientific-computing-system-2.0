@@ -28,7 +28,7 @@ jobs:
           python scripts/reproduce_guided_fit_dependency_drift.py \
             baseline --output-dir case
       - name: Upload baseline
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: guided-fit-drift-baseline
           path: case
@@ -63,7 +63,7 @@ jobs:
             --manifest case/guided_fit_manifest.json \
             --output case/upgraded-rerun.json
       - name: Upload rerun
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: guided-fit-drift-upgraded-rerun
           path: case
