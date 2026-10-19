@@ -11,7 +11,7 @@
 
 This is the **NumPy build** of [scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system), not a separate product: pick this one for NumPy/SciPy/pandas/matplotlib, the other for readable pure Python with zero runtime dependencies.
 
-**52 importable names, 535 public exports, 1,805 tests, 100% branch coverage, MIT.** Every count here is generated from the tree by `scripts/make_promo.py` and CI, not typed by hand.
+**52 importable names, 535 public exports, 1,882 tests, 100% branch coverage, MIT.** Every count here is generated from the tree by `scripts/make_promo.py` and CI, not typed by hand.
 
 ## Reproducibility drift is a result, not hidden state
 
@@ -185,7 +185,7 @@ python -m cds2 info
 
 ## Performance, measured honestly
 
-`benchmarks/results.json` and [docs/benchmarks.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmarks/) are a real run, but a **stale one: cds2 3.0.0, commit `6ea5a02`, 2026-08-22**, while the release is 5.2.5. Read them as "3.0.0 versus the baseline libraries on one machine", not as a claim about today.
+`benchmarks/results.json` and [docs/benchmarks.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmarks/) are a real run, but a **stale one: cds2 3.0.0, commit `6ea5a02`, 2026-08-22**, while the release is 5.4.4. Read them as "3.0.0 versus the baseline libraries on one machine", not as a claim about today.
 
 Of the 13 measured cases, **CDS v2 was slower in 4**: `dataframe summary` 1.82x, `solve 800x800` 1.22x, `solve 8x8 x300` 1.17x and `welch` 1.03x. The pandas row returns strictly more information (per-column nulls and uniques), so part of that premium is extra work. The clearest win is PageRank at 0.15x versus NetworkX. There is **no blanket speedup claim**, and [benchmark-methodology.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmark-methodology/) sets out the limits.
 

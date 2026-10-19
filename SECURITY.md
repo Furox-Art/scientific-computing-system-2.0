@@ -70,10 +70,10 @@ Full detail, including how to reproduce every check:
 The npm package `scientific-computing-system-2.0` is a Node launcher shim that
 spawns `python -m cds2.cli`; it contains no Python and does not vendor the
 scientific stack. It executes whatever `python` resolves to on your `PATH`, so it
-grants no privilege beyond the interpreter you already trust. Two npm versions
-are unusable and cannot be repaired, because npm versions are immutable: the
+grants no privilege beyond the interpreter you already trust. One npm version
+is unusable and cannot be repaired, because npm versions are immutable: the
 stale `2.0.0`, which shipped a broken entry point before this repository took
-over the name, and therefore install `5.2.5` or later.
+over the name. Install `5.2.5` or later.
 
 ## Reporting a vulnerability
 
