@@ -55,7 +55,9 @@ def repo_counts() -> tuple[int, int, int, int, int]:
     Returns ``(importable, exports, api_pages, tests, flat_modules)``.
     """
     src = REPO / "src" / "cds2"
-    flat = [p for p in src.glob("*.py") if p.name not in ("__init__.py", "_version.py")]
+    # __main__ is an execution entry point, not part of the importable API surface.
+    excluded = ("__init__.py", "_version.py", "__main__.py")
+    flat = [p for p in src.glob("*.py") if p.name not in excluded]
     subpackages = [
         d.name for d in sorted(src.iterdir()) if d.is_dir() and (d / "__init__.py").is_file()
     ]
