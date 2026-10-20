@@ -21,7 +21,6 @@ __all__ = [
 ]
 
 FloatArray = NDArray[np.float64]
-IntArray = NDArray[np.int64]
 
 
 @dataclass(frozen=True)

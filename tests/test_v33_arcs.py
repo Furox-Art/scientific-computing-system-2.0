@@ -118,7 +118,7 @@ class TestNewtonArcs:
         x = symbol("x")
         model = MathModel.from_formula(x / (x - 2.0), Constant(0.0))
         solution = model.solve_equation("x", target_value=0.0, known={}, initial_guess=4.0)
-        assert solution != 0.0 or solution == 0.0
+        assert np.isfinite(solution)
 
     def test_no_convergence_exhausts_epochs(self) -> None:
         x = symbol("x")

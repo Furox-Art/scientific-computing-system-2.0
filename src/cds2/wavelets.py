@@ -19,7 +19,6 @@ __all__ = [
 ]
 
 FloatArray = NDArray[np.float64]
-IntArray = NDArray[np.int64]
 
 
 def _as_signal(values: Sequence[float] | FloatArray) -> FloatArray:
