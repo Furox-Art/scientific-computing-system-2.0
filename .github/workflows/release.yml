@@ -275,27 +275,49 @@ jobs:
           password: ${{ secrets.PYPI_API_TOKEN }}
         continue-on-error: true
 
-      - name: Verify PyPI publication
+      - name: Verify PyPI publication metadata
         shell: bash
+        env:
+          PACKAGE: ${{ steps.meta.outputs.name }}
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           set -euo pipefail
-          url="https://pypi.org/pypi/${{ steps.meta.outputs.name }}/${{ steps.meta.outputs.version }}/json"
-          for attempt in 1 2 3 4 5 6; do
-            if curl -sfL "$url" > /dev/null; then
-              echo "Verified PyPI publication: $url"
-              exit 0
-            fi
-            echo "PyPI metadata not visible yet (attempt $attempt/6); retrying..."
-            sleep 10
-          done
-          echo "ERROR: release artifacts were not verified on PyPI."
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          package = os.environ["PACKAGE"]
+          version = os.environ["VERSION"]
+          url = f"https://pypi.org/pypi/{package}/{version}/json"
+          last_error = None
+          for attempt in range(1, 7):
+              try:
+                  with urllib.request.urlopen(url, timeout=30) as response:
+                      payload = json.load(response)
+                  break
+              except (urllib.error.HTTPError, urllib.error.URLError) as exc:
+                  last_error = exc
+                  print(f"PyPI metadata not visible yet (attempt {attempt}/6); retrying...")
+                  time.sleep(10)
+          else:
+              raise SystemExit(f"release metadata was not verified on PyPI: {last_error}")
+
+          assert payload["info"]["version"] == version, payload["info"]["version"]
+          package_types = {artifact["packagetype"] for artifact in payload["urls"]}
+          assert {"bdist_wheel", "sdist"} <= package_types, package_types
+          print(f"Verified PyPI publication metadata: {package} {version} ({sorted(package_types)})")
+          PY
           echo "Trusted publishing outcome: ${{ steps.trusted_publish.outcome }}"
           echo "Token fallback outcome: ${{ steps.token_publish.outcome }}"
-          exit 1
 
-  # Install the exact version back from public PyPI on all supported operating
-  # systems. The GitHub Release is not created until these real-world CLI smoke
-  # tests pass, so a green release means the public package itself was tested.
+  # Run the compiled wheel built earlier in this workflow on all supported
+  # operating systems. Installing the released distribution back from PyPI
+  # would count as package downloads and inflate public statistics, so this
+  # smoke test uses the artifact that was just published instead. The GitHub
+  # Release is not created until these tests pass.
   verify_published:
     needs: publish
     permissions: {}
@@ -314,7 +336,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install exact release from public PyPI
+      - name: Download the wheel built for this runner
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: wheel-${{ matrix.os }}-312
+          path: dist
+
+      - name: Install release artifact without registry downloads
         shell: bash
         run: |
           set -euo pipefail
@@ -322,19 +350,21 @@ jobs:
           VERSION="${{ needs.publish.outputs.version }}"
           python -m pip install --upgrade pip
 
-          installed=false
-          for attempt in 1 2 3 4 5 6; do
-            if python -m pip install --no-cache-dir --index-url https://pypi.org/simple "${PACKAGE}==${VERSION}"; then
-              installed=true
-              break
-            fi
-            echo "Published distribution not installable yet (attempt $attempt/6); retrying..."
-            sleep 10
-          done
-          if [ "$installed" != "true" ]; then
-            echo "ERROR: could not install ${PACKAGE}==${VERSION} from public PyPI"
-            exit 1
-          fi
+          WHEEL="$(python - <<'PY'
+          import pathlib
+          import platform
+
+          machine = platform.machine().lower().replace("-", "_")
+          wheels = [
+              path for path in pathlib.Path("dist").glob("*.whl")
+              if machine in path.name.lower()
+          ]
+          if len(wheels) != 1:
+              raise SystemExit(f"expected one compatible wheel, found {[path.name for path in wheels]}")
+          print(wheels[0])
+          PY
+          )"
+          python -m pip install --no-cache-dir "$WHEEL"
 
           VERSION="$VERSION" PACKAGE="$PACKAGE" python - <<'PY'
           import importlib.metadata as metadata
@@ -345,29 +375,29 @@ jobs:
           package = os.environ["PACKAGE"]
           assert cds2.__version__ == expected, (cds2.__version__, expected)
           assert metadata.version(package) == expected, (metadata.version(package), expected)
-          print(f"Verified installed package version: {package} {expected}")
+          print(f"Verified installed release artifact: {package} {expected}")
           PY
 
-      - name: Smoke-test published CLI and guided fit
+      - name: Smoke-test release CLI and guided fit
         shell: bash
         run: |
           set -euo pipefail
           cds2 info
           python - <<'PY'
           import csv
-          with open("published-cli-smoke.csv", "w", newline="", encoding="utf-8") as handle:
+          with open("release-cli-smoke.csv", "w", newline="", encoding="utf-8") as handle:
               writer = csv.writer(handle)
               writer.writerow(["x", "y", "sigma"])
               for x in range(1, 21):
                   writer.writerow([x, 2.0 * x + 1.0, 0.2])
           PY
-          cds2 guided-fit published-cli-smoke.csv --x x --y y --sigma sigma --model linear --missing interpolate --outliers keep --report none --output-dir published-cli-smoke-output
-          test -f published-cli-smoke-output/guided_fit_manifest.json
-          test -f published-cli-smoke-output/published-cli-smoke_fit.png
-          test -f published-cli-smoke-output/published-cli-smoke_fit.pdf
-          test -f published-cli-smoke-output/published-cli-smoke_residuals.png
-          test -f published-cli-smoke-output/published-cli-smoke_residuals.pdf
-          cds2 guided-fit-rerun published-cli-smoke-output/guided_fit_manifest.json
+          cds2 guided-fit release-cli-smoke.csv --x x --y y --sigma sigma --model linear --missing interpolate --outliers keep --report none --output-dir release-cli-smoke-output
+          test -f release-cli-smoke-output/guided_fit_manifest.json
+          test -f release-cli-smoke-output/release-cli-smoke_fit.png
+          test -f release-cli-smoke-output/release-cli-smoke_fit.pdf
+          test -f release-cli-smoke-output/release-cli-smoke_residuals.png
+          test -f release-cli-smoke-output/release-cli-smoke_residuals.pdf
+          cds2 guided-fit-rerun release-cli-smoke-output/guided_fit_manifest.json
 
   github_release:
     needs: [publish, verify_published]
