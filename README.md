@@ -11,6 +11,22 @@
 
 This is the **NumPy build** of [scientific-computing-system](https://github.com/Furox-Art/scientific-computing-system), not a separate product: pick this one for NumPy/SciPy/pandas/matplotlib, the other for readable pure Python with zero runtime dependencies.
 
+## Name and version
+
+`2.0` names the NumPy generation of the project, not the release number. The
+current release is **5.4.4**, and PyPI has never published a 2.x version.
+
+| Surface | Name |
+| --- | --- |
+| GitHub repository | `scientific-computing-system-2.0` |
+| PyPI / npm project | `scientific-computing-system-2.0` |
+| Python import | `cds2` |
+| Console script | `cds2` |
+| Current version | 5.4.4 |
+
+PyPI and npm project names are fixed after publication, so the `-2.0` suffix stays
+even though the version has moved past it.
+
 **52 importable names, 535 public exports, 1,882 tests, 100% branch coverage, MIT.** Every count here is generated from the tree by `scripts/make_promo.py` and CI, not typed by hand.
 
 ## Reproducibility drift is a result, not hidden state
