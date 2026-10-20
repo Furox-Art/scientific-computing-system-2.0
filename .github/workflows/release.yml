@@ -297,17 +297,19 @@ jobs:
               try:
                   with urllib.request.urlopen(url, timeout=30) as response:
                       payload = json.load(response)
+                  if payload["info"]["version"] != version:
+                      raise RuntimeError(f"version mismatch: {payload['info']['version']}")
+                  package_types = {artifact["packagetype"] for artifact in payload["urls"]}
+                  if not {"bdist_wheel", "sdist"} <= package_types:
+                      raise RuntimeError(f"incomplete artifact set: {sorted(package_types)}")
                   break
-              except (urllib.error.HTTPError, urllib.error.URLError) as exc:
+              except (urllib.error.HTTPError, urllib.error.URLError, RuntimeError) as exc:
                   last_error = exc
                   print(f"PyPI metadata not visible yet (attempt {attempt}/6); retrying...")
                   time.sleep(10)
           else:
               raise SystemExit(f"release metadata was not verified on PyPI: {last_error}")
 
-          assert payload["info"]["version"] == version, payload["info"]["version"]
-          package_types = {artifact["packagetype"] for artifact in payload["urls"]}
-          assert {"bdist_wheel", "sdist"} <= package_types, package_types
           print(f"Verified PyPI publication metadata: {package} {version} ({sorted(package_types)})")
           PY
           echo "Trusted publishing outcome: ${{ steps.trusted_publish.outcome }}"
