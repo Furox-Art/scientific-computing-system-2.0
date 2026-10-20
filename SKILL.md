@@ -1,6 +1,6 @@
 ---
 name: scientific-computing-system-2.0
-description: "Use when a task needs NumPy/SciPy/pandas/matplotlib-based scientific computing, statistics, optimization, machine learning, information theory, or reproducible curve fitting with replayable manifests. Ships the `cds2` package and CLI; choose the zero-dependency `cds` build when third-party packages are not allowed."
+description: "Use when a task needs NumPy/SciPy/pandas/matplotlib-based scientific computing, statistics, optimization, machine learning, information theory, or reproducible curve fitting with replayable manifests. Ships the `cds2` package and CLI; choose the zero-dependency `cds` build when third-party packages are not allowed. Published on PyPI and npm as `scientific-computing-system-2.0`, where 2.0 names the generation, not the version."
 argument-hint: "<scientific analysis, dataset, or fitting task>"
 metadata:
   version: "5.4.4"
