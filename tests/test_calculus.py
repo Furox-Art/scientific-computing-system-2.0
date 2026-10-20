@@ -16,8 +16,8 @@ class TestDerivative:
         assert value == pytest.approx(np.cos(0.7), rel=1e-7)
 
     def test_forward_and_backward_less_accurate_but_close(self) -> None:
-        forward = calculus.derivative(lambda x: np.exp(x), 1.0, method="forward")
-        backward = calculus.derivative(lambda x: np.exp(x), 1.0, method="backward")
+        forward = calculus.derivative(np.exp, 1.0, method="forward")
+        backward = calculus.derivative(np.exp, 1.0, method="backward")
         assert forward == pytest.approx(np.e, rel=1e-4)
         assert backward == pytest.approx(np.e, rel=1e-4)
 

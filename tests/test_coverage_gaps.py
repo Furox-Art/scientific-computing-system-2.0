@@ -9,7 +9,6 @@ import numpy as np
 import pytest
 from scipy import interpolate as spi
 
-import cds2.ml as ml_module
 from cds2 import (
     cli,
     graph,
@@ -27,6 +26,8 @@ from cds2 import (
     timeseries,
     viz,
 )
+
+ml_module = ml
 
 
 # ---------------------------------------------------------------- cli ----
@@ -130,7 +131,7 @@ class TestLinalgGaps:
 # ------------------------------------------------------------------ ml ----
 class TestMlFallbackAndGuards:
     def test_import_error_branch_and_numpy_lloyd(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        import cds2 as cds_package
+        cds_package = importlib.import_module("cds2")
 
         monkeypatch.setitem(sys.modules, "cds2._fast_kmeans", None)
         monkeypatch.delattr(cds_package, "_fast_kmeans", raising=False)

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
-
 import numpy as np
 import pytest
 
@@ -122,10 +120,7 @@ def test_pagerank_rejects_invalid_graph_inputs() -> None:
 
 
 def test_native_kmeans_boundary_guards_when_extension_available() -> None:
-    try:
-        kernel = importlib.import_module("cds2._fast_kmeans")
-    except ImportError:
-        pytest.skip("compiled k-means extension is not installed")
+    kernel = pytest.importorskip("cds2._fast_kmeans")
     points = np.ascontiguousarray([[0.0], [1.0]], dtype=np.float64)
     centers = np.ascontiguousarray([[0.0]], dtype=np.float64)
     with pytest.raises(ValueError, match="max_iter"):
@@ -133,10 +128,7 @@ def test_native_kmeans_boundary_guards_when_extension_available() -> None:
 
 
 def test_native_pagerank_boundary_guards_when_extension_available() -> None:
-    try:
-        kernel = importlib.import_module("cds2._fast_pagerank")
-    except ImportError:
-        pytest.skip("compiled PageRank extension is not installed")
+    kernel = pytest.importorskip("cds2._fast_pagerank")
     indptr = np.ascontiguousarray([0, 2, 1], dtype=np.int64)
     indices = np.ascontiguousarray([0], dtype=np.int64)
     data = np.ascontiguousarray([1.0], dtype=np.float64)
@@ -146,10 +138,7 @@ def test_native_pagerank_boundary_guards_when_extension_available() -> None:
 
 
 def test_native_pagerank_rejects_noncontiguous_buffers() -> None:
-    try:
-        kernel = importlib.import_module("cds2._fast_pagerank")
-    except ImportError:
-        pytest.skip("compiled PageRank extension is not installed")
+    kernel = pytest.importorskip("cds2._fast_pagerank")
     empty_indices = np.ascontiguousarray([], dtype=np.int64)
     empty_data = np.ascontiguousarray([], dtype=np.float64)
     empty_dangling = np.ascontiguousarray([], dtype=np.int64)

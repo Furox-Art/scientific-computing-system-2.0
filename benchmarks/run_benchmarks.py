@@ -397,7 +397,7 @@ def environment_info() -> dict[str, object]:
             module = __import__(module_name)
             versions[module_name] = module.__version__
         except ImportError:
-            pass
+            continue
     return {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "git_commit": commit or "unknown",

@@ -55,9 +55,9 @@ class TestExpressionBuilding:
 
     def test_wrap_rejects_bool_and_text(self, x: Variable) -> None:
         with pytest.raises(TypeError):
-            x + True
+            x.__add__(True)
         with pytest.raises(TypeError):
-            x + "text"
+            x.__add__("text")
 
 
 class TestEvaluate:

@@ -25,7 +25,7 @@ def main() -> None:
     )
 
     fit = cds2.optimize.curve_fit(
-        lambda s, vmax, km: michaelis_menten(s, vmax, km),
+        michaelis_menten,
         substrate,
         rates,
         p0=[30.0, 1.0],

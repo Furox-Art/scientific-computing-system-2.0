@@ -22,7 +22,6 @@ FloatArray = NDArray[np.float64]
 IntArray = NDArray[np.int64]
 
 # Shewhart constants indexed by subgroup size n.
-D4 = {2: 3.267, 3: 2.574, 4: 2.282, 5: 2.114, 6: 2.004, 7: 1.924, 8: 1.864, 9: 1.816, 10: 1.777}
 A2 = {2: 1.880, 3: 1.023, 4: 0.729, 5: 0.577, 6: 0.483, 7: 0.419, 8: 0.373, 9: 0.337, 10: 0.308}
 
 

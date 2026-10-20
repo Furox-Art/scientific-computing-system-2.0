@@ -64,4 +64,4 @@ def synchronize() -> None:
         cp = _ensure_cupy()
         cp.cuda.Stream.null.synchronize()  # pragma: no cover - requires CuPy
     except RuntimeError:
-        pass
+        return
