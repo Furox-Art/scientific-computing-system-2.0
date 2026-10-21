@@ -6,22 +6,19 @@ on:
     paths:
       - "src/cds2/_version.py"
 
-# This workflow only starts the fail-closed release workflows. release.yml
-# performs all metadata, PyPI, package and tag verification for Python, and
-# npm-publish.yml performs the equivalent for the npm registry.
+# The single automatic entry point. A version bump dispatches release.yml,
+# which owns the PyPI publish, the tag and the GitHub Release. npm-publish.yml
+# runs only after that workflow completes successfully (`workflow_run`), so the
+# npm launcher can never publish a version that PyPI does not serve.
 #
-# One version bump fans out to both registries. npm publishing deliberately
-# stays in its own workflow rather than becoming a job inside release.yml,
-# because:
+# npm stays a separate workflow rather than a job inside release.yml:
 #   * release.yml's publish job runs under the `pypi` environment with its own
-#     approval gate; folding npm in would make npm wait on, or share, PyPI's
-#     OIDC identity and approval;
+#     approval gate; npm keeps its own `npm` environment and OIDC identity;
 #   * a failed or slow npm publish must not mark a completed PyPI release run
 #     as failed, and the two registries have independent retry paths;
-#   * each workflow keeps its own concurrency group, so a duplicate dispatch
-#     cannot race an in-flight publish on the other registry.
-# Both workflows re-verify version lockstep independently, so running them in
-# parallel is safe.
+#   * each workflow keeps its own concurrency group, so a duplicate run cannot
+#     race an in-flight publish on the other registry.
+# Both workflows re-verify version lockstep independently.
 permissions:
   actions: write
   contents: read
@@ -37,15 +34,3 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run release.yml --ref main --repo "$GITHUB_REPOSITORY"
-
-      - name: Dispatch npm publish workflow on main
-        env:
-          GH_TOKEN: ${{ github.token }}
-        # npmjs trusted publishing is not configured for this package yet.
-        # The repository NPM_TOKEN path is known-good, so automatic version
-        # bumps explicitly select it instead of first failing the OIDC path.
-        run: >-
-          gh workflow run npm-publish.yml
-          --ref main
-          --repo "$GITHUB_REPOSITORY"
-          -f use_token_fallback=true

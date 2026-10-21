@@ -26,12 +26,12 @@ class TestWorkflowGraph:
     def test_the_audit_reports_no_coverage_problems(self) -> None:
         assert check_workflows.coverage_problems() == []
 
-    def test_the_version_bump_dispatches_every_publish_workflow(self) -> None:
+    def test_the_version_bump_reaches_every_publish_workflow(self) -> None:
         workflows = check_workflows._workflow_texts()
         publishes = {name for name, text in workflows.items() if check_workflows._registries(text)}
-        dispatched = check_workflows._dispatched(workflows[check_workflows.BUMP_WORKFLOW])
+        reachable = check_workflows._reachable(check_workflows.BUMP_WORKFLOW, workflows)
         assert publishes, "no publish workflow found"
-        assert publishes <= dispatched
+        assert publishes <= reachable
 
     def test_every_publish_workflow_runs_its_own_guard(self) -> None:
         workflows = check_workflows._workflow_texts()
