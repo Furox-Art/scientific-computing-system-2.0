@@ -11,6 +11,7 @@ The audit derives a graph from ``.github/workflows/*.yml``:
   ``pypa/gh-action-pypi-publish`` action -> pypi, an ``npm publish`` command
   -> npm);
 * which workflows dispatch which, via ``gh workflow run <file>.yml``;
+* which completed workflows trigger other workflows via ``workflow_run``;
 * which paths each trigger filters on.
 
 Both publish markers are matched in executable positions only -- ``run:``
@@ -21,12 +22,13 @@ publisher.
 
 It then asserts the coverage contract documented in ``docs/release.md``:
 
-1. the automatic version-bump path fans out to *every* publish workflow, so
-   one ``src/cds2/_version.py`` bump reaches both registries and no registry
-   is silently skipped;
+1. the automatic version-bump path *reaches* every publish workflow, either
+   directly or through a ``workflow_run`` chain (``Release`` -> npm), so one
+   ``src/cds2/_version.py`` bump updates both registries and no registry is
+   silently skipped;
 2. no publish workflow is orphaned -- each one must be reachable from the
-   automatic bump path, and the bump path must not dispatch anything that
-   does not publish;
+   automatic bump path -- and every workflow the bump path dispatches must
+   publish or lead to a publisher;
 3. the bump trigger must actually watch the version file;
 4. the CI workflow that guards publishing must not filter its triggers by
    path, so a change to a publish-path file still re-runs the guarding tests
@@ -65,6 +67,8 @@ REGISTRY_GUARDS = {"pypi": "pytest", "npm": "npm test"}
 DISPATCH_RE = re.compile(r"gh workflow run ([A-Za-z0-9_.\-]+\.yml)")
 USES_RE = re.compile(r"^\s*uses:\s*([A-Za-z0-9_.\-/]+)@", re.MULTILINE)
 RUN_RE = re.compile(r"^(\s*)(?:-\s*)?run:\s*(.*)$")
+NAME_RE = re.compile(r"^name:\s*(.+?)\s*$", re.MULTILINE)
+WORKFLOW_RUN_RE = re.compile(r"workflows:\s*\[([^\]]*)\]")
 
 
 def _workflow_texts() -> dict[str, str]:
@@ -76,6 +80,56 @@ def _workflow_texts() -> dict[str, str]:
 def _dispatched(text: str) -> set[str]:
     """Workflow files this workflow starts with ``gh workflow run``."""
     return set(DISPATCH_RE.findall(text))
+
+
+def _workflow_name(text: str) -> str | None:
+    """Top-level ``name:`` of a workflow, or None when it has none."""
+    match = NAME_RE.search(text)
+    return match.group(1).strip().strip("\"'") if match else None
+
+
+def _workflow_run_targets(text: str) -> set[str]:
+    """Display names listed under ``on.workflow_run.workflows``."""
+    names: set[str] = set()
+    for line in _on_lines(text):
+        match = WORKFLOW_RUN_RE.search(line)
+        if match is None:
+            continue
+        names.update(
+            part.strip().strip("\"'") for part in match.group(1).split(",") if part.strip()
+        )
+    return names
+
+
+def _workflow_run_edges(workflows: dict[str, str]) -> dict[str, set[str]]:
+    """Map each workflow to the files its completion triggers via workflow_run."""
+    by_name = {
+        name: filename
+        for filename, text in workflows.items()
+        if (name := _workflow_name(text)) is not None
+    }
+    edges: dict[str, set[str]] = {filename: set() for filename in workflows}
+    for filename, text in workflows.items():
+        for trigger_name in _workflow_run_targets(text):
+            trigger = by_name.get(trigger_name)
+            if trigger is not None and trigger != filename:
+                edges[trigger].add(filename)
+    return edges
+
+
+def _reachable(start: str, workflows: dict[str, str]) -> set[str]:
+    """Every workflow reachable from *start* via dispatch or workflow_run."""
+    edges = _workflow_run_edges(workflows)
+    seen = {start}
+    queue = [start]
+    while queue:
+        current = queue.pop()
+        targets = _dispatched(workflows[current]) | edges.get(current, set())
+        for target in targets:
+            if target in workflows and target not in seen:
+                seen.add(target)
+                queue.append(target)
+    return seen
 
 
 def _run_commands(text: str) -> list[str]:
@@ -189,17 +243,20 @@ def coverage_problems() -> list[str]:
         return [f"{BUMP_WORKFLOW} is missing: a version bump would never publish"]
 
     dispatched = _dispatched(workflows[BUMP_WORKFLOW])
+    reachable = _reachable(BUMP_WORKFLOW, workflows)
 
-    # 1 + 2. One bump reaches every registry, and no publisher is orphaned.
+    # 1 + 2. One bump reaches every registry, directly or through a
+    # workflow_run chain, and no publisher is orphaned.
     for name in sorted(publishes):
-        if name not in dispatched:
+        if name not in reachable:
             problems.append(
-                f"{BUMP_WORKFLOW} does not dispatch {name}: a version bump would "
-                f"silently skip publishing to {', '.join(publishes[name])}"
+                f"{BUMP_WORKFLOW} cannot reach {name} (directly or via workflow_run): "
+                f"a version bump would silently skip publishing to {', '.join(publishes[name])}"
             )
     for name in sorted(dispatched):
-        if name not in publishes:
-            problems.append(f"{BUMP_WORKFLOW} dispatches {name}, which publishes nothing")
+        downstream = _reachable(name, workflows) & set(publishes)
+        if not downstream:
+            problems.append(f"{BUMP_WORKFLOW} dispatches {name}, which leads to no publisher")
 
     # 3. Without the version file in the trigger paths the fan-out never fires.
     if VERSION_FILE not in _path_filters(workflows[BUMP_WORKFLOW], "push"):

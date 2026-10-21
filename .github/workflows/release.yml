@@ -78,7 +78,7 @@ jobs:
           print(f"Release metadata is consistent for {project['project']['name']} {version}")
           PY
 
-      - name: Refuse an already-published version or existing tag
+      - name: Inspect existing PyPI version and tag for safe recovery
         shell: bash
         run: |
           set -euo pipefail
@@ -92,14 +92,19 @@ jobs:
           PACKAGE="${META[0]}"
           VERSION="${META[1]}"
 
+          # An existing version is not fatal: it may be a release whose PyPI
+          # upload succeeded before the tag or GitHub Release step failed. The
+          # publish job compares the downloaded artifacts against PyPI
+          # byte-for-byte and skips the upload only on an exact match.
           if curl -sfL "https://pypi.org/pypi/${PACKAGE}/${VERSION}/json" > /dev/null; then
-            echo "ERROR: ${PACKAGE} ${VERSION} already exists on PyPI. Bump the version before releasing."
-            exit 1
+            echo "::notice::${PACKAGE} ${VERSION} already exists on PyPI; entering recovery mode."
+            echo "::notice::The publish job will verify its artifacts match PyPI before skipping the upload."
+          else
+            echo "${PACKAGE} ${VERSION} is unpublished; this is a normal release."
           fi
 
           if git ls-remote --exit-code --tags origin "refs/tags/v${VERSION}" > /dev/null 2>&1; then
-            echo "ERROR: tag v${VERSION} already exists. Bump the version before releasing."
-            exit 1
+            echo "::notice::tag v${VERSION} already exists; the release step will verify its commit."
           fi
 
       - name: Install package and release test dependencies
@@ -116,6 +121,20 @@ jobs:
         run: pytest --cov=cds2 --cov-report=term-missing --cov-fail-under=100
       - name: Property tests
         run: python -m pytest tests/property/ -v --hypothesis-seed=0
+
+      # The regression gate is only meaningful with a persisted baseline. The
+      # history directory is not committed, so without this cache every release
+      # appended a single run and compared it against nothing ("no prior
+      # baseline [PASS]"). Restore the most recent release history, then save
+      # this run under a unique key on success.
+      - name: Restore benchmark history
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: benchmarks/history
+          key: bench-history-${{ github.run_id }}
+          restore-keys: |
+            bench-history-
+
       - name: Benchmark regression gate
         run: |
           python benchmarks/run_benchmarks.py --quick
@@ -147,11 +166,24 @@ jobs:
                   "ERROR: benchmark history is empty; "
                   "the regression gate must not pass on zero rows"
               )
+          runs = frame["timestamp"].nunique()
+          if runs < 2:
+              print(
+                  "::warning::benchmark history holds only the current run; "
+                  "this release establishes the baseline and has nothing to compare against."
+              )
           print(
               f"Benchmark history holds {len(frame)} rows "
-              f"across {frame['name'].nunique()} benchmarks"
+              f"across {frame['name'].nunique()} benchmarks in {runs} run(s)"
           )
           PY
+
+      - name: Save benchmark history
+        if: success()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: benchmarks/history
+          key: bench-history-${{ github.run_id }}
 
   build_sdist_and_pure_wheel:
     needs: preflight
@@ -234,16 +266,6 @@ jobs:
       # Re-check immediately before upload to close the race between preflight
       # and publication. Existing versions are fatal: silently skipping them can
       # make a GitHub tag point at code that is not the code on PyPI.
-      - name: Refuse an already-published version
-        shell: bash
-        run: |
-          set -euo pipefail
-          url="https://pypi.org/pypi/${{ steps.meta.outputs.name }}/${{ steps.meta.outputs.version }}/json"
-          if curl -sfL "$url" > /dev/null; then
-            echo "ERROR: version already exists on PyPI: $url"
-            exit 1
-          fi
-
       - name: Detect API token fallback availability
         id: auth
         shell: bash
@@ -262,14 +284,87 @@ jobs:
           path: dist
           merge-multiple: true
 
+      # Recovery must never substitute different bytes for a published
+      # version. When PyPI already serves this version, require the freshly
+      # built wheel + sdist to match its files by name, size and sha256; only
+      # then skip the upload and continue to the tag/GitHub Release steps.
+      - name: Inspect existing PyPI release for safe recovery
+        id: pypi_state
+        shell: bash
+        env:
+          PACKAGE: ${{ steps.meta.outputs.name }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import urllib.error
+          import urllib.request
+
+          package = os.environ["PACKAGE"]
+          version = os.environ["VERSION"]
+          output = pathlib.Path(os.environ["GITHUB_OUTPUT"])
+          url = f"https://pypi.org/pypi/{package}/{version}/json"
+
+          try:
+              with urllib.request.urlopen(url, timeout=30) as response:
+                  payload = json.load(response)
+          except urllib.error.HTTPError as exc:
+              if exc.code != 404:
+                  raise
+              with output.open("a", encoding="utf-8") as stream:
+                  stream.write("already_published=false\n")
+              print(f"PyPI {package} {version} does not exist yet; upload required.")
+              raise SystemExit(0)
+
+          remote = {}
+          for item in payload.get("urls", []):
+              if item.get("packagetype") not in {"bdist_wheel", "sdist"}:
+                  continue
+              filename = item["filename"]
+              if filename in remote:
+                  raise SystemExit(f"duplicate PyPI artifact filename: {filename}")
+              remote[filename] = (item["size"], item["digests"]["sha256"])
+
+          local = {}
+          for path in pathlib.Path("dist").iterdir():
+              if not (path.name.endswith(".whl") or path.name.endswith(".tar.gz")):
+                  continue
+              local[path.name] = (path.stat().st_size, hashlib.sha256(path.read_bytes()).hexdigest())
+
+          if not local or set(local) != set(remote):
+              raise SystemExit(
+                  "existing PyPI release does not contain the exact local wheel + sdist: "
+                  f"local={sorted(local)}, remote={sorted(remote)}"
+              )
+          for filename in sorted(local):
+              if local[filename] != remote[filename]:
+                  raise SystemExit(
+                      f"existing PyPI artifact differs from the verified build: {filename}; "
+                      f"local={local[filename]}, remote={remote[filename]}"
+                  )
+              print(f"RECOVERY MATCH {filename} size={local[filename][0]} sha256={local[filename][1]}")
+
+          with output.open("a", encoding="utf-8") as stream:
+              stream.write("already_published=true\n")
+          print("Exact release already exists on PyPI; upload will be skipped.")
+          PY
+
       - name: Publish to PyPI (trusted publishing)
         id: trusted_publish
+        if: steps.pypi_state.outputs.already_published != 'true'
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         continue-on-error: true
 
       - name: Publish to PyPI (API token fallback)
         id: token_publish
-        if: steps.trusted_publish.outcome != 'success' && steps.auth.outputs.has_token == 'true'
+        if: >-
+          steps.pypi_state.outputs.already_published != 'true' &&
+          steps.trusted_publish.outcome != 'success' &&
+          steps.auth.outputs.has_token == 'true'
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
@@ -421,11 +516,39 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      - name: Resolve the release commit
+        id: target
+        shell: bash
+        env:
+          VERSION: ${{ needs.publish.outputs.version }}
+        run: |
+          set -euo pipefail
+          git fetch --force origin main
+          target=""
+          # The release commit is the first first-parent commit on main whose
+          # _version.py declares this version. Later commits keep the value
+          # until the next bump, so the first match is the one that landed it.
+          while read -r commit; do
+            [ -n "$commit" ] || continue
+            declared="$(git show "${commit}:src/cds2/_version.py" \
+              | sed -n 's/^__version__ = "\([^"]*\)"$/\1/p')"
+            if [ "$declared" = "$VERSION" ]; then
+              target="$commit"
+              break
+            fi
+          done < <(git log --first-parent --reverse --format=%H origin/main -- src/cds2/_version.py)
+          if [ -z "$target" ]; then
+            echo "ERROR: could not find the commit on main that introduced ${VERSION}"
+            exit 1
+          fi
+          echo "sha=$target" >> "$GITHUB_OUTPUT"
+          echo "Release ${VERSION} corresponds to $target"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           tag_name: v${{ needs.publish.outputs.version }}
-          target_commitish: ${{ github.sha }}
+          target_commitish: ${{ steps.target.outputs.sha }}
           generate_release_notes: true
           files: |
             release-assets/*.whl
@@ -435,14 +558,27 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.publish.outputs.version }}
+          TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
           set -euo pipefail
-          VERSION="${{ needs.publish.outputs.version }}"
-          git fetch --force origin "refs/tags/v${VERSION}:refs/tags/v${VERSION}"
+          git fetch --force origin "refs/tags/v${VERSION}:refs/tags/v${VERSION}" origin main
           TAG_COMMIT="$(git rev-list -n 1 "v${VERSION}")"
-          if [ "$TAG_COMMIT" != "$GITHUB_SHA" ]; then
-            echo "ERROR: v${VERSION} resolves to $TAG_COMMIT but release workflow ran at $GITHUB_SHA"
+
+          if [ "$TAG_COMMIT" != "$TARGET_SHA" ]; then
+            echo "ERROR: v${VERSION} resolves to $TAG_COMMIT, expected release commit $TARGET_SHA"
             exit 1
           fi
+          if ! git merge-base --is-ancestor "$TAG_COMMIT" origin/main; then
+            echo "ERROR: v${VERSION} resolves to $TAG_COMMIT, which is not on main"
+            exit 1
+          fi
+          DECLARED="$(git show "${TAG_COMMIT}:src/cds2/_version.py" \
+            | sed -n 's/^__version__ = "\([^"]*\)"$/\1/p')"
+          if [ "$DECLARED" != "$VERSION" ]; then
+            echo "ERROR: v${VERSION} points at $TAG_COMMIT, which declares '${DECLARED}'"
+            exit 1
+          fi
+
           gh release view "v${VERSION}" --repo "$GITHUB_REPOSITORY" > /dev/null
-          echo "Verified GitHub Release v${VERSION} at commit $GITHUB_SHA"
+          echo "Verified GitHub Release v${VERSION} at commit $TAG_COMMIT"

@@ -1,21 +1,63 @@
 # Release process
 
-Releases are fully automated from git tags. The `Release` workflow tests,
-builds distributions for every supported platform and publishes to PyPI.
+Releases are automated from `main`. A version bump is the single entry point;
+tags and GitHub Releases are created by the workflow after PyPI accepts the
+upload, never by hand.
 
-**Trusted Publishing is the intended credential, but it is not the only path and
-it is not currently proven in place.** The publish job requests `id-token: write`
-and runs `pypa/gh-action-pypi-publish` (trusted publishing) first, but it also
-retains a `PYPI_API_TOKEN` fallback for when trusted publishing fails. A token
-upload cannot mint a PEP 740 attestation, which is why
-`pypi.org/integrity/<project>/<version>/` currently returns `404` for every
-published release. Until the publisher below is registered and the
-trusted-publishing path is the one that actually succeeds, no release carries
-provenance. See [Supply chain and provenance](supply-chain.md).
+## Cutting a release
 
-## One-time PyPI setup (per distribution name) - required for provenance
+1. Update `CHANGELOG.md` with a new `## [vX.Y.Z] - YYYY-MM-DD` section.
+2. Update every version surface (all are checked against each other):
+   - `pyproject.toml` -> `version = "X.Y.Z"`
+   - `src/cds2/_version.py` -> `__version__ = "X.Y.Z"`
+   - `package.json` -> `"version": "X.Y.Z"`
+   - `CITATION.cff` -> `version: "X.Y.Z"`
+3. Commit and merge to `main`. No tag is pushed by hand.
 
-Without this, uploads fall back to a token and carry no attestation.
+A merge that changes `src/cds2/_version.py` runs
+`release-on-version-bump.yml`, which dispatches `release.yml`. That workflow:
+
+- refuses to run anywhere except `main`;
+- re-verifies version lockstep (including `CHANGELOG.md` and `CITATION.cff`);
+- runs lint, format, strict mypy, the 100% coverage gate, property tests and
+  the benchmark regression gate on Python 3.12;
+- builds the sdist and pure-Python fallback wheel (`CDS_PURE=1`), plus
+  compiled wheels with cibuildwheel for Linux/macOS/Windows on CPython
+  3.10-3.13;
+- publishes to PyPI;
+- smoke-tests the published wheel on all three operating systems, using the
+  artifact built in the run (never a registry download);
+- creates the `vX.Y.Z` tag and a GitHub Release carrying the same wheel and
+  sdist files that were published to PyPI.
+
+The repository's `CI` workflow also runs on the version-bump push, so the full
+OS/Python matrix gates the change before or alongside the release run.
+
+### npm follows a successful PyPI release
+
+`npm-publish.yml` does not run in parallel with the Python release. It is
+triggered by `workflow_run` when `Release` completes, and its gate reads that
+run's `publish` job: npm proceeds only when PyPI actually published. A failed
+or skipped Python release therefore cannot leave an npm launcher pointing at a
+version that PyPI does not serve.
+
+| Registry | Workflow | Trigger | Credential |
+|---|---|---|---|
+| PyPI | `release.yml` | dispatched by the version bump | trusted publishing first, `PYPI_API_TOKEN` fallback |
+| npm | `npm-publish.yml` | `workflow_run` after a successful `Release` | `NPM_TOKEN` (no npm trusted publisher is registered yet) |
+
+**Provenance status.** Trusted publishing is attempted first, but the current
+PyPI releases were uploaded through the API-token fallback:
+`pypi.org/integrity/scientific-computing-system-2.0/` returns `404`, so those
+files carry no PEP 740 attestation. The npm launcher uses `NPM_TOKEN` for the
+same reason -- a token cannot mint a Sigstore attestation, so npm releases
+carry none either. To enable provenance, register the trusted publishers below
+and remove the token secrets.
+
+## One-time trusted-publisher setup (per distribution name)
+
+Without this, uploads continue to use the token fallback and carry no
+attestation.
 
 1. Sign in at [pypi.org](https://pypi.org) and open
    **Account management -> Publishing**.
@@ -32,72 +74,29 @@ Without this, uploads fall back to a token and carry no attestation.
 The equivalent npmjs.com trusted publisher (Owner `Furox-Art`, Repository
 `scientific-computing-system-2.0`, Workflow filename `npm-publish.yml`,
 Environment `npm`) is required for npm provenance; see
-[npm launcher shim](npm.md).
+[npm launcher shim](npm.md). Once registered, dispatch `npm-publish.yml`
+without `use_token_fallback` to publish through OIDC.
 
-## Cutting a release
+## Recovery
 
-1. Update `CHANGELOG.md` with a new `## [vX.Y.Z] - YYYY-MM-DD` section.
-2. Mirror the version in both places that must stay in lockstep:
-    - `pyproject.toml` -> `version = "X.Y.Z"`
-    - `src/cds2/_version.py` -> `__version__ = "X.Y.Z"`
-3. Commit, push to `main`, then tag and push the tag:
-
-    ```bash
-    git tag vX.Y.Z
-    git push origin main vX.Y.Z
-    ```
-
-4. The workflow then runs:
-    - full CI (lint, strict mypy, 100% coverage gate, 12 OS/Python matrix)
-    - sdist + pure-Python fallback wheel build (`CDS_PURE=1`)
-    - compiled wheels via cibuildwheel for Linux/macOS/Windows on CPython
-      3.10-3.13
-    - PyPI upload and a GitHub Release with generated notes.
-
-### One bump, both registries
-
-`src/cds2/_version.py` is the single automatic trigger. Pushing a commit that
-changes only that file on `main` runs `release-on-version-bump.yml`, which
-dispatches **both** publish workflows:
-
-| Registry | Workflow | Credential path selected by the bump |
-|---|---|---|
-| PyPI | `release.yml` | trusted publishing, `PYPI_API_TOKEN` fallback |
-| npm | `npm-publish.yml` | `use_token_fallback=true` (the `NPM_TOKEN` path) |
-
-This coverage is enforced, not assumed. `scripts/check_workflows.py` reads the
-workflow graph and fails if the bump path stops dispatching a publish
-workflow, if a publish workflow becomes unreachable, if the bump trigger stops
-watching `src/cds2/_version.py`, or if a publisher stops running its own guard
-(`pytest` for PyPI, `npm test` for npm) before uploading:
-
-```bash
-python scripts/check_workflows.py
-```
-
-It runs on every commit through `tests/test_workflow_graph.py`, so CI picks it
-up with no extra job.
-
-The same script also locks the CI side of the contract: `tests.yml` must not
-filter `push`/`pull_request` by path. A path filter there is exactly how a
-change to `release.yml`, `npm-publish.yml`, `package.json` or `index.js` would
-stop re-running the tests that guard publishing.
-
-### Manual dispatch is the deliberate exception
-
-Both `release.yml` and `npm-publish.yml` also accept `workflow_dispatch`, and
-dispatching either one publishes **only that registry**. That asymmetry with
-the bump path is intentional (an escape hatch for recovery, and manual
-re-dispatches are idempotent because both publishers refuse an
-already-published version), but it means a manual publish must be dispatched
-twice, once per registry. Do not "fix" it by adding a `push` trigger to
-`npm-publish.yml`: a version bump touches `package.json` too, which would fire
-both that trigger and the bump dispatch and publish the same version twice.
-
+- **PyPI published, tag or GitHub Release missing.** Re-dispatch `Release`
+  from `main` while `main` still declares that version (before the next bump).
+  The publish job rebuilds the wheel and sdist and compares them with the files
+  PyPI serves (name, size, sha256). Only an exact match skips the upload; any
+  difference fails instead of silently substituting bytes. The tag and GitHub
+  Release steps then run, accepting an existing tag only when it is on `main`
+  and declares the same version.
+- **PyPI published, npm missing or failed.** Dispatch `npm-publish.yml` with
+  `use_token_fallback=true`. It refuses to overwrite an existing npm version
+  and verifies the published version afterwards.
+- **Manual full release.** Dispatch `Release`. When it succeeds, the same
+  `workflow_run` rule publishes npm; dispatching `npm-publish.yml` directly
+  publishes npm alone.
 
 ## Manual local publish (fallback)
 
-If Trusted Publishing is unavailable, build locally and upload with a token:
+If both trusted publishing and the API token are unavailable, build locally
+and upload with your own token:
 
 ```bash
 CDS_PURE=1 python -m build --sdist && CDS_PURE=1 python -m build --wheel
@@ -106,13 +105,27 @@ python -m twine check dist/*
 python -m twine upload dist/*
 ```
 
-Never commit tokens; pass them through the environment only. Be aware that a
-token upload, like the workflow's own token fallback, produces **no provenance
-attestation** - so a release cut this way carries digests only.
+Never commit tokens; pass them through the environment only. A token upload
+produces **no provenance attestation**.
+
+## Workflow-graph check
+
+`scripts/check_workflows.py` reads the workflow files and fails if the
+automatic path stops reaching a publisher (directly or through
+`workflow_run`), if a dispatched workflow leads to no publisher, if the bump
+trigger stops watching `src/cds2/_version.py`, if CI starts filtering
+publish-path changes, or if a publisher stops running its own guard (`pytest`
+for PyPI, `npm test` for npm) before uploading:
+
+```bash
+python scripts/check_workflows.py
+```
+
+It runs on every commit through `tests/test_workflow_graph.py`.
 
 ## Notes
 
 - A version already uploaded to PyPI can never be re-uploaded under the same
   filename; bump the version instead of re-tagging.
-- The import root stays `cds2` and the console script stays `cds2`
-  regardless of the distribution name.
+- The import root stays `cds2` and the console script stays `cds2` regardless
+  of the distribution name.

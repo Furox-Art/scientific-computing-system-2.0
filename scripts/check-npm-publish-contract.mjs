@@ -79,11 +79,36 @@ check("use_token_fallback input exists and defaults to false", () => {
   assert.match(inputBlock, /default:\s*false/);
 });
 
-check("automatic version bumps select the verified npm token path", () => {
+check("automatic version bumps reach npm only after a successful release", () => {
+  // One bump dispatches Release; npm follows it through workflow_run, so npm
+  // can never publish a version that PyPI does not serve.
   assert.match(
     versionBumpWorkflow,
-    /gh workflow run npm-publish\.yml[\s\S]*-f use_token_fallback=true/,
-    "release-on-version-bump.yml must select the known-good token path",
+    /gh workflow run release\.yml/,
+    "release-on-version-bump.yml must dispatch release.yml",
+  );
+  assert.doesNotMatch(
+    versionBumpWorkflow,
+    /gh workflow run npm-publish\.yml/,
+    "npm must follow the Release workflow instead of running in parallel",
+  );
+  assert.match(
+    workflow,
+    /workflow_run:\s*\n\s*workflows:\s*\["Release"\]/,
+    "npm-publish.yml must trigger on completion of Release",
+  );
+  const gate = stepBlock("Check the triggering Release run published");
+  assert.match(gate, /select\(\.name == "publish"\)/);
+  assert.match(gate, /conclusion/, "the gate must inspect the publish conclusion");
+
+  // npm trusted publishing is not configured for this package, so the
+  // automatic path (anything that is not a manual dispatch) must resolve to
+  // the verified NPM_TOKEN path. A manual dispatch keeps the OIDC choice.
+  const mode = stepBlock("Resolve publish mode");
+  assert.match(
+    mode,
+    /if \[ "\$\{EVENT_NAME\}" != "workflow_dispatch" \][\s\S]*REQUESTED=true/,
+    "automatic runs must select the verified token path",
   );
 });
 
