@@ -1,5 +1,5 @@
 {% set name = "scientific-computing-system-2.0" %}
-{% set version = "5.4.4" %}
+{% set version = "5.4.5" %}
 
 package:
   name: {{ name|lower }}

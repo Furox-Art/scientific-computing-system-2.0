@@ -1,3 +1,17 @@
+## [v5.4.5] - 2026-10-21
+
+Release integrity and documentation:
+
+- Current-version references in README, `SKILL.md`, `CITATION.cff` and
+  `codemeta.json` now name 5.4.5 instead of the previous 5.4.4 release.
+- Contributing and install instructions use `pip install -e ".[dev,docs]"`,
+  which provides the pytest and MkDocs toolchains those commands need.
+- Version metadata is synchronized to 5.4.5 across `pyproject.toml`,
+  `src/cds2/_version.py`, `package.json` and the conda recipe.
+- Since 5.4.4: CodeQL analysis was added for Python and JavaScript/TypeScript
+  and its alert findings were resolved; CI now verifies published releases
+  from PyPI metadata without downloading distributions.
+
 ## [Unreleased]
 
 ## [v5.4.4] - 2026-10-15
