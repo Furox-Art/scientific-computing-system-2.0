@@ -16,10 +16,20 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
 import check_workflows  # noqa: E402
+
+# The sdist deliberately excludes .github/ (asserted by the reproducible-build
+# job), so this audit can only run from a repository checkout. Skip explicitly
+# rather than fail collection when the shipped tests run from a tarball.
+pytestmark = pytest.mark.skipif(
+    not (REPO_ROOT / ".github" / "workflows").is_dir(),
+    reason="CI workflows are excluded from the sdist",
+)
 
 
 class TestWorkflowGraph:

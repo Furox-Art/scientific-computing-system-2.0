@@ -3,11 +3,11 @@
 # the tests/ subdirectories), docs, examples, benchmarks and tooling.
 # Deliberately excluded: build outputs and local run artifacts.
 #
-# package.json, scripts/ and .github/workflows are included because the shipped
-# test suite reads them: tests/test_release_metadata.py opens package.json,
-# tests/test_workflow_graph.py imports scripts/check_workflows.py, and that
-# audit reads .github/workflows. Without them an unpacked sdist fails at
-# collection instead of proving the release.
+# package.json and scripts/ are included because the shipped test suite reads
+# them: tests/test_release_metadata.py opens package.json and
+# tests/test_workflow_graph.py imports scripts/check_workflows.py. CI
+# workflows stay excluded by policy (asserted in the reproducible-build job);
+# the workflow-graph test skips itself when they are absent.
 include README.md LICENSE CHANGELOG.md CITATION.cff codemeta.json pyproject.toml setup.py package.json
 graft src
 graft tests
@@ -17,7 +17,6 @@ graft benchmarks
 graft tools
 graft packaging
 graft scripts
-graft .github/workflows
 global-exclude *.py[cod]
 global-exclude __pycache__/*
 global-exclude *.egg-info/*
