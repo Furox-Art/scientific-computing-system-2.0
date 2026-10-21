@@ -14,7 +14,7 @@ This is the **NumPy build** of [scientific-computing-system](https://github.com/
 ## Name and version
 
 `2.0` names the NumPy generation of the project, not the release number. The
-current release is **5.4.4**, and PyPI has never published a 2.x version.
+current release is **5.4.5**, and PyPI has never published a 2.x version.
 
 | Surface | Name |
 | --- | --- |
@@ -22,7 +22,7 @@ current release is **5.4.4**, and PyPI has never published a 2.x version.
 | PyPI / npm project | `scientific-computing-system-2.0` |
 | Python import | `cds2` |
 | Console script | `cds2` |
-| Current version | 5.4.4 |
+| Current version | 5.4.5 |
 
 PyPI and npm project names are fixed after publication, so the `-2.0` suffix stays
 even though the version has moved past it.
@@ -61,7 +61,7 @@ pip install scientific-computing-system-2.0
 | `[gpu]` | cupy-cuda12x | using the optional `cds2.gpu` backend |
 | `[all]` | all of the above | everything |
 
-From a clone: `pip install -e ".[dev]"`.
+From a clone: `pip install -e ".[dev,docs]"` (pytest plus the MkDocs toolchain).
 
 **Optional C kernels.** `_fast_kmeans` and `_fast_pagerank` are compiled when a
 toolchain is available and **fall back silently** to pure NumPy otherwise, so
@@ -201,7 +201,7 @@ python -m cds2 info
 
 ## Performance, measured honestly
 
-`benchmarks/results.json` and [docs/benchmarks.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmarks/) are a real run, but a **stale one: cds2 3.0.0, commit `6ea5a02`, 2026-08-22**, while the release is 5.4.4. Read them as "3.0.0 versus the baseline libraries on one machine", not as a claim about today.
+`benchmarks/results.json` and [docs/benchmarks.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmarks/) are a real run, but a **stale one: cds2 3.0.0, commit `6ea5a02`, 2026-08-22**, while the release is 5.4.5. Read them as "3.0.0 versus the baseline libraries on one machine", not as a claim about today.
 
 Of the 13 measured cases, **CDS v2 was slower in 4**: `dataframe summary` 1.82x, `solve 800x800` 1.22x, `solve 8x8 x300` 1.17x and `welch` 1.03x. The pandas row returns strictly more information (per-column nulls and uniques), so part of that premium is extra work. The clearest win is PageRank at 0.15x versus NetworkX. There is **no blanket speedup claim**, and [benchmark-methodology.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmark-methodology/) sets out the limits.
 
@@ -224,7 +224,7 @@ Of the 13 measured cases, **CDS v2 was slower in 4**: `dataframe summary` 1.82x,
 ## Contributing
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[dev,docs]"
 pytest --cov=cds2 --cov-fail-under=100   # the gate is fail_under=100
 mkdocs serve                              # docs at http://127.0.0.1:8000
 ```

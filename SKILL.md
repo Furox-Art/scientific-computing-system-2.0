@@ -3,7 +3,7 @@ name: scientific-computing-system-2.0
 description: "Use when a task needs NumPy/SciPy/pandas/matplotlib-based scientific computing, statistics, optimization, machine learning, information theory, or reproducible curve fitting with replayable manifests. Ships the `cds2` package and CLI; choose the zero-dependency `cds` build when third-party packages are not allowed. Published on PyPI and npm as `scientific-computing-system-2.0`, where 2.0 names the generation, not the version."
 argument-hint: "<scientific analysis, dataset, or fitting task>"
 metadata:
-  version: "5.4.4"
+  version: "5.4.5"
 ---
 
 # Scientific Computing System 2.0 (`cds2`)
@@ -14,7 +14,7 @@ stack and offers 46 flat modules plus 6 subpackages, 535 public exports, and
 1,882 tests with a 100% branch-coverage gate.
 
 `2.0` in the package and repository name identifies this NumPy generation, not
-the version. The current release is **5.4.4**; import and CLI are `cds2`.
+the version. The current release is **5.4.5**; import and CLI are `cds2`.
 
 ## When to use this skill
 
