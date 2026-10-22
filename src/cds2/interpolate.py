@@ -27,7 +27,7 @@ def linear_interp(x_new: object, x_known: Sequence[float], y_known: Sequence[flo
 
 def cubic_spline(x: Sequence[float], y: Sequence[float]) -> spi.CubicSpline:
     """Natural cubic spline interpolant callable on any point in range."""
-    return spi.CubicSpline(np.asarray(x, dtype=float), np.asarray(y, dtype=float))
+    return spi.CubicSpline(np.asarray(x, dtype=float), np.asarray(y, dtype=float), bc_type="natural")
 
 
 def pchip_interpolator(x: Sequence[float], y: Sequence[float]) -> spi.PchipInterpolator:
@@ -68,11 +68,15 @@ def regular_grid_interp(
     query_points: object,
 ) -> np.ndarray:
     """Interpolate on a regular (rectilinear) grid built from axis vectors."""
-    interpolator = spi.RegularGridInterpolator(
-        [np.asarray(axis, dtype=float) for axis in grid_axes],
-        np.asarray(values, dtype=float),
-    )
-    query = np.atleast_2d(np.asarray(query_points, dtype=float))
+    axes = [np.asarray(axis, dtype=float) for axis in grid_axes]
+    interpolator = spi.RegularGridInterpolator(axes, np.asarray(values, dtype=float))
+    query = np.asarray(query_points, dtype=float)
+    if query.ndim == 0:
+        query = query.reshape(1, 1)
+    elif len(axes) == 1:
+        query = query.reshape(-1, 1)
+    else:
+        query = np.atleast_2d(query)
     return np.asarray(interpolator(query), dtype=float)
 
 
