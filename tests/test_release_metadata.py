@@ -35,6 +35,13 @@ def _citation_cff_version() -> str:
     return match.group(1)
 
 
+def _codemeta_version() -> str:
+    data = json.loads((ROOT / "codemeta.json").read_text(encoding="utf-8"))
+    version = data.get("version")
+    assert isinstance(version, str), "version not found in codemeta.json"
+    return version
+
+
 def _conda_meta_version() -> str:
     text = (ROOT / "packaging" / "conda" / "meta.yaml").read_text(encoding="utf-8")
     match = re.search(r'{%\s*set\s+version\s*=\s*"([^"]+)"\s*%}', text)
@@ -56,6 +63,10 @@ def test_npm_package_version_matches_pyproject() -> None:
 
 def test_citation_version_matches_pyproject() -> None:
     assert _citation_cff_version() == _pyproject_version()
+
+
+def test_codemeta_version_matches_pyproject() -> None:
+    assert _codemeta_version() == _pyproject_version()
 
 
 def test_conda_recipe_version_matches_pyproject() -> None:

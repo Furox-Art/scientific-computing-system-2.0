@@ -3,6 +3,8 @@ name: Docs
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -35,6 +37,9 @@ jobs:
 
   deploy:
     needs: build
+    # Build every pull request to catch mkdocs --strict failures, but deploy
+    # only from main (or an explicit dispatch), never from a PR.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pages: write
