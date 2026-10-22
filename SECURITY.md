@@ -15,17 +15,24 @@ on [PyPI](https://pypi.org/project/scientific-computing-system-2.0/), and on
 Note: tag `v4.3.0` was never published to GitHub Releases or PyPI, so the
 newest installable 4.x artifacts are `4.2.0`.
 
-## Supply chain: no signed provenance today
+## Supply chain: PyPI is attested, npm is not
 
-**No published release of this project carries a provenance attestation, on
-either registry.** Verified against the live endpoints:
+Verified against the live registries on 2026-10-22:
 
-- `https://pypi.org/integrity/scientific-computing-system-2.0/5.2.6/` → **404**
-  (no PEP 740 attestation; also 404 project-wide and for 5.2.5)
-- `https://registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@5.2.6` → **404**
-  (no Sigstore attestation; also 404 for 5.2.5)
+- **PyPI: attested.** Every file of every release from `5.1.0` through `5.4.5`
+  (330 files) carries a PEP 740 provenance attestation. The per-file endpoint
+  `https://pypi.org/integrity/scientific-computing-system-2.0/<version>/<file>/provenance`
+  returns `200`. The project-wide URL
+  `https://pypi.org/integrity/scientific-computing-system-2.0/` returns `404`
+  even when per-file attestations exist, so it is not the endpoint to check.
+- **npm: not attested.** The latest npm version is `5.4.4`; its attestation
+  endpoint
+  `https://registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@5.4.4`
+  returns `404`. Version `5.4.5` has not been published to npm. npm uploads use
+  `NPM_TOKEN`, and a token upload cannot mint a Sigstore attestation.
 
-So do not describe any release as attested, verified or provenance-backed.
+So PyPI releases may be described as attested; never describe an npm release
+as attested, verified or provenance-backed.
 
 Three things are routinely conflated, so this policy states them apart:
 
@@ -37,30 +44,29 @@ Three things are routinely conflated, so this policy states them apart:
   provenance.** They are signed by npm and prove the tarball came from npm. They
   say nothing about which source commit or build runner produced it. They must
   never be presented as provenance.
-- **A PEP 740 or Sigstore attestation is the missing piece.** It binds the
-  artifact digest to the workflow identity and source commit via a transparency
-  log. Absent on both channels today.
+- **A PEP 740 or Sigstore attestation binds the artifact digest to the workflow
+  identity and source commit via a transparency log.** Present on PyPI since
+  `5.1.0`; absent on npm.
 
-What a consumer can do now: pin and verify digests
-(`pip install --require-hashes`, and `npm view <pkg>@<version> dist.integrity`).
+What a consumer can do now: fetch the PyPI provenance bundle for the exact file
+you install, and pin and verify digests (`pip install --require-hashes`, and
+`npm view <pkg>@<version> dist.integrity`).
 
 What the project does guarantee, enforced by CI on every push rather than by
 assertion: a bit-reproducible pure-Python wheel (`reproducible-build` job pins
 `SOURCE_DATE_EPOCH` and compares two builds' sha256), an sdist that genuinely
 carries the native accelerators (`sdist-native` job builds a wheel from the
 sdist and asserts both compiled modules are present and importable), version
-lockstep across `package.json`, `src/cds2/_version.py` and `pyproject.toml`, and
-cross-platform install-and-run smoke tests. These constrain the build; they do
-not attest it.
+lockstep across `package.json`, `src/cds2/_version.py`, `pyproject.toml`,
+`CITATION.cff`, `codemeta.json` and the conda recipe, and cross-platform
+install-and-run smoke tests. These constrain the build; they do not replace the
+PEP 740 attestation, which is now present for PyPI.
 
-**Fix path, pending not in place.** Provenance requires registry configuration,
-not code changes: a PyPI Trusted Publisher (Owner `Furox-Art`, Repository
-`scientific-computing-system-2.0`, Workflow `release.yml`, Environment `pypi`)
-and an npmjs.com trusted publisher (Owner `Furox-Art`, Repository
+**Fix path.** PyPI Trusted Publishing is registered, and the `5.1.0`+ releases
+were uploaded through it, which is why their attestations exist. npm still
+needs a trusted publisher (Owner `Furox-Art`, Repository
 `scientific-computing-system-2.0`, Workflow filename `npm-publish.yml`,
-Environment `npm`). Both publish workflows are already structured for OIDC with
-`id-token: write`, but both retain a token fallback, and a token upload cannot
-mint an attestation.
+Environment `npm`); until it is registered, npm misses Sigstore provenance.
 
 Full detail, including how to reproduce every check:
 [docs/supply-chain.md](https://furox-art.github.io/scientific-computing-system-2.0/supply-chain/).

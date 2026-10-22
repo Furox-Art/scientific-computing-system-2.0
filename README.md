@@ -27,7 +27,7 @@ current release is **5.4.5**, and PyPI has never published a 2.x version.
 PyPI and npm project names are fixed after publication, so the `-2.0` suffix stays
 even though the version has moved past it.
 
-**52 importable names, 535 public exports, 1,882 tests, 100% branch coverage, MIT.** Every count here is generated from the tree by `scripts/make_promo.py` and CI, not typed by hand.
+**52 importable names, 535 public exports, 1,883 tests, 100% branch coverage, MIT.** Every count here is generated from the tree by `scripts/make_promo.py` and CI, not typed by hand.
 
 ## Reproducibility drift is a result, not hidden state
 
@@ -72,10 +72,12 @@ operations.
 five files, ~8 KB, no Python — that calls `python -m cds2.cli`. You still need
 the PyPI install, so most people can skip it: [docs/npm.md](https://furox-art.github.io/scientific-computing-system-2.0/npm/).
 
-**Supply chain: no signed provenance.** No published release carries a
-provenance attestation, on **either** registry: `pypi.org/integrity/...` returns
-`404` and the npm attestation endpoint returns `404`, verified for the current
-`5.2.6` and for `5.2.5`. Pin digests instead. What the project does guarantee
+**Supply chain: PyPI releases are attested; npm is not.** Every file of every
+PyPI release from `5.1.0` through `5.4.5` carries a PEP 740 provenance
+attestation: the per-file `pypi.org/integrity/.../<file>/provenance` endpoint
+returns `200` (all 330 files checked on 2026-10-22). The npm launcher is a
+separate story: its latest version, `5.4.4`, has no Sigstore attestation
+(`404`). Pin digests where provenance is absent. What the project does guarantee
 (reproducible wheel, an sdist that really ships the native kernels, version
 lockstep, cross-platform smoke) and what a consumer can check:
 [Supply chain](https://furox-art.github.io/scientific-computing-system-2.0/supply-chain/).

@@ -46,36 +46,32 @@ version that PyPI does not serve.
 | PyPI | `release.yml` | dispatched by the version bump | trusted publishing first, `PYPI_API_TOKEN` fallback |
 | npm | `npm-publish.yml` | `workflow_run` after a successful `Release` | `NPM_TOKEN` (no npm trusted publisher is registered yet) |
 
-**Provenance status.** Trusted publishing is attempted first, but the current
-PyPI releases were uploaded through the API-token fallback:
-`pypi.org/integrity/scientific-computing-system-2.0/` returns `404`, so those
-files carry no PEP 740 attestation. The npm launcher uses `NPM_TOKEN` for the
-same reason -- a token cannot mint a Sigstore attestation, so npm releases
-carry none either. To enable provenance, register the trusted publishers below
-and remove the token secrets.
+**Provenance status.** PyPI Trusted Publishing is registered and working: every
+file of every release from `5.1.0` through `5.4.5` carries a PEP 740
+attestation (the per-file `pypi.org/integrity/.../<file>/provenance` endpoint
+returns `200`; the directory URL returns `404` even when the files are
+attested). The `PYPI_API_TOKEN` fallback remains for recovery, but a token
+upload mints no attestation, and the attestations above prove the trusted path
+is what actually publishes. The npm launcher still uses `NPM_TOKEN` because no
+npm trusted publisher is registered; a token cannot mint a Sigstore
+attestation, so npm releases carry none.
 
-## One-time trusted-publisher setup (per distribution name)
+## Trusted-publisher setup
 
-Without this, uploads continue to use the token fallback and carry no
-attestation.
+PyPI is done. npm is pending:
 
-1. Sign in at [pypi.org](https://pypi.org) and open
-   **Account management -> Publishing**.
-2. Add a **new pending publisher** with:
+1. Sign in at [npmjs.com](https://www.npmjs.com) and open the package settings
+   for `scientific-computing-system-2.0`.
+2. Add a **trusted publisher** with:
    - Owner: `Furox-Art`
    - Repository: `scientific-computing-system-2.0`
-   - Workflow: `release.yml`
-   - Environment: `pypi`
-3. Create the matching **`pypi` environment** in the GitHub repository
-   settings if it does not exist yet.
-4. Confirm afterwards that `pypi.org/integrity/scientific-computing-system-2.0/`
-   stops returning `404`.
-
-The equivalent npmjs.com trusted publisher (Owner `Furox-Art`, Repository
-`scientific-computing-system-2.0`, Workflow filename `npm-publish.yml`,
-Environment `npm`) is required for npm provenance; see
-[npm launcher shim](npm.md). Once registered, dispatch `npm-publish.yml`
-without `use_token_fallback` to publish through OIDC.
+   - Workflow filename: `npm-publish.yml`
+   - Environment: `npm`
+3. Confirm afterwards that
+   `https://registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@<version>`
+   returns `200` for the next release (it returns `404` for `5.4.4`).
+4. Dispatch `npm-publish.yml` without `use_token_fallback` to publish through
+   OIDC; see [npm launcher shim](npm.md).
 
 ## Recovery
 

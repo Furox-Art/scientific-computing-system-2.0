@@ -6,7 +6,8 @@ is an optional Node launcher, not a second distribution of the code.
 
 ## What is actually in the npm tarball
 
-The published `5.2.6` tarball is about 8 KB unpacked and contains five files:
+The published `5.4.4` tarball is about 9 KB compressed (about 24 KB unpacked)
+and contains five files:
 
 | File | Role |
 |---|---|
@@ -34,21 +35,22 @@ exists.
 ## Supply chain
 
 **There is no signed build provenance for any published npm version.** The
-attestation endpoint for `5.2.6` returns `404`, and the published version
-document has no `attestations` field — the same is true of `5.2.5`. Do not
-treat any npm version of this package as an attested build.
+latest npm version is `5.4.4`, and its attestation endpoint returns `404`; the
+published version document has no `attestations` field. Do not treat any npm
+version of this package as an attested build. (PyPI is a different story: every
+file from `5.1.0` through `5.4.5` carries a PEP 740 attestation; see
+[Supply chain and provenance](supply-chain.md).)
 
 - **Why.** `npm-publish.yml` has an opt-in long-lived-token mode which
   deliberately omits `--provenance`, because a classic automation token cannot
   mint a Sigstore attestation. The token path is what produced these versions.
-  See [Supply chain and provenance](supply-chain.md) for the full picture,
-  including PyPI, which likewise has no attestation today.
+  See [Supply chain and provenance](supply-chain.md) for the full picture.
 - **What `dist.signatures` is, and is not.** npm attaches its own ECDSA registry
   signatures to every tarball. They prove the tarball came from npm; they are
   **not** Sigstore build provenance and are not evidence about which source
   commit or runner produced it.
 - **What you can check.** Pin `dist.integrity` (a `sha512`):
-  `npm view scientific-computing-system-2.0@5.2.6 dist.integrity`. That is a
+  `npm view scientific-computing-system-2.0@5.4.4 dist.integrity`. That is a
   digest, so it detects tampering with the bytes but proves nothing about origin.
 - **A stale `2.0.0` is still on the registry.** It shipped a broken entry point
   (a JavaScript syntax error, and it targeted an `scs2.cli` module that does not
