@@ -447,21 +447,10 @@ jobs:
           VERSION="${{ needs.publish.outputs.version }}"
           python -m pip install --upgrade pip
 
-          WHEEL="$(python - <<'PY'
-          import pathlib
-          import platform
-
-          machine = platform.machine().lower().replace("-", "_")
-          wheels = [
-              path for path in pathlib.Path("dist").glob("*.whl")
-              if machine in path.name.lower()
-          ]
-          if len(wheels) != 1:
-              raise SystemExit(f"expected one compatible wheel, found {[path.name for path in wheels]}")
-          print(wheels[0])
-          PY
-          )"
-          python -m pip install --no-cache-dir "$WHEEL"
+          # Linux artifacts carry both the manylinux and musllinux wheel for the
+          # same interpreter, so a single architecture match is ambiguous. Let
+          # pip pick the wheel this runner can actually install.
+          python -m pip install --no-cache-dir --no-index --find-links dist "${PACKAGE}==${VERSION}"
 
           VERSION="$VERSION" PACKAGE="$PACKAGE" python - <<'PY'
           import importlib.metadata as metadata
