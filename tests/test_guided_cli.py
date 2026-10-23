@@ -121,6 +121,41 @@ def test_interactive_missing_model_outlier_and_report(tmp_path, monkeypatch, cap
     assert (output / "guided_fit_report.html").exists()
 
 
+def test_ask_outliers_without_suspicious_points_keeps_them(tmp_path, capsys, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    csv_path = tmp_path / "clean.csv"
+    _write_csv(csv_path)
+    # Residuals on a perfect line vary with BLAS rounding, which can turn the
+    # smallest numerical noise into a flagged point. Force the empty result so
+    # the branch that keeps every point is exercised on every interpreter.
+    monkeypatch.setattr("cds2.guided_fit._outliers", lambda _residuals: np.zeros(0, dtype=np.intp))
+    code = main(
+        [
+            "guided-fit",
+            str(csv_path),
+            "--x",
+            "x",
+            "--y",
+            "y",
+            "--sigma",
+            "sigma",
+            "--model",
+            "linear",
+            "--missing",
+            "interpolate",
+            "--outliers",
+            "ask",
+            "--report",
+            "none",
+            "--output-dir",
+            str(tmp_path / "clean-out"),
+        ]
+    )
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "suspicious points" not in out
+    assert "verdict" in out
+
+
 def test_interactive_reject_recommendation_and_keep_outlier(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
     csv_path = tmp_path / "outlier.csv"
     _write_csv(csv_path, outlier=True)

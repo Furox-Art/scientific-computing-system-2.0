@@ -160,13 +160,20 @@ def t_test(sample: object, popmean: float = 0.0) -> TestResult:
     """One-sample t-test of the sample mean against ``popmean``."""
     if not np.isfinite(popmean):
         raise ValueError("popmean must be finite")
-    result = sps.ttest_1samp(_as_1d(sample, min_size=2), popmean=popmean)
+    values = _as_1d(sample, min_size=2)
+    if np.ptp(values) == 0.0:
+        raise ValueError("t-test is undefined for a constant sample")
+    result = sps.ttest_1samp(values, popmean=popmean)
     return TestResult(float(result.statistic), float(result.pvalue))
 
 
 def independent_t_test(a: object, b: object, equal_var: bool = True) -> TestResult:
     """Two-sample t-test; ``equal_var=False`` runs Welch's variant."""
-    res = sps.ttest_ind(_as_1d(a, min_size=2), _as_1d(b, min_size=2), equal_var=equal_var)
+    group_a = _as_1d(a, min_size=2)
+    group_b = _as_1d(b, min_size=2)
+    if np.ptp(group_a) == 0.0 and np.ptp(group_b) == 0.0:
+        raise ValueError("t-test is undefined when both samples are constant")
+    res = sps.ttest_ind(group_a, group_b, equal_var=equal_var)
     return TestResult(float(res.statistic), float(res.pvalue))
 
 
@@ -183,6 +190,8 @@ def anova(*groups: object) -> TestResult:
         msg = "anova needs at least two groups"
         raise ValueError(msg)
     prepared = [_as_1d(g) for g in groups]
+    if all(np.ptp(g) == 0.0 for g in prepared):
+        raise ValueError("anova is undefined when every group is constant")
     res = sps.f_oneway(*prepared)
     return TestResult(float(res.statistic), float(res.pvalue))
 
@@ -292,9 +301,9 @@ def percentile(data: object, q: float | list[float]) -> float | list[float]:
     q_array = np.asarray(q, dtype=float)
     if not bool(np.all(np.isfinite(q_array))) or np.any((q_array < 0.0) | (q_array > 100.0)):
         raise ValueError("q must contain values in [0, 100]")
-    if isinstance(q, list):
-        return [float(v) for v in np.percentile(values, q)]
-    return float(np.percentile(values, q))
+    if q_array.ndim == 0:
+        return float(np.percentile(values, float(q_array)))
+    return [float(v) for v in np.percentile(values, q_array)]
 
 
 def z_scores(data: object) -> np.ndarray:
@@ -411,7 +420,7 @@ def permutation_test(
 def covariance_matrix(data: object) -> np.ndarray:
     """Sample covariance matrix of column-variables (rows = observations)."""
     values = _matrix_observations(data)
-    return np.asarray(np.cov(values, rowvar=False, ddof=1))
+    return np.atleast_2d(np.asarray(np.cov(values, rowvar=False, ddof=1)))
 
 
 def correlation_matrix(data: object) -> np.ndarray:
@@ -426,11 +435,27 @@ def multivariate_normal_logpdf(x: object, mean: object, cov: object) -> float:
     """Log-density of a multivariate normal at a single point."""
     from scipy import stats as sps
 
-    value = sps.multivariate_normal.logpdf(
-        np.asarray(x, dtype=float),
-        mean=np.asarray(mean, dtype=float),
-        cov=np.asarray(cov, dtype=float),
-    )
+    point = np.asarray(x, dtype=float)
+    location = np.asarray(mean, dtype=float)
+    matrix = np.asarray(cov, dtype=float)
+    if point.ndim != 1 or location.ndim != 1:
+        raise ValueError("x and mean must be one-dimensional")
+    if point.size != location.size:
+        raise ValueError("x and mean must have the same length")
+    if matrix.shape != (point.size, point.size):
+        raise ValueError("cov must be a square matrix matching the length of x")
+    if not bool(np.all(np.isfinite(point))) or not bool(np.all(np.isfinite(location))):
+        raise ValueError("x and mean must contain only finite values")
+    if not bool(np.all(np.isfinite(matrix))):
+        raise ValueError("cov must contain only finite values")
+    if not np.allclose(matrix, matrix.T):
+        raise ValueError("cov must be symmetric")
+    try:
+        np.linalg.cholesky(matrix)
+    except np.linalg.LinAlgError as exc:
+        raise ValueError("cov must be positive definite") from exc
+
+    value = sps.multivariate_normal.logpdf(point, mean=location, cov=matrix)
     return float(value)
 
 

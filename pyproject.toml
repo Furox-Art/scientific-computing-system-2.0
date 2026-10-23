@@ -90,6 +90,7 @@ test = [
     "pytest-cov",
     "hypothesis>=6.0",
     "scikit-learn>=1.4",
+    "networkx>=3.0",
 ]
 gpu = [
     "cupy-cuda12x",
