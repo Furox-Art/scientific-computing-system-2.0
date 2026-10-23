@@ -127,9 +127,7 @@ def test_ask_outliers_without_suspicious_points_keeps_them(tmp_path, capsys, mon
     # Residuals on a perfect line vary with BLAS rounding, which can turn the
     # smallest numerical noise into a flagged point. Force the empty result so
     # the branch that keeps every point is exercised on every interpreter.
-    monkeypatch.setattr(
-        "cds2.guided_fit._outliers", lambda _residuals: np.zeros(0, dtype=np.intp)
-    )
+    monkeypatch.setattr("cds2.guided_fit._outliers", lambda _residuals: np.zeros(0, dtype=np.intp))
     code = main(
         [
             "guided-fit",
