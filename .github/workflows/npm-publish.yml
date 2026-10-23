@@ -50,18 +50,29 @@ jobs:
       actions: read
     outputs:
       released: ${{ steps.check.outputs.released }}
+      head_sha: ${{ steps.check.outputs.head_sha }}
     steps:
       - name: Check the triggering Release run published
         id: check
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
           set -euo pipefail
-          conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" \
+          data="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" \
+            --jq '[.head_sha, .event, .head_branch, .conclusion, .repository.full_name] | @tsv')"
+          IFS=$'\t' read -r sha event branch conclusion repo <<<"${data}"
+          echo "head_sha=${sha}" >> "$GITHUB_OUTPUT"
+          if [ "${event}" != "push" ] || [ "${branch}" != "main" ] || \
+             [ "${conclusion}" != "success" ] || [ "${repo}" != "${GITHUB_REPOSITORY}" ]; then
+            echo "::error::Run ${RUN_ID} is not a successful push on ${GITHUB_REPOSITORY} main."
+            exit 1
+          fi
+          publish_conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" \
             --jq '[.jobs[] | select(.name == "publish") | .conclusion] | first // "missing"')"
-          echo "Release publish job: ${conclusion}"
-          if [ "${conclusion}" = "success" ]; then
+          echo "Release publish job: ${publish_conclusion}"
+          if [ "${publish_conclusion}" = "success" ]; then
             echo "released=true" >> "$GITHUB_OUTPUT"
           else
             echo "released=false" >> "$GITHUB_OUTPUT"
@@ -89,7 +100,7 @@ jobs:
         with:
           # Publish the exact commit the Release workflow published, not
           # whatever main points at when this follow-up run starts.
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.ref }}
+          ref: ${{ github.event_name == 'workflow_run' && needs.release_gate.outputs.head_sha || github.ref }}
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
