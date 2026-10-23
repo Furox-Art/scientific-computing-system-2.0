@@ -20,7 +20,6 @@ on:
 #     race an in-flight publish on the other registry.
 # Both workflows re-verify version lockstep independently.
 permissions:
-  actions: write
   contents: read
 
 jobs:
