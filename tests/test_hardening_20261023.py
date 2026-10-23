@@ -59,3 +59,19 @@ def test_multivariate_normal_logpdf_validates_arguments() -> None:
         stats.multivariate_normal_logpdf([0.0, 0.0], [0.0, 0.0], [[1.0, 2.0], [0.0, 1.0]])
     with pytest.raises(ValueError, match="positive definite"):
         stats.multivariate_normal_logpdf([0.0], [0.0], [[0.0]])
+
+
+def test_multivariate_normal_logpdf_rejects_non_finite_values() -> None:
+    with pytest.raises(ValueError, match="x and mean must contain only finite"):
+        stats.multivariate_normal_logpdf([float("nan")], [0.0], [[1.0]])
+    with pytest.raises(ValueError, match="cov must contain only finite"):
+        stats.multivariate_normal_logpdf([0.0], [0.0], [[float("inf")]])
+
+
+def test_regular_grid_interp_accepts_scalar_query() -> None:
+    result = interpolate.regular_grid_interp(
+        [np.array([0.0, 0.5, 1.0])],
+        np.array([0.0, 5.0, 10.0]),
+        0.25,
+    )
+    assert result == pytest.approx([2.5])
