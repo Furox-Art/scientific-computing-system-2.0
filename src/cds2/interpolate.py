@@ -27,7 +27,9 @@ def linear_interp(x_new: object, x_known: Sequence[float], y_known: Sequence[flo
 
 def cubic_spline(x: Sequence[float], y: Sequence[float]) -> spi.CubicSpline:
     """Natural cubic spline interpolant callable on any point in range."""
-    return spi.CubicSpline(np.asarray(x, dtype=float), np.asarray(y, dtype=float), bc_type="natural")
+    return spi.CubicSpline(
+        np.asarray(x, dtype=float), np.asarray(y, dtype=float), bc_type="natural"
+    )
 
 
 def pchip_interpolator(x: Sequence[float], y: Sequence[float]) -> spi.PchipInterpolator:

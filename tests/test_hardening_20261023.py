@@ -1,4 +1,5 @@
 """Regressions for degenerate statistics, spline boundary conditions, and 1-D grids."""
+
 from __future__ import annotations
 
 import numpy as np

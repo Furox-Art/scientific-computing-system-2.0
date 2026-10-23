@@ -193,7 +193,7 @@ def test_manifest_rerun_preserves_custom_dataset_name(tmp_path: Path) -> None:
         y_column="y",
     )
     payload = json.loads(manifest.read_text(encoding="utf-8"))
-    assert payload["result"]["data_hashes"] != payload["result"]["rerun_data_hashes"]
+    assert set(payload["result"]["rerun_data_hashes"]) == {"custom scientific name"}
     rerun = gf.rerun_manifest(manifest)
     assert rerun.stability_warning is False
     assert rerun.datasets[0].name == "custom scientific name"
