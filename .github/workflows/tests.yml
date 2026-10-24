@@ -68,6 +68,8 @@ jobs:
           cache-dependency-path: pyproject.toml
       - name: Install package with dev extras
         run: pip install -c constraints/ci-tools.txt -e .[dev]
+      - name: Verify documented counts
+        run: python scripts/make_promo.py --check
       - name: Blended coverage gate (100%)
         run: pytest --cov=cds2 --cov-report=term-missing --cov-fail-under=100
 
