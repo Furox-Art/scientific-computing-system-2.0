@@ -27,7 +27,7 @@ current release is **5.4.5**, and PyPI has never published a 2.x version.
 PyPI and npm project names are fixed after publication, so the `-2.0` suffix stays
 even though the version has moved past it.
 
-**52 importable names, 535 public exports, 1,883 tests, 100% branch coverage, MIT.** Every count here is generated from the tree by `scripts/make_promo.py` and CI, not typed by hand.
+**52 importable names, 535 public exports, 1,901 tests, 100% branch coverage, MIT.** Every count here is measured from the tree by `scripts/make_promo.py`; CI re-measures and rejects drift.
 
 ## Reproducibility drift is a result, not hidden state
 

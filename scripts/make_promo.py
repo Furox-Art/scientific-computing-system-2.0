@@ -396,9 +396,59 @@ def modules() -> None:
     plt.close(figure)
 
 
-OUT.mkdir(parents=True, exist_ok=True)
-hero()
-benchmarks()
-modules()
-for asset in sorted(OUT.glob("promo_*.png")):
-    print(asset.name, f"{asset.stat().st_size / 1024:.0f} KB")
+def _documented(pattern: str, text: str, name: str) -> list[int]:
+    match = re.search(pattern, text)
+    if match is None:
+        raise SystemExit(f"{name} does not contain the expected count sentence")
+    return [int(value.replace(",", "")) for value in match.groups()]
+
+
+def check_documented_counts() -> int:
+    """Fail when README or SKILL.md advertises a count the tree no longer has."""
+    n_importable, n_exports, _api_pages, n_tests, n_flat = repo_counts()
+    readme = _documented(
+        r"(\d[\d,]*) importable names, ([\d,]+) public exports, ([\d,]+) tests",
+        (REPO / "README.md").read_text(encoding="utf-8"),
+        "README.md",
+    )
+    skill = _documented(
+        r"(\d+) flat modules plus (\d+) subpackages, ([\d,]+) public exports, and\s+([\d,]+) tests",
+        (REPO / "SKILL.md").read_text(encoding="utf-8"),
+        "SKILL.md",
+    )
+    measured = {
+        "README importable names": (readme[0], n_importable),
+        "README public exports": (readme[1], n_exports),
+        "README tests": (readme[2], n_tests),
+        "SKILL flat modules": (skill[0], n_flat),
+        "SKILL subpackages": (skill[1], n_importable - n_flat),
+        "SKILL public exports": (skill[2], n_exports),
+        "SKILL tests": (skill[3], n_tests),
+    }
+    failures = [
+        f"{label}: documented {documented:,}, measured {actual:,}"
+        for label, (documented, actual) in measured.items()
+        if documented != actual
+    ]
+    if failures:
+        for failure in failures:
+            print(f"FAIL: {failure}", file=sys.stderr)
+        return 1
+    print("documented counts match the tree")
+    return 0
+
+
+def main() -> int:
+    if "--check" in sys.argv[1:]:
+        return check_documented_counts()
+    OUT.mkdir(parents=True, exist_ok=True)
+    hero()
+    benchmarks()
+    modules()
+    for asset in sorted(OUT.glob("promo_*.png")):
+        print(asset.name, f"{asset.stat().st_size / 1024:.0f} KB")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
