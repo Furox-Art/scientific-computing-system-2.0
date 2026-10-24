@@ -17,7 +17,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-CHILD = r'''
+CHILD = r"""
 import json
 import sys
 from pathlib import Path
@@ -68,7 +68,7 @@ payload = {
     "pi": pi_estimate(n=2_000, seed=20261024),
 }
 print(json.dumps(payload, ensure_ascii=False))
-'''
+"""
 
 
 @cache
