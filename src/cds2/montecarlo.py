@@ -190,6 +190,13 @@ def metropolis_hastings(
     return MCMCResult(samples=samples, acceptance_rate=accepted / total_steps)
 
 
+#: Sample budget is split into this many fixed chunks (or fewer for tiny
+#: budgets). The chunk count must never derive from ``workers``: doing so made
+#: the estimate depend on the CPU topology, so the same seed produced different
+#: numbers on different machines.
+_PARALLEL_CHUNKS = 32
+
+
 def _integrate_chunk(
     job: tuple[Callable[..., object], float, float, int, int | None],
 ) -> float:  # pragma: no cover - worker subprocess
@@ -206,7 +213,13 @@ def parallel_mc_integrate(
     workers: int | None = None,
     seed: int | None = None,
 ) -> float:
-    """Chunked Monte Carlo integration using exactly ``n_total`` samples."""
+    """Chunked Monte Carlo integration using exactly ``n_total`` samples.
+
+    The sample budget is split into a fixed number of chunks independent of
+    ``workers``, and each chunk is seeded by its global index. With a fixed
+    ``seed`` the estimate is therefore identical for every worker count and on
+    every CPU topology; ``workers`` only controls how many run in parallel.
+    """
     import os
     from concurrent.futures import ProcessPoolExecutor
 
@@ -220,20 +233,22 @@ def parallel_mc_integrate(
         raise ValueError("workers must be a positive integer or None")
     requested_workers = workers if workers is not None else min(os.cpu_count() or 2, 4)
     worker_count = min(int(requested_workers), int(n_total))
-    width = (b - a) / worker_count
-    quotient, remainder = divmod(int(n_total), worker_count)
-    counts = [quotient + (1 if index < remainder else 0) for index in range(worker_count)]
+    chunk_count = min(_PARALLEL_CHUNKS, int(n_total))
+    width = (b - a) / chunk_count
+    quotient, remainder = divmod(int(n_total), chunk_count)
+    counts = [quotient + (1 if index < remainder else 0) for index in range(chunk_count)]
     if seed is None:
-        seeds: list[int | None] = [None] * worker_count
+        seeds: list[int | None] = [None] * chunk_count
     else:
-        children = np.random.SeedSequence(seed).spawn(worker_count)
+        children = np.random.SeedSequence(seed).spawn(chunk_count)
         seeds = [int(child.generate_state(1, dtype=np.uint32)[0]) for child in children]
     jobs = [
         (func, a + index * width, a + (index + 1) * width, counts[index], seeds[index])
-        for index in range(worker_count)
+        for index in range(chunk_count)
     ]
+    pool_workers = min(worker_count, chunk_count)
     try:
-        with ProcessPoolExecutor(max_workers=worker_count) as pool:  # pragma: no cover
+        with ProcessPoolExecutor(max_workers=pool_workers) as pool:  # pragma: no cover
             estimates = list(pool.map(_integrate_chunk, jobs))
     except Exception:  # pragma: no cover - process/pickling fallback
         estimates = [_integrate_chunk(job) for job in jobs]
