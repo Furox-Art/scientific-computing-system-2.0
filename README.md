@@ -27,7 +27,7 @@ current release is **5.4.5**, and PyPI has never published a 2.x version.
 PyPI and npm project names are fixed after publication, so the `-2.0` suffix stays
 even though the version has moved past it.
 
-**52 importable names, 535 public exports, 1,914 tests, 100% branch coverage, MIT.** Every count here is measured from the tree by `scripts/make_promo.py`; CI re-measures and rejects drift.
+**53 importable names, 535 public exports, 1,925 tests, 100% branch coverage, MIT.** Every count here is measured from the tree by `scripts/make_promo.py`; CI re-measures and rejects drift.
 
 ## Reproducibility drift is a result, not hidden state
 
@@ -140,7 +140,7 @@ python -m cds2 info
 
 ## Modules
 
-46 flat modules plus 6 subpackages; 47 generated API pages. `*` marks [deprecated](https://furox-art.github.io/scientific-computing-system-2.0/deprecated/) modules.
+47 flat modules plus 6 subpackages; 47 generated API pages. `*` marks [deprecated](https://furox-art.github.io/scientific-computing-system-2.0/deprecated/) modules.
 
 | Module | What it does | Entry points |
 |---|---|---|

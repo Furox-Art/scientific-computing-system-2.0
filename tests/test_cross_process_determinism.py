@@ -22,9 +22,13 @@ import json
 import sys
 from pathlib import Path
 
+import numpy as np
+
 repo_root = Path(sys.argv[1])
 sys.path.insert(0, str(repo_root / "src"))
 
+from cds2 import sparse as cds_sparse
+from cds2 import spectral
 from cds2.knowledge import Concept, KnowledgeGraph, Notebook, Relation, search
 from cds2.montecarlo import pi_estimate
 from cds2.stats import describe
@@ -49,6 +53,15 @@ notebook.add("Lab log", "quantum tunneling observed today", tags=["spectroscopy"
 notebook.add("Optics lab", "telescope reading", tags=["optics"])
 
 summary = describe([3.0, 1.0, 2.0, 5.0, 4.0, 2.5])
+weighted_path = np.zeros((9, 9))
+for index in range(8):
+    weight = 1.0 + 0.1 * index
+    weighted_path[index, index + 1] = weight
+    weighted_path[index + 1, index] = weight
+fiedler = spectral.fiedler_vector(weighted_path, seed=20261024)
+smallest = cds_sparse.smallest_eigenpairs(weighted_path, k=2, seed=20261024)
+norm_matrix = np.arange(36.0).reshape(6, 6) % 7.0
+norm_matrix[:, 0] = 0.0
 payload = {
     "search": search("quantum particles telescope", graph, notebook),
     "neighbors": graph.neighbors("Alpha"),
@@ -66,6 +79,14 @@ payload = {
         "kurtosis": summary.kurtosis,
     },
     "pi": pi_estimate(n=2_000, seed=20261024),
+    "spectral": {
+        "fiedler": [round(float(value), 6) for value in fiedler],
+        "labels": spectral.spectral_cluster(weighted_path, 2, seed=20261024).tolist(),
+    },
+    "sparse": {
+        "eigenvalues": [round(float(value), 6) for value in smallest.eigenvalues],
+        "one_norm": round(float(cds_sparse.one_norm_est(norm_matrix, seed=20261024)), 6),
+    },
 }
 print(json.dumps(payload, ensure_ascii=False))
 """
@@ -106,3 +127,7 @@ def test_workload_exercises_non_empty_results() -> None:
     assert payload["path"] == ["Beta", "Alpha", "Gamma"]
     assert payload["describe"]["n"] == 6
     assert payload["pi"] > 0.0
+    assert payload["spectral"]["fiedler"], "Fiedler vector is empty"
+    assert payload["spectral"]["labels"]
+    assert payload["sparse"]["eigenvalues"] == sorted(payload["sparse"]["eigenvalues"])
+    assert payload["sparse"]["one_norm"] > 0.0

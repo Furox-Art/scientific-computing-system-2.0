@@ -79,3 +79,17 @@ class TestSaveFigure:
         target = tmp_path / "direct.png"
         viz.plot_series([1.0, 2.0], save=target)
         assert target.exists()
+
+
+class TestDeterministicArtifacts:
+    def test_pdf_bytes_repeatable_without_creation_date(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        first = viz.save_figure(viz.plot_series([1.0, 2.0, 3.0]), tmp_path / "first.pdf")
+        second = viz.save_figure(viz.plot_series([1.0, 2.0, 3.0]), tmp_path / "second.pdf")
+        assert first.read_bytes() == second.read_bytes()
+        assert b"CreationDate" not in first.read_bytes()
+
+    def test_svg_bytes_repeatable_without_date_metadata(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        first = viz.save_figure(viz.plot_series([1.0, 2.0, 3.0]), tmp_path / "first.svg")
+        second = viz.save_figure(viz.plot_series([1.0, 2.0, 3.0]), tmp_path / "second.svg")
+        assert first.read_bytes() == second.read_bytes()
+        assert "dc:date" not in first.read_text(encoding="utf-8")

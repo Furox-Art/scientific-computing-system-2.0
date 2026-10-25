@@ -16,6 +16,23 @@ Release integrity and documentation:
 
 Determinism:
 
+- Fix seeded spectral routines ignoring their seed: `spectral.fiedler_vector`
+  now accepts a seed, `spectral.spectral_cluster` and
+  `sparse.{largest,smallest}_eigenpairs` pass it to ARPACK as a fixed start
+  vector, and eigenvectors use a deterministic largest-component sign
+  convention. Fresh processes previously returned opposite eigenvector signs
+  and different cluster labels for the same seed.
+- Fix `cds2.sparse.one_norm_est` ignoring its seed; it now seeds scipy's
+  global-RNG estimator and restores the caller's NumPy RNG state.
+- Fix `cds2.sparse.smallest_eigenpairs` selecting the smallest-*magnitude*
+  eigenvalues although it documents algebraic ordering. On spectra with tied
+  magnitudes this also returned a different branch on different operating
+  systems. It now asks ARPACK for the algebraically smallest eigenpairs.
+- Fix PDF and SVG exports embedding wall-clock metadata: `viz.save_figure`,
+  `guided_fit.plot_result` and the PDF report now drop `CreationDate`/`Date`
+  and salt SVG ids, so repeated exports are byte-identical.
+- Extend the determinism workload and cross-process test to cover spectral,
+  eigenpair and one-norm outputs, which the previous workload never exercised.
 - Fix `cds2.montecarlo.parallel_mc_integrate` so a seeded estimate no longer
   depends on the worker count or the CPU topology. The sample budget is split
   into a fixed number of chunks seeded by their global index, and `workers`

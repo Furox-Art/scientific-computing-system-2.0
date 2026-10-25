@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -182,11 +183,26 @@ def plot_confusion_matrix(
     return fig
 
 
+def _save_metadata(suffix: str) -> dict[str, Any] | None:
+    """Drop writer-injected timestamps so a figure saves to identical bytes."""
+    if suffix == ".pdf":
+        return {"CreationDate": None, "ModDate": None}
+    if suffix == ".svg":
+        return {"Date": None}
+    return None
+
+
 def save_figure(fig: Figure, path: str | Path, dpi: int = 150, close: bool = True) -> Path:
     """Save a figure to disk and optionally close it."""
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(target, dpi=dpi, bbox_inches="tight")
+    suffix = target.suffix.lower()
+    metadata = _save_metadata(suffix)
+    with matplotlib.rc_context({"svg.hashsalt": "cds2"} if suffix == ".svg" else None):
+        if metadata is None:
+            fig.savefig(target, dpi=dpi, bbox_inches="tight")
+        else:
+            fig.savefig(target, dpi=dpi, bbox_inches="tight", metadata=metadata)
     if close:
         matplotlib.pyplot.close(fig)
     return target

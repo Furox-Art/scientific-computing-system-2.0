@@ -6,6 +6,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy import sparse
 
+from ._determinism import canonicalize_signs, start_vector
 from .ml import KMeans
 
 __all__ = [
@@ -35,32 +36,34 @@ def laplacian(adj: object, normalized: bool = False) -> sparse.csr_matrix:
 
 
 def _bottom_eigenvectors(
-    laplacian_matrix: sparse.spmatrix, k: int
+    laplacian_matrix: sparse.spmatrix, k: int, seed: int | None = None
 ) -> tuple[FloatArray, FloatArray]:
     from scipy.sparse.linalg import eigsh
 
+    matrix = sparse.csr_matrix(laplacian_matrix).astype(float)
     values, vectors = eigsh(
-        sparse.csr_matrix(laplacian_matrix).astype(float),
+        matrix,
         k=k,
         sigma=-1e-6,
         which="LM",
+        v0=start_vector(matrix.shape[0], seed),
     )
     order = np.argsort(values)
-    return np.asarray(values[order]), np.asarray(vectors[:, order])
+    return np.asarray(values[order]), canonicalize_signs(np.asarray(vectors[:, order]))
 
 
-def fiedler_vector(adj: object) -> FloatArray:
+def fiedler_vector(adj: object, seed: int | None = None) -> FloatArray:
     """Eigenvector of the second-smallest Laplacian eigenvalue.
 
-    Sign encodes the best bipartition; smoothness over the graph makes it a
-    canonical 1-D embedding.
+    Signs separate the two sides of the best bipartition. The Lanczos start
+    vector is derived from ``seed``, so equal seeds give identical vectors.
     """
     laplacian_matrix = laplacian(adj)
     n = laplacian_matrix.shape[0]
     if n < 3:
         msg = "Fiedler vector needs at least 3 nodes"
         raise ValueError(msg)
-    _values, vectors = _bottom_eigenvectors(laplacian_matrix, k=2)
+    _values, vectors = _bottom_eigenvectors(laplacian_matrix, k=2, seed=seed)
     return vectors[:, 1]
 
 
@@ -87,7 +90,7 @@ def spectral_cluster(
     if not 1 <= n_clusters <= n:
         msg = "n_clusters must be between 1 and the number of nodes"
         raise ValueError(msg)
-    _values, embedding = _bottom_eigenvectors(laplacian_matrix, k=n_clusters)
+    _values, embedding = _bottom_eigenvectors(laplacian_matrix, k=n_clusters, seed=seed)
     row_norms = np.linalg.norm(embedding, axis=1, keepdims=True)
     unit_embedding = embedding / np.where(row_norms == 0.0, 1.0, row_norms)
     clusterer = KMeans(n_clusters=n_clusters, seed=seed).fit(unit_embedding)
