@@ -33,6 +33,11 @@ Determinism:
   and salt SVG ids, so repeated exports are byte-identical.
 - Extend the determinism workload and cross-process test to cover spectral,
   eigenpair and one-norm outputs, which the previous workload never exercised.
+- The workload now also writes a PDF and an SVG through `viz.save_figure`, so
+  the matrix hashes the figure exports on every seed, thread, locale, timezone
+  and OS variant. Repeated exports were byte-identical within a host, but no
+  matrix run sampled the artifacts themselves; the cross-OS gate now checks
+  them too (SVG line endings are normalized, PDFs compare byte-for-byte).
 - Fix `cds2.montecarlo.parallel_mc_integrate` so a seeded estimate no longer
   depends on the worker count or the CPU topology. The sample budget is split
   into a fixed number of chunks seeded by their global index, and `workers`
