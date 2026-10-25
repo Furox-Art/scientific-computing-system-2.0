@@ -93,10 +93,11 @@ static PyObject *iterate(PyObject *self, PyObject *args) {
 
     Py_BEGIN_ALLOW_THREADS
     for (int iter = 0; iter < max_iter; iter++) {
+        /* Serial on purpose: an OpenMP reduction summed these ranks in a
+        thread-count-dependent order, and the scalar feeds uniform_add for every
+        node, so the whole vector changed with OMP_NUM_THREADS. O(n_dangling) is
+        dwarfed by the O(nnz) row loop below, which stays parallel. */
         double dangling_mass = 0.0;
-#if defined(_OPENMP)
-#pragma omp parallel for reduction(+ : dangling_mass)
-#endif
         for (Py_ssize_t p = 0; p < n_dangling; p++) dangling_mass += rank[dangling[p]];
         const double uniform_add = damping * dangling_mass / (double)n_nodes + teleport;
 #if defined(_OPENMP)
