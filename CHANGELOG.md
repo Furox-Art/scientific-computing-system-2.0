@@ -14,6 +14,17 @@ Release integrity and documentation:
 
 ## [Unreleased]
 
+Determinism:
+
+- Fix `cds2.montecarlo.parallel_mc_integrate` so a seeded estimate no longer
+  depends on the worker count or the CPU topology. The sample budget is split
+  into a fixed number of chunks seeded by their global index, and `workers`
+  now only controls how many chunks run in parallel; previously the same seed
+  produced a different number for every worker count, and the default count
+  varied with `os.cpu_count()`.
+- Add regression tests pinning identical results for explicit worker counts
+  1/3/8 and for the default CPU-derived worker count.
+
 ## [v5.4.4] - 2026-10-15
 
 Gate determinism:
