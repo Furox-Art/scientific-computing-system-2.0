@@ -11,7 +11,7 @@ metadata:
 The NumPy build of Scientific Computing System. It is the same scientific
 project family as `scientific-computing-system`, but depends on the numerical
 stack and offers 46 flat modules plus 6 subpackages, 535 public exports, and
-1,901 tests with a 100% branch-coverage gate.
+1,908 tests with a 100% branch-coverage gate.
 
 `2.0` in the package and repository name identifies this NumPy generation, not
 the version. The current release is **5.4.5**; import and CLI are `cds2`.
