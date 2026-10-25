@@ -46,6 +46,15 @@ Determinism:
   varied with `os.cpu_count()`.
 - Add regression tests pinning identical results for explicit worker counts
   1/3/8 and for the default CPU-derived worker count.
+- Fix `cds2.graph.pagerank` depending on the OpenMP thread count. The compiled
+  kernel summed the dangling-node ranks with an OpenMP reduction, whose
+  association order follows the thread count; that mass shifts every rank in
+  the vector, so the same graph produced different scores under
+  `OMP_NUM_THREADS=1`, `2`, `4` and `8`. The sum is now serial and
+  deterministic while the O(nnz) row loop stays parallel. A regression test
+  runs the kernel under `OMP_NUM_THREADS=1` and `4` and compares the rank
+  bytes, and the determinism workload now hashes `pagerank` scores on a graph
+  with 40 dangling nodes.
 
 Release integrity:
 

@@ -16,6 +16,7 @@ def main() -> None:
     if source_dir.is_dir():
         sys.path.insert(0, str(source_dir))
 
+    from cds2 import graph as cds_graph
     from cds2 import sparse as cds_sparse
     from cds2 import spectral, viz
     from cds2.knowledge import Concept, KnowledgeGraph, Notebook, Relation, search
@@ -51,6 +52,11 @@ def main() -> None:
     smallest = cds_sparse.smallest_eigenpairs(weighted_path, k=2, seed=20261024)
     norm_matrix = np.arange(36.0).reshape(6, 6) % 7.0
     norm_matrix[:, 0] = 0.0
+    pagerank_adj = np.zeros((64, 64))
+    for index in range(24):
+        pagerank_adj[index, (7 * index + 3) % 64] = 1.0 + 0.1 * (index % 5)
+        pagerank_adj[index, (11 * index + 5) % 64] = 0.5 + 0.05 * (index % 3)
+    pagerank = cds_graph.pagerank(pagerank_adj, max_iter=100, tol=1e-13)
     payload = {
         "search": search("quantum particles telescope", graph, notebook),
         "neighbors": graph.neighbors("Alpha"),
@@ -76,11 +82,18 @@ def main() -> None:
             "eigenvalues": [round(float(value), 6) for value in smallest.eigenvalues],
             "one_norm": round(float(cds_sparse.one_norm_est(norm_matrix, seed=20261024)), 6),
         },
+        "pagerank": {
+            "head": [round(float(value), 12) for value in pagerank[:4]],
+            "sum": round(float(pagerank.sum()), 12),
+            "argmax": int(pagerank.argmax()),
+        },
     }
     if not payload["search"] or not payload["neighbors"]:
         raise SystemExit("workload produced empty search results; it is vacuous")
     if not payload["spectral"]["fiedler"] or not payload["sparse"]["eigenvalues"]:
         raise SystemExit("workload produced empty numeric results; it is vacuous")
+    if abs(payload["pagerank"]["sum"] - 1.0) > 1e-9:
+        raise SystemExit("pagerank scores are not normalized; the workload is vacuous")
     artifact_dir = os.environ.get("DETERMINISM_ARTIFACT_DIR")
     if artifact_dir:
         artifacts = Path(artifact_dir)
