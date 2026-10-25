@@ -47,6 +47,14 @@ Determinism:
 - Add regression tests pinning identical results for explicit worker counts
   1/3/8 and for the default CPU-derived worker count.
 
+Release integrity:
+
+- The publish workflow's PyPI metadata check now waits up to five minutes
+  (30 attempts, 10 s apart) instead of one minute, and no longer sleeps after
+  the final attempt. The sister repository's 2.2.20 upload was live while its
+  PyPI JSON entry still answered 404 after a 60 s budget; this gate carried
+  the same bound and could have reported the same completed release as failed.
+
 ## [v5.4.4] - 2026-10-15
 
 Gate determinism:
