@@ -198,8 +198,7 @@ def save_figure(fig: Figure, path: str | Path, dpi: int = 150, close: bool = Tru
     target.parent.mkdir(parents=True, exist_ok=True)
     suffix = target.suffix.lower()
     metadata = _save_metadata(suffix)
-    rc: dict[str, Any] = {"svg.hashsalt": "cds2"} if suffix == ".svg" else {}
-    with matplotlib.rc_context(rc):
+    with matplotlib.rc_context({"svg.hashsalt": "cds2"} if suffix == ".svg" else None):
         if metadata is None:
             fig.savefig(target, dpi=dpi, bbox_inches="tight")
         else:
