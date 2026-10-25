@@ -387,8 +387,12 @@ jobs:
           package = os.environ["PACKAGE"]
           version = os.environ["VERSION"]
           url = f"https://pypi.org/pypi/{package}/{version}/json"
+          # PyPI's JSON cache lagged more than 60 s behind a successful upload in
+          # the sister repository (scientific-computing-system 2.2.20), so the old
+          # six-attempt budget could turn a completed publish into a red job.
+          attempts = 30
           last_error = None
-          for attempt in range(1, 7):
+          for attempt in range(1, attempts + 1):
               try:
                   with urllib.request.urlopen(url, timeout=30) as response:
                       payload = json.load(response)
@@ -400,8 +404,9 @@ jobs:
                   break
               except (urllib.error.HTTPError, urllib.error.URLError, RuntimeError) as exc:
                   last_error = exc
-                  print(f"PyPI metadata not visible yet (attempt {attempt}/6); retrying...")
-                  time.sleep(10)
+                  print(f"PyPI metadata not visible yet (attempt {attempt}/{attempts})")
+                  if attempt < attempts:
+                      time.sleep(10)
           else:
               raise SystemExit(f"release metadata was not verified on PyPI: {last_error}")
 
