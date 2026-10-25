@@ -140,7 +140,7 @@ python -m cds2 info
 
 ## Modules
 
-46 flat modules plus 6 subpackages; 47 generated API pages. `*` marks [deprecated](https://furox-art.github.io/scientific-computing-system-2.0/deprecated/) modules.
+47 flat modules plus 6 subpackages; 47 generated API pages. `*` marks [deprecated](https://furox-art.github.io/scientific-computing-system-2.0/deprecated/) modules.
 
 | Module | What it does | Entry points |
 |---|---|---|
