@@ -17,7 +17,7 @@ def main() -> None:
         sys.path.insert(0, str(source_dir))
 
     from cds2 import sparse as cds_sparse
-    from cds2 import spectral
+    from cds2 import spectral, viz
     from cds2.knowledge import Concept, KnowledgeGraph, Notebook, Relation, search
     from cds2.montecarlo import pi_estimate
     from cds2.stats import describe
@@ -83,11 +83,23 @@ def main() -> None:
         raise SystemExit("workload produced empty numeric results; it is vacuous")
     artifact_dir = os.environ.get("DETERMINISM_ARTIFACT_DIR")
     if artifact_dir:
-        Path(artifact_dir, "payload.json").write_text(
+        artifacts = Path(artifact_dir)
+        for suffix in (".pdf", ".svg"):
+            viz.plot_series(
+                [3.0, 1.0, 2.0, 5.0, 4.0, 2.5],
+                title="Determinism",
+                xlabel="x",
+                ylabel="y",
+                save=artifacts / f"series{suffix}",
+            )
+        artifacts.joinpath("payload.json").write_text(
             json.dumps(payload, ensure_ascii=False, sort_keys=True),
             encoding="utf-8",
             newline="\n",
         )
+        for name in ("payload.json", "series.pdf", "series.svg"):
+            if artifacts.joinpath(name).stat().st_size == 0:
+                raise SystemExit(f"artifact {name} is empty")
     print(json.dumps(payload, ensure_ascii=False))
 
 
