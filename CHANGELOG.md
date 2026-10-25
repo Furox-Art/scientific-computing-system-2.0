@@ -24,6 +24,10 @@ Determinism:
   and different cluster labels for the same seed.
 - Fix `cds2.sparse.one_norm_est` ignoring its seed; it now seeds scipy's
   global-RNG estimator and restores the caller's NumPy RNG state.
+- Fix `cds2.sparse.smallest_eigenpairs` selecting the smallest-*magnitude*
+  eigenvalues although it documents algebraic ordering. On spectra with tied
+  magnitudes this also returned a different branch on different operating
+  systems. It now asks ARPACK for the algebraically smallest eigenpairs.
 - Fix PDF and SVG exports embedding wall-clock metadata: `viz.save_figure`,
   `guided_fit.plot_result` and the PDF report now drop `CreationDate`/`Date`
   and salt SVG ids, so repeated exports are byte-identical.

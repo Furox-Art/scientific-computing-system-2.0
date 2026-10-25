@@ -63,6 +63,11 @@ class TestEigenAndSVD:
         result = sparse.smallest_eigenpairs(diagonal, k=2)
         assert np.allclose(result.eigenvalues, [1.0, 5.0], atol=1e-8)
 
+    def test_smallest_eigenpairs_are_algebraically_smallest(self) -> None:
+        diagonal = np.diag([-3.0, -1.0, 2.0, 5.0])
+        result = sparse.smallest_eigenpairs(diagonal, k=2, seed=7)
+        assert np.allclose(result.eigenvalues, [-3.0, -1.0], atol=1e-8)
+
     def test_truncated_svd_recovers_top_singvals(self) -> None:
         rng_values = np.random.default_rng(1)
         matrix = rng_values.normal(size=(120, 40))

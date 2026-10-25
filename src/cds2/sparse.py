@@ -140,7 +140,7 @@ def largest_eigenpairs(A: object, k: int = 6, seed: int | None = None) -> Eigenp
 def smallest_eigenpairs(A: object, k: int = 6, seed: int | None = None) -> EigenpairsResult:
     """Smallest algebraic eigenpairs of a symmetric matrix/operator."""
     matrix = _as_matrix(A)
-    values, vectors = eigsh(matrix, k=k, which="SM", v0=start_vector(matrix.shape[0], seed))
+    values, vectors = eigsh(matrix, k=k, which="SA", v0=start_vector(matrix.shape[0], seed))
     order = np.argsort(values)
     return EigenpairsResult(
         eigenvalues=np.asarray(values[order]),
