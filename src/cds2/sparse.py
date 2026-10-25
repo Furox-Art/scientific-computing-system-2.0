@@ -18,6 +18,8 @@ from scipy.sparse.linalg import (
     svds,
 )
 
+from ._determinism import canonicalize_signs, start_vector
+
 __all__ = [
     "IterativeSolveResult",
     "EigenpairsResult",
@@ -64,7 +66,7 @@ class TruncatedSVDResult:
     vt: NDArray[np.float64]
 
 
-def _as_matrix(A: object) -> object:
+def _as_matrix(A: object) -> sparse.spmatrix | LinearOperator:
     if isinstance(A, LinearOperator):
         return A
     return sparse.csr_matrix(A)
@@ -126,19 +128,23 @@ def solve_bicgstab(
 
 def largest_eigenpairs(A: object, k: int = 6, seed: int | None = None) -> EigenpairsResult:
     """Algebraically largest eigenpairs of a symmetric matrix (Lanczos)."""
-    values, vectors = eigsh(_as_matrix(A), k=k, which="LA")
+    matrix = _as_matrix(A)
+    values, vectors = eigsh(matrix, k=k, which="LA", v0=start_vector(matrix.shape[0], seed))
     order = np.argsort(values)[::-1]
     return EigenpairsResult(
-        eigenvalues=np.asarray(values[order]), eigenvectors=np.asarray(vectors[:, order])
+        eigenvalues=np.asarray(values[order]),
+        eigenvectors=canonicalize_signs(np.asarray(vectors[:, order])),
     )
 
 
 def smallest_eigenpairs(A: object, k: int = 6, seed: int | None = None) -> EigenpairsResult:
     """Smallest algebraic eigenpairs of a symmetric matrix/operator."""
-    values, vectors = eigsh(_as_matrix(A), k=k, which="SM")
+    matrix = _as_matrix(A)
+    values, vectors = eigsh(matrix, k=k, which="SM", v0=start_vector(matrix.shape[0], seed))
     order = np.argsort(values)
     return EigenpairsResult(
-        eigenvalues=np.asarray(values[order]), eigenvectors=np.asarray(vectors[:, order])
+        eigenvalues=np.asarray(values[order]),
+        eigenvectors=canonicalize_signs(np.asarray(vectors[:, order])),
     )
 
 
@@ -170,11 +176,22 @@ def sparse_kron(a: object, b: object) -> sparse.csr_matrix:
 
 
 def one_norm_est(A: object, seed: int | None = None) -> float:
-    """Lower bound estimate of the 1-norm of a square sparse matrix."""
+    """Lower bound estimate of the 1-norm of a square sparse matrix.
+
+    ``seed`` pins scipy's global-RNG estimator; the NumPy RNG state is restored
+    afterwards, so the call has no lasting side effect.
+    """
     from scipy.sparse.linalg import onenormest
 
-    value = onenormest(sparse.csr_matrix(A))
-    return float(value)
+    matrix = sparse.csr_matrix(A)
+    if seed is None:
+        return float(onenormest(matrix))
+    state = np.random.get_state()
+    try:
+        np.random.seed(seed)
+        return float(onenormest(matrix))
+    finally:
+        np.random.set_state(state)
 
 
 def jacobi_preconditioner(A: object) -> LinearOperator:

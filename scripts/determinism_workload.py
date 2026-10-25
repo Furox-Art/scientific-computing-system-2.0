@@ -7,6 +7,8 @@ import os
 import sys
 from pathlib import Path
 
+import numpy as np
+
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
@@ -14,6 +16,8 @@ def main() -> None:
     if source_dir.is_dir():
         sys.path.insert(0, str(source_dir))
 
+    from cds2 import sparse as cds_sparse
+    from cds2 import spectral
     from cds2.knowledge import Concept, KnowledgeGraph, Notebook, Relation, search
     from cds2.montecarlo import pi_estimate
     from cds2.stats import describe
@@ -38,6 +42,15 @@ def main() -> None:
     notebook.add("Optics lab", "telescope reading", tags=["optics"])
 
     summary = describe([3.0, 1.0, 2.0, 5.0, 4.0, 2.5])
+    weighted_path = np.zeros((9, 9))
+    for index in range(8):
+        weight = 1.0 + 0.1 * index
+        weighted_path[index, index + 1] = weight
+        weighted_path[index + 1, index] = weight
+    fiedler = spectral.fiedler_vector(weighted_path, seed=20261024)
+    smallest = cds_sparse.smallest_eigenpairs(weighted_path, k=2, seed=20261024)
+    norm_matrix = np.arange(36.0).reshape(6, 6) % 7.0
+    norm_matrix[:, 0] = 0.0
     payload = {
         "search": search("quantum particles telescope", graph, notebook),
         "neighbors": graph.neighbors("Alpha"),
@@ -55,9 +68,19 @@ def main() -> None:
             "kurtosis": summary.kurtosis,
         },
         "pi": pi_estimate(n=2_000, seed=20261024),
+        "spectral": {
+            "fiedler": [round(float(value), 6) for value in fiedler],
+            "labels": spectral.spectral_cluster(weighted_path, 2, seed=20261024).tolist(),
+        },
+        "sparse": {
+            "eigenvalues": [round(float(value), 6) for value in smallest.eigenvalues],
+            "one_norm": round(float(cds_sparse.one_norm_est(norm_matrix, seed=20261024)), 6),
+        },
     }
     if not payload["search"] or not payload["neighbors"]:
         raise SystemExit("workload produced empty search results; it is vacuous")
+    if not payload["spectral"]["fiedler"] or not payload["sparse"]["eigenvalues"]:
+        raise SystemExit("workload produced empty numeric results; it is vacuous")
     artifact_dir = os.environ.get("DETERMINISM_ARTIFACT_DIR")
     if artifact_dir:
         Path(artifact_dir, "payload.json").write_text(

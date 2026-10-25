@@ -13,7 +13,7 @@ import textwrap
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -695,7 +695,10 @@ def plot_result(
         ax.legend()
         for suffix in ("png", "pdf"):
             path = target / f"{stem}_fit.{suffix}"
-            fig.savefig(path, bbox_inches="tight")
+            metadata: dict[str, Any] | None = (
+                {"CreationDate": None, "ModDate": None} if suffix == "pdf" else None
+            )
+            fig.savefig(path, bbox_inches="tight", metadata=metadata)
             paths.append(path)
         plt.close(fig)
 
@@ -719,7 +722,10 @@ def plot_result(
         residual_ax.legend()
         for suffix in ("png", "pdf"):
             path = target / f"{stem}_residuals.{suffix}"
-            residual_fig.savefig(path, bbox_inches="tight")
+            residual_metadata: dict[str, Any] | None = (
+                {"CreationDate": None, "ModDate": None} if suffix == "pdf" else None
+            )
+            residual_fig.savefig(path, bbox_inches="tight", metadata=residual_metadata)
             paths.append(path)
         plt.close(residual_fig)
     return paths
@@ -1088,7 +1094,7 @@ def write_report(
     from matplotlib.backends.backend_pdf import PdfPages
 
     path = target_dir / "guided_fit_report.pdf"
-    with PdfPages(path) as pdf:
+    with PdfPages(path, metadata={"CreationDate": None, "ModDate": None}) as pdf:
         for page_text in _paginate_report_text(text):
             fig = plt.figure(figsize=(8.27, 11.69))
             fig.text(0.05, 0.95, page_text, va="top", family="monospace", fontsize=8)

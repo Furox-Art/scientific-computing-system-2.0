@@ -273,6 +273,32 @@ def test_pdf_report_pagination_preserves_all_long_content() -> None:
     assert combined.replace("\n", "") == "".join(markers)
 
 
+def test_pdf_artifacts_are_byte_identical_across_runs(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    csv_path = tmp_path / "repeatable.csv"
+    x = np.linspace(1.0, 8.0, 40)
+    frame = pd.DataFrame({"x": x, "y": 4.0 * x + 2.0})
+    frame.to_csv(csv_path, index=False)
+    dataset = gf.load_csv_dataset(csv_path, "x", "y")
+    result = gf.run_guided_fit((dataset,), "linear")
+
+    def pdf_paths(output_dir):
+        return sorted(
+            path for path in gf.plot_result(result, (dataset,), output_dir) if path.suffix == ".pdf"
+        )
+
+    first_paths = pdf_paths(tmp_path / "first")
+    second_paths = pdf_paths(tmp_path / "second")
+    assert first_paths
+    assert [path.name for path in first_paths] == [path.name for path in second_paths]
+    for first, second in zip(first_paths, second_paths, strict=True):
+        assert first.read_bytes() == second.read_bytes()
+        assert b"CreationDate" not in first.read_bytes()
+
+    first_report = gf.write_report(result, tmp_path / "first", "pdf")
+    second_report = gf.write_report(result, tmp_path / "second", "pdf")
+    assert first_report.read_bytes() == second_report.read_bytes()
+
+
 def test_rerun_manifest_warns_on_changed_data_and_saved_verdict(tmp_path) -> None:  # type: ignore[no-untyped-def]
     csv_path = tmp_path / "stable.csv"
     x = np.linspace(1.0, 8.0, 40)

@@ -58,3 +58,21 @@ class TestSpectralClustering:
     def test_invalid_cluster_count_raises(self, path_graph) -> None:
         with pytest.raises(ValueError, match="n_clusters"):
             spectral.spectral_cluster(path_graph, n_clusters=99)
+
+
+class TestSeededDeterminism:
+    def test_fiedler_vector_reproducible_with_seed(self, path_graph) -> None:
+        first = spectral.fiedler_vector(path_graph, seed=7)
+        second = spectral.fiedler_vector(path_graph, seed=7)
+        assert np.array_equal(first, second)
+
+    def test_fiedler_vector_positive_pivot(self, path_graph) -> None:
+        fiedler = spectral.fiedler_vector(path_graph, seed=7)
+        assert fiedler[int(np.argmax(np.abs(fiedler)))] > 0.0
+
+    def test_spectral_cluster_reproducible_with_seed(self) -> None:
+        edges = [(i, i + 1) for i in range(4)] + [(5, 6), (6, 7), (7, 8), (8, 5)]
+        adj = from_edges(9, edges, directed=False)
+        first = spectral.spectral_cluster(adj, n_clusters=2, seed=42)
+        second = spectral.spectral_cluster(adj, n_clusters=2, seed=42)
+        assert np.array_equal(first, second)
