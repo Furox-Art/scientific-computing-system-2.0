@@ -20,6 +20,7 @@ def main() -> None:
     from cds2 import sparse as cds_sparse
     from cds2 import spectral, viz
     from cds2.knowledge import Concept, KnowledgeGraph, Notebook, Relation, search
+    from cds2.ml import KMeans
     from cds2.montecarlo import pi_estimate
     from cds2.stats import describe
 
@@ -57,6 +58,15 @@ def main() -> None:
         pagerank_adj[index, (7 * index + 3) % 64] = 1.0 + 0.1 * (index % 5)
         pagerank_adj[index, (11 * index + 5) % 64] = 0.5 + 0.05 * (index % 3)
     pagerank = cds_graph.pagerank(pagerank_adj, max_iter=100, tol=1e-13)
+    # Integer grid coordinates keep every squared distance and cluster sum
+    # exactly representable, so this payload isolates the compiled Lloyd
+    # kernel from floating-point rounding noise.
+    kmeans_points = np.array(
+        [[index % 7, (index * 3) % 5] for index in range(42)]
+        + [[index % 5 + 9, (index * 2) % 6 + 7] for index in range(38)],
+        dtype=float,
+    )
+    kmeans = KMeans(n_clusters=3, max_iter=100, tol=1e-10, seed=20261024).fit(kmeans_points)
     payload = {
         "search": search("quantum particles telescope", graph, notebook),
         "neighbors": graph.neighbors("Alpha"),
@@ -87,6 +97,14 @@ def main() -> None:
             "sum": round(float(pagerank.sum()), 12),
             "argmax": int(pagerank.argmax()),
         },
+        "kmeans": {
+            "labels": np.asarray(kmeans.labels_, dtype=np.int64).tolist(),
+            "centers": [
+                [round(float(value), 9) for value in row]
+                for row in np.asarray(kmeans.cluster_centers_)
+            ],
+            "inertia": round(float(kmeans.inertia_), 6),
+        },
     }
     if not payload["search"] or not payload["neighbors"]:
         raise SystemExit("workload produced empty search results; it is vacuous")
@@ -94,6 +112,8 @@ def main() -> None:
         raise SystemExit("workload produced empty numeric results; it is vacuous")
     if abs(payload["pagerank"]["sum"] - 1.0) > 1e-9:
         raise SystemExit("pagerank scores are not normalized; the workload is vacuous")
+    if len(set(payload["kmeans"]["labels"])) != 3:
+        raise SystemExit("kmeans did not assign every cluster; the workload is vacuous")
     artifact_dir = os.environ.get("DETERMINISM_ARTIFACT_DIR")
     if artifact_dir:
         artifacts = Path(artifact_dir)

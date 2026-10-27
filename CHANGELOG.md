@@ -55,6 +55,11 @@ Determinism:
   runs the kernel under `OMP_NUM_THREADS=1` and `4` and compares the rank
   bytes, and the determinism workload now hashes `pagerank` scores on a graph
   with 40 dangling nodes.
+- Extend the determinism workload to sample `cds2.ml.KMeans`; its compiled
+  Lloyd kernel carries the package's only other OpenMP loops, and no matrix
+  run exercised them. Labels, centers and inertia are hashed on every seed,
+  thread, locale, timezone and OS variant, and a regression test runs the
+  kernel under `OMP_NUM_THREADS=1` and `4` and compares the output bytes.
 
 Release integrity:
 
