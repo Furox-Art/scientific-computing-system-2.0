@@ -12,6 +12,10 @@
  *          token cannot mint a Sigstore attestation, so this path must NOT pass
  *          --provenance and must not claim provenance anywhere.
  *
+ * It also asserts the release-content guard: npm versions are immutable, and
+ * 5.4.5 was packed from a post-tag commit, so every packed file must match the
+ * commit that introduced the version being published.
+ *
  * Run via `npm test`.
  */
 
@@ -284,6 +288,66 @@ check("the visibility poll fails closed but warns first", () => {
     "the poll must not shell out to the npm CLI",
   );
   assert.doesNotMatch(source, /npm view\s+"?\$\{PACKAGE\}/, "the poll must not read via npm view");
+});
+
+check("the publish checkout keeps history for the content guard", () => {
+  const lines = workflow.split("\n");
+  const startIndex = lines.findIndex((line) =>
+    line.trim().startsWith("- uses: actions/checkout@"),
+  );
+  assert.notEqual(startIndex, -1, "publish checkout not found");
+  const indent = lines[startIndex].search(/\S/);
+  let endIndex = lines.length;
+  for (let i = startIndex + 1; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (line.trim() === "") continue;
+    if (line.search(/\S/) <= indent && line.trimStart().startsWith("- ")) {
+      endIndex = i;
+      break;
+    }
+  }
+  const block = lines.slice(startIndex, endIndex).join("\n");
+  assert.match(
+    block,
+    /fetch-depth:\s*0/,
+    "the guard walks back to the version-bump commit; a depth-1 clone has no such history",
+  );
+});
+
+check("publication refuses content newer than the version bump", () => {
+  // npm 5.4.5 was packed from 9a0d609 rather than its tag 012979f, so the
+  // tarball README claimed 1,883 tests and a PyPI attestation while the tag
+  // declared 1,882 and no provenance. npm versions are immutable, so the
+  // upload must be checked before it happens, not repaired afterwards.
+  const block = stepBlock("Refuse to publish content newer than the version bump");
+  assert.match(block, /"rev-list", "--first-parent", "HEAD"/);
+  assert.match(block, /"pack", "--dry-run", "--json"/);
+  assert.match(block, /packed files differ from/);
+  assert.match(block, /Bump the version and release the new content instead\./);
+});
+
+check("the content guard runs only for unpublished versions, before both publishes", () => {
+  const block = stepBlock("Refuse to publish content newer than the version bump");
+  assert.match(
+    block,
+    /if: steps\.exists\.outputs\.exists == 'false'/,
+    "an already-published version publishes nothing, so the guard must be skipped",
+  );
+  const guardIndex = workflow.indexOf("- name: Refuse to publish content newer than the version bump");
+  const existsIndex = workflow.indexOf("- name: Check whether this version already exists on npm");
+  assert.ok(existsIndex !== -1, "the existence gate must stay in place");
+  assert.ok(
+    existsIndex < guardIndex,
+    "the guard must run after the existence gate, so already-published versions skip it",
+  );
+  assert.ok(
+    guardIndex < workflow.indexOf("- name: Publish to npm (OIDC trusted publishing)"),
+    "the guard must run before the OIDC publish",
+  );
+  assert.ok(
+    guardIndex < workflow.indexOf("- name: Publish to npm (long-lived NPM_TOKEN)"),
+    "the guard must run before the token publish",
+  );
 });
 
 check("existing gates are retained", () => {
