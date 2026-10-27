@@ -130,6 +130,9 @@ jobs:
           # Publish the exact commit the Release workflow published, not
           # whatever main points at when this follow-up run starts.
           ref: ${{ github.event_name == 'workflow_run' && needs.release_gate.outputs.head_sha || github.ref }}
+          # The content guard below walks back to the commit that introduced
+          # the version being published; a depth-1 clone has no such history.
+          fetch-depth: 0
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -287,6 +290,79 @@ jobs:
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "${PACKAGE}@${VERSION} is new on the npm registry"
           fi
+
+      # The existence gate above skipped versions that are already on npm. When
+      # the version is new, the upload must be exactly the content the version
+      # bump released: npm 5.4.5 was packed from 9a0d609 (a later commit) rather
+      # than its tag 012979f, so its README advertised 1,883 tests and a PyPI
+      # attestation while the tag declares 1,882 and no provenance. npm versions
+      # are immutable, so the check runs before any upload: every packed file
+      # must match the commit that introduced this version. The automatic path
+      # checks out the Release run's head SHA, which can also carry post-bump
+      # commits, so the guard applies there too.
+      - name: Refuse to publish content newer than the version bump
+        if: steps.exists.outputs.exists == 'false'
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          export VERSION
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+
+          version = os.environ["VERSION"]
+
+          def run(*args):
+              return subprocess.run(args, capture_output=True)
+
+          def version_at(rev):
+              raw = run("git", "show", f"{rev}:package.json")
+              if raw.returncode != 0:
+                  return None
+              try:
+                  return json.loads(raw.stdout.decode("utf-8"))["version"]
+              except (UnicodeDecodeError, ValueError, KeyError, TypeError):
+                  return None
+
+          head = run("git", "rev-parse", "HEAD").stdout.decode().strip()
+          if version_at(head) != version:
+              raise SystemExit(f"HEAD does not declare package.json version {version}")
+
+          release = None
+          for rev in run("git", "rev-list", "--first-parent", "HEAD").stdout.decode().split():
+              if version_at(rev) != version:
+                  break
+              release = rev
+          if release is None:
+              raise SystemExit(f"cannot find the commit that introduced version {version}")
+          if release == head:
+              print(f"PASS: publishing {version} from its own version-bump commit {head[:9]}")
+              raise SystemExit(0)
+
+          packed = json.loads(
+              run("npm", "pack", "--dry-run", "--json").stdout.decode("utf-8")
+          )[0]["files"]
+          differing = []
+          for item in packed:
+              path = item["path"]
+              expected = run("git", "show", f"{release}:{path}")
+              actual = run("git", "show", f"HEAD:{path}")
+              if (
+                  expected.returncode != 0
+                  or actual.returncode != 0
+                  or expected.stdout != actual.stdout
+              ):
+                  differing.append(path)
+          if differing:
+              raise SystemExit(
+                  f"refusing to publish {version} from {head[:9]}: packed files differ from "
+                  f"the version-bump commit {release[:9]} ({', '.join(differing)}). "
+                  f"Bump the version and release the new content instead."
+              )
+          print(f"PASS: packed content matches the version-bump commit {release[:9]}")
+          PY
 
       # Preferred path: OIDC trusted publishing, with provenance.
       - name: Publish to npm (OIDC trusted publishing)
