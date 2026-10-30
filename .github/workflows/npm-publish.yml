@@ -3,24 +3,24 @@ name: npm Publish
 # Two entry paths, and deliberately no `push` path trigger:
 #   * workflow_run after a successful `Release` run is the automatic path. The
 #     npm launcher may only be published for a version PyPI already serves.
-#   * workflow_dispatch remains available for manual recovery or for testing
-#     the preferred OIDC path after an npmjs trusted publisher is configured.
+#   * workflow_dispatch remains available for manual recovery or for republishing
+#     through a specific credential path.
 # A `push` path trigger was dropped on purpose: a version bump normally touches
 # package.json too, which would fire both this trigger and the automatic path,
 # running the same publish twice.
 #
-# npmjs trusted publishing is not configured for this package yet, so the
-# automatic path explicitly selects the verified NPM_TOKEN credential. Manual
-# dispatches default to the preferred OIDC path.
+# npmjs trusted publishing is configured: 5.4.5 was the first release published
+# through OIDC with a Sigstore attestation, so both the automatic and the
+# default manual path now select OIDC. The NPM_TOKEN path remains an explicit,
+# opt-in fallback for recovery.
 on:
   workflow_dispatch:
     inputs:
       use_token_fallback:
         description: >-
           Publish with the long-lived NPM_TOKEN secret instead of OIDC trusted
-          publishing. Only use this while no npmjs.com trusted publisher is
-          configured. The token path cannot mint a Sigstore attestation, so
-          --provenance is never passed on that path.
+          publishing. Recovery only: the token path cannot mint a Sigstore
+          attestation, so --provenance is never passed on that path.
         type: boolean
         required: false
         default: false
@@ -118,11 +118,9 @@ jobs:
     environment: npm
     permissions:
       contents: read
-      # Required for the preferred OIDC trusted-publishing path. GitHub cannot
-      # scope id-token per step, so it is also granted on the token path; npm
-      # simply does not use it there because no OIDC publisher is configured.
-      # Drop this permission once trusted publishing is set up and only the
-      # token fallback is ever used.
+      # Required for the OIDC trusted-publishing path, which is the default.
+      # GitHub cannot scope id-token per step, so it is also granted on the
+      # token fallback path; npm simply does not use it there.
       id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -163,9 +161,9 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${EVENT_NAME}" != "workflow_dispatch" ]; then
-            # Automatic path: no npm trusted publisher is registered for this
-            # package yet (5.4.4 carries no attestation), so use NPM_TOKEN.
-            REQUESTED=true
+            # Automatic path: the npm trusted publisher is registered and 5.4.5
+            # was published through OIDC, so default to the attested path.
+            REQUESTED=false
           else
             REQUESTED="$(printf '%s' "${USE_TOKEN_FALLBACK}" | tr '[:upper:]' '[:lower:]')"
           fi
