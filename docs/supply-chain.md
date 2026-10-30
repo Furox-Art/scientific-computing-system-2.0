@@ -1,14 +1,15 @@
 # Supply chain and provenance
 
-**PyPI releases are attested; npm releases are not.** This page states exactly
-what exists, how to check it, and what has to happen before npm catches up. It
+**PyPI releases are attested; npm from `5.4.5` is too.** This page states
+exactly what exists, how to check it, and where the registries still differ. It
 is deliberately explicit about the difference between a digest, a registry
 transport signature, and a build provenance attestation, because conflating
 them is how supply-chain claims go wrong.
 
 ## Verified state as of 5.4.5
 
-Checked directly against the live registries on 2026-10-22. PyPI provenance is
+Checked directly against the live registries on 2026-10-22; the npm rows were
+re-checked on 2026-10-30. PyPI provenance is
 per file: the directory URL returns `404` even when every file is attested, so
 the per-file endpoint is the one that answers the question.
 
@@ -19,11 +20,11 @@ the per-file endpoint is the one that answers the question.
 | PyPI PEP 740 attestations, 5.1.0-5.4.5, every file | per-file `/provenance` endpoint | **200** (330 files) |
 | PyPI PEP 740 attestations, 5.0.0 | per-file `/provenance` endpoint | **404** |
 | PyPI PEP 740 attestations, project-wide directory | `https://pypi.org/integrity/scientific-computing-system-2.0/` | **404** |
-| npm Sigstore attestations, 5.4.4 (latest npm) | `https://registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@5.4.4` | **404** |
+| npm Sigstore attestations, 5.4.5 (latest npm) | `https://registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@5.4.5` | **200** |
+| npm Sigstore attestations, 5.4.4 | `https://registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@5.4.4` | **404** |
 
 Published versions: PyPI `4.0.0, 4.2.0, 5.0.0, 5.1.0, 5.2.0-5.2.6, 5.3.0, 5.4.0-5.4.5`
-(latest `5.4.5`); npm `2.0.0, 5.2.5, 5.2.6, 5.3.0, 5.4.0-5.4.4` (latest `5.4.4`;
-`5.4.5` has not been published to npm).
+(latest `5.4.5`); npm `2.0.0, 5.2.5, 5.2.6, 5.3.0, 5.4.0-5.4.5` (latest `5.4.5`).
 
 You can reproduce every row above with `curl -o /dev/null -w '%{http_code}\n' <url>`.
 
@@ -45,11 +46,13 @@ side. They are signed by npm, **not** by the build, and they say nothing about
 which source commit, runner or build environment produced the bytes. Do not
 present them as provenance. Present on every published npm version.
 
-**3. A provenance attestation — signed evidence about the build, present on PyPI.**
+**3. A provenance attestation — signed evidence about the build, present on PyPI
+and, from `5.4.5`, on npm.**
 A PyPI PEP 740 attestation or an npm Sigstore attestation binds the artifact
 digest to the identity of the workflow and the source commit, via a public
 transparency log. That is the thing people mean by "verified build". **Every
-PyPI file from 5.1.0 through 5.4.5 carries one; no npm release does.**
+PyPI file from 5.1.0 through 5.4.5 carries one; on npm, `5.4.5` carries one and
+every earlier version does not.**
 
 ## What this repository does guarantee
 
@@ -93,13 +96,13 @@ python -m json.tool provenance.json | head
 pip download scientific-computing-system-2.0==5.4.5 --no-deps -d /tmp/x
 python -c "import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" /tmp/x/<file>
 
-npm view scientific-computing-system-2.0@5.4.4 dist.integrity
+npm view scientific-computing-system-2.0@5.4.5 dist.integrity
 ```
 
 The sdist digest for `5.4.5` is
 `ca21009208debb4e576ad06cac80ba0dd716389563c907e96e56e04e60f34c81`.
 
-## npm provenance is still pending
+## npm provenance landed in 5.4.5
 
 PyPI is done: the Trusted Publisher is registered under *Account management →
 Publishing* (Owner `Furox-Art`, Repository `scientific-computing-system-2.0`,
@@ -108,18 +111,22 @@ through `5.4.5` was uploaded through it, which is why the attestations exist.
 The `PYPI_API_TOKEN` fallback remains for recovery only; a token upload mints no
 attestation.
 
-npm is **pending, not in place**:
+npm followed on 2026-10-23:
 
-- A trusted publisher must be registered on npmjs.com for Owner `Furox-Art`,
+- The trusted publisher is registered on npmjs.com for Owner `Furox-Art`,
   Repository `scientific-computing-system-2.0`, Workflow filename
-  `npm-publish.yml`, Environment `npm`. Until then npm publishes use
-  `NPM_TOKEN`; a classic automation token cannot mint a Sigstore attestation,
-  which is why the token path omits `--provenance`. Once registered, dispatch
-  `npm-publish.yml` without `use_token_fallback` to publish through OIDC.
+  `npm-publish.yml`, Environment `npm`. `5.4.5` was published through OIDC,
+  which is why its attestation endpoint returns `200`; every earlier npm
+  version was published with `NPM_TOKEN`, and a classic automation token
+  cannot mint a Sigstore attestation, so those versions have no `attestations`
+  field and return `404`.
+- The `npm-publish.yml` token fallback (`use_token_fallback`) remains for
+  recovery only. A recovery publish through it would not be attested; dispatch
+  the workflow without that flag to get provenance.
 
-In short: npm needs **registry configuration, not workflow flags.** Until then,
-treat npm releases as digest-verifiable only, and do not describe them as
-attested.
+In short: npm provenance is **registry configuration, not workflow flags**, and
+it is in place from `5.4.5`. Versions before `5.4.5` stay digest-verifiable
+only, so do not describe them as attested.
 
 ## npm-specific notes
 
@@ -128,4 +135,4 @@ library: it contains no Python and calls into the PyPI-installed package. See
 [npm launcher shim](npm.md). One npm version is unusable and cannot be
 repaired because npm versions are immutable: `2.0.0` shipped a broken entry
 point, and the stale channel predates this repository taking over the name.
-Install `5.2.5` or later; the latest npm version is `5.4.4`.
+Install `5.2.5` or later; the latest npm version is `5.4.5`.
