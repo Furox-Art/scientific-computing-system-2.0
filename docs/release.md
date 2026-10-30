@@ -52,13 +52,14 @@ attestation (the per-file `pypi.org/integrity/.../<file>/provenance` endpoint
 returns `200`; the directory URL returns `404` even when the files are
 attested). The `PYPI_API_TOKEN` fallback remains for recovery, but a token
 upload mints no attestation, and the attestations above prove the trusted path
-is what actually publishes. The npm launcher still uses `NPM_TOKEN` because no
-npm trusted publisher is registered; a token cannot mint a Sigstore
-attestation, so npm releases carry none.
+is what actually publishes. The npm launcher used `NPM_TOKEN` until `5.4.5`;
+with the trusted publisher now registered, `5.4.5` and later publish through
+OIDC and carry a Sigstore attestation. The token fallback remains for recovery
+and mints none.
 
 ## Trusted-publisher setup
 
-PyPI is done. npm is pending:
+PyPI is done. npm is configured, and `5.4.5` was the first release through it:
 
 1. Sign in at [npmjs.com](https://www.npmjs.com) and open the package settings
    for `scientific-computing-system-2.0`.
@@ -69,7 +70,8 @@ PyPI is done. npm is pending:
    - Environment: `npm`
 3. Confirm afterwards that
    `https://registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@<version>`
-   returns `200` for the next release (it returns `404` for `5.4.4`).
+   returns `200` for the release (`5.4.5` returned `200`; `5.4.4` and earlier
+   returned `404`).
 4. Dispatch `npm-publish.yml` without `use_token_fallback` to publish through
    OIDC; see [npm launcher shim](npm.md).
 

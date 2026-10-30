@@ -15,9 +15,9 @@ on [PyPI](https://pypi.org/project/scientific-computing-system-2.0/), and on
 Note: tag `v4.3.0` was never published to GitHub Releases or PyPI, so the
 newest installable 4.x artifacts are `4.2.0`.
 
-## Supply chain: PyPI is attested, npm is not
+## Supply chain: PyPI is attested, and npm from 5.4.5
 
-Verified against the live registries on 2026-10-22:
+Verified against the live registries on 2026-10-22; npm re-checked on 2026-10-30:
 
 - **PyPI: attested.** Every file of every release from `5.1.0` through `5.4.5`
   (330 files) carries a PEP 740 provenance attestation. The per-file endpoint
@@ -25,14 +25,15 @@ Verified against the live registries on 2026-10-22:
   returns `200`. The project-wide URL
   `https://pypi.org/integrity/scientific-computing-system-2.0/` returns `404`
   even when per-file attestations exist, so it is not the endpoint to check.
-- **npm: not attested.** The latest npm version is `5.4.4`; its attestation
-  endpoint
-  `https://registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@5.4.4`
-  returns `404`. Version `5.4.5` has not been published to npm. npm uploads use
+- **npm: attested from `5.4.5`.** `5.4.5`, published on 2026-10-23, is the first
+  npm version whose attestation endpoint
+  `https://registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@5.4.5`
+  returns `200` (SLSA provenance v1). Every earlier npm version, including
+  `5.4.4`, returns `404` and has no `attestations` field; those uploads used
   `NPM_TOKEN`, and a token upload cannot mint a Sigstore attestation.
 
-So PyPI releases may be described as attested; never describe an npm release
-as attested, verified or provenance-backed.
+So `5.4.5` and later npm releases may be described as attested; never describe
+an npm release before `5.4.5` as attested, verified or provenance-backed.
 
 Three things are routinely conflated, so this policy states them apart:
 

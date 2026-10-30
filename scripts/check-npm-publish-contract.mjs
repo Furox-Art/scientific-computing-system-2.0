@@ -105,14 +105,15 @@ check("automatic version bumps reach npm only after a successful release", () =>
   assert.match(gate, /select\(\.name == "publish"\)/);
   assert.match(gate, /conclusion/, "the gate must inspect the publish conclusion");
 
-  // npm trusted publishing is not configured for this package, so the
-  // automatic path (anything that is not a manual dispatch) must resolve to
-  // the verified NPM_TOKEN path. A manual dispatch keeps the OIDC choice.
+  // The npm trusted publisher is registered and 5.4.5 was published through
+  // it, so the automatic path (anything that is not a manual dispatch) must
+  // resolve to the attested OIDC path. A manual dispatch keeps the explicit
+  // input choice, including the token recovery fallback.
   const mode = stepBlock("Resolve publish mode");
   assert.match(
     mode,
-    /if \[ "\$\{EVENT_NAME\}" != "workflow_dispatch" \][\s\S]*REQUESTED=true/,
-    "automatic runs must select the verified token path",
+    /if \[ "\$\{EVENT_NAME\}" != "workflow_dispatch" \][\s\S]*REQUESTED=false/,
+    "automatic runs must select the attested OIDC path",
   );
 });
 

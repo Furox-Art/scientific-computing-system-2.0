@@ -72,12 +72,14 @@ operations.
 five files, ~8 KB, no Python — that calls `python -m cds2.cli`. You still need
 the PyPI install, so most people can skip it: [docs/npm.md](https://furox-art.github.io/scientific-computing-system-2.0/npm/).
 
-**Supply chain: PyPI releases are attested; npm is not.** Every file of every
+**Supply chain: PyPI and npm releases are attested.** Every file of every
 PyPI release from `5.1.0` through `5.4.5` carries a PEP 740 provenance
 attestation: the per-file `pypi.org/integrity/.../<file>/provenance` endpoint
-returns `200` (all 330 files checked on 2026-10-22). The npm launcher is a
-separate story: its latest version, `5.4.4`, has no Sigstore attestation
-(`404`). Pin digests where provenance is absent. What the project does guarantee
+returns `200` (all 330 files checked on 2026-10-22). The npm launcher caught up
+on 2026-10-23: `5.4.5` is the first npm version with a Sigstore attestation
+(`200`, SLSA provenance v1); every earlier npm version, including `5.4.4`,
+returns `404` and has no `attestations` field. Pin digests where provenance is
+absent. What the project does guarantee
 (reproducible wheel, an sdist that really ships the native kernels, version
 lockstep, cross-platform smoke) and what a consumer can check:
 [Supply chain](https://furox-art.github.io/scientific-computing-system-2.0/supply-chain/).
