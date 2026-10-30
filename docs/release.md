@@ -44,7 +44,7 @@ version that PyPI does not serve.
 | Registry | Workflow | Trigger | Credential |
 |---|---|---|---|
 | PyPI | `release.yml` | dispatched by the version bump | trusted publishing first, `PYPI_API_TOKEN` fallback |
-| npm | `npm-publish.yml` | `workflow_run` after a successful `Release` | `NPM_TOKEN` (no npm trusted publisher is registered yet) |
+| npm | `npm-publish.yml` | `workflow_run` after a successful `Release` | trusted publishing first, `NPM_TOKEN` fallback |
 
 **Provenance status.** PyPI Trusted Publishing is registered and working: every
 file of every release from `5.1.0` through `5.4.5` carries a PEP 740
@@ -59,20 +59,20 @@ and mints none.
 
 ## Trusted-publisher setup
 
-PyPI is done. npm is configured, and `5.4.5` was the first release through it:
+Both registries are configured. PyPI has been registered since `5.1.0`; npm's
+trusted publisher was registered before `5.4.5`, which was the first release
+through it. The npm configuration that was applied:
 
-1. Sign in at [npmjs.com](https://www.npmjs.com) and open the package settings
-   for `scientific-computing-system-2.0`.
-2. Add a **trusted publisher** with:
+1. In the [npmjs.com](https://www.npmjs.com) package settings for
+   `scientific-computing-system-2.0`, a **trusted publisher** was added with:
    - Owner: `Furox-Art`
    - Repository: `scientific-computing-system-2.0`
    - Workflow filename: `npm-publish.yml`
    - Environment: `npm`
-3. Confirm afterwards that
+2. The attestation endpoint
    `https://registry.npmjs.org/-/npm/v1/attestations/scientific-computing-system-2.0@<version>`
-   returns `200` for the release (`5.4.5` returned `200`; `5.4.4` and earlier
-   returned `404`).
-4. Dispatch `npm-publish.yml` without `use_token_fallback` to publish through
+   returns `200` for `5.4.5`; `5.4.4` and earlier return `404`.
+3. `npm-publish.yml` dispatches without `use_token_fallback` publish through
    OIDC; see [npm launcher shim](npm.md).
 
 ## Recovery

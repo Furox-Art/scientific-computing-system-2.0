@@ -47,7 +47,7 @@ Three things are routinely conflated, so this policy states them apart:
   never be presented as provenance.
 - **A PEP 740 or Sigstore attestation binds the artifact digest to the workflow
   identity and source commit via a transparency log.** Present on PyPI since
-  `5.1.0`; absent on npm.
+  `5.1.0` and on npm since `5.4.5`.
 
 What a consumer can do now: fetch the PyPI provenance bundle for the exact file
 you install, and pin and verify digests (`pip install --require-hashes`, and
@@ -64,10 +64,12 @@ install-and-run smoke tests. These constrain the build; they do not replace the
 PEP 740 attestation, which is now present for PyPI.
 
 **Fix path.** PyPI Trusted Publishing is registered, and the `5.1.0`+ releases
-were uploaded through it, which is why their attestations exist. npm still
-needs a trusted publisher (Owner `Furox-Art`, Repository
+were uploaded through it, which is why their attestations exist. The npm
+trusted publisher (Owner `Furox-Art`, Repository
 `scientific-computing-system-2.0`, Workflow filename `npm-publish.yml`,
-Environment `npm`); until it is registered, npm misses Sigstore provenance.
+Environment `npm`) is registered as well, and `5.4.5` was the first release
+published through it; the npm uploads before `5.4.5` used `NPM_TOKEN` and carry
+no attestation, which cannot be changed after the fact.
 
 Full detail, including how to reproduce every check:
 [docs/supply-chain.md](https://furox-art.github.io/scientific-computing-system-2.0/supply-chain/).
