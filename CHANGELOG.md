@@ -1,3 +1,13 @@
+## [v5.4.6] - 2026-11-07
+
+### Changed
+
+- Python 3.10 support dropped: `requires-python` is now `>=3.11`, the 3.10
+  classifier is gone, the CI matrix runs 3.11-3.13, and the ruff `target-version`
+  and mypy `python_version` follow (`py311` / `3.11`). No code change; the
+  portfolio is consolidating on a single support floor and 3.10 is out of
+  upstream support.
+
 ## [v5.4.5] - 2026-10-21
 
 Release integrity and documentation:

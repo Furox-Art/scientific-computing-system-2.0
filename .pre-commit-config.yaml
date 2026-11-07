@@ -5,6 +5,11 @@ repos:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
+        # packaging/conda/meta.yaml is a Jinja template ({% set version = ... %}),
+        # which is not valid YAML until conda-build renders it. It only reaches
+        # this hook when the file changes, which is exactly when a real syntax
+        # error could hide behind the template failure.
+        exclude: ^packaging/conda/meta\.yaml$
       - id: check-toml
       - id: check-merge-conflict
       - id: check-added-large-files

@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scientific-computing-system-2.0"
-version = "5.4.5"
+version = "5.4.6"
 description = "A NumPy/SciPy/Pandas/Matplotlib-powered scientific computing platform: accelerated linear algebra, statistics, optimization, integration, interpolation, signal processing, Monte Carlo, graphs (with PageRank), machine learning, time series, visualization and I/O."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [
     {name = "Furox-Art", email = "furkanarkn1451@gmail.com"},
 ]
@@ -45,7 +45,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -70,7 +69,7 @@ dev = [
     "pyarrow",
     "pandas-stubs>=2.0",
     # Cap numpy under 2.5 for the dev toolchain only: numpy>=2.5 stubs use
-    # `type` statements that mypy cannot parse with python_version = "3.10".
+    # `type` statements that mypy cannot parse with python_version = "3.11".
     # The runtime dependency floor (numpy>=1.26) is unchanged.
     "numpy>=1.26,<2.5",
     "pytest>=8.0",
@@ -135,7 +134,7 @@ include = ["cds2*"]
 cds2 = ["py.typed"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.11"
 strict = true
 files = ["src/cds2"]
 
@@ -153,7 +152,7 @@ ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
