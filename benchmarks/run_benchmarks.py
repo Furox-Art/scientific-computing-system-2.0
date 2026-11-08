@@ -53,13 +53,26 @@ class BenchResult:
         return self.cds2_seconds / self.baseline_seconds if self.baseline_seconds else float("inf")
 
 
-def _best_of(func: Callable[[], object], repeats: int) -> float:
-    times: list[float] = []
-    for _ in range(repeats):
-        start = time.perf_counter()
-        func()
-        times.append(time.perf_counter() - start)
-    return min(times)
+#: Each side of a race is measured until it has accumulated at least this much
+#: work. Below it the clock and the scheduler dominate the ratio.
+MIN_SIDE_SECONDS = 0.10
+
+#: Safety bound: a pathological million-round benchmark cannot hang the suite.
+MAX_ROUNDS = 2000
+
+
+def _time_once(func: Callable[[], object]) -> float:
+    start = time.perf_counter()
+    func()
+    return time.perf_counter() - start
+
+
+def _median(times: list[float]) -> float:
+    ordered = sorted(times)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[middle]
+    return (ordered[middle - 1] + ordered[middle]) / 2.0
 
 
 def _race(
@@ -70,11 +83,57 @@ def _race(
     baseline_repeats: int,
     cds2_repeats: int,
 ) -> BenchResult:
+    """Race two callables with interleaved, median-reduced timings.
+
+    The two sides used to be timed back to back -- ``min`` of N baseline calls,
+    then ``min`` of N contender calls. On a shared runner the machine drifts
+    between those two phases (frequency scaling, noisy neighbours), and the ratio
+    moves with it: two consecutive runs of this suite disagreed by 25-35% on the
+    sub-second benchmarks, which the +-10% regression band then reported as
+    regressions in both directions.
+
+    Interleaving pairs every baseline measurement with a contender measurement
+    taken under nearly the same conditions, and the median of each side ignores a
+    single disturbed round. ``min`` was also optimistic rather than typical: it
+    reports the luckiest round, which hides the run-to-run spread the band has to
+    tolerate.
+
+    Interleaving alone is not enough. Benchmarking two consecutive runs of this
+    suite on one machine still left a median run-to-run spread of 12%, and 300%
+    to 2000% on the benchmarks that finish in microseconds: at that scale the
+    clock and the OS scheduler dominate the calculation. Each side is therefore
+    measured until it has accumulated ``MIN_SIDE_SECONDS`` of work (bounded by
+    ``MAX_ROUNDS``), which normalises every benchmark to a measurable duration
+    instead of trusting a single microsecond sample.
+    """
+    # One untimed call per side. The first call of a library routine pays
+    # import, thread-pool and cache warm-up costs that say nothing about its
+    # steady-state speed: kmeans against scikit-learn swung between 0.002 and
+    # 0.166 of the baseline across two consecutive runs because only one side
+    # paid them in the measured rounds.
+    baseline()
+    contender()
+
+    baseline_times: list[float] = []
+    cds2_times: list[float] = []
+    rounds = 0
+    while True:
+        short_baseline = sum(baseline_times) < MIN_SIDE_SECONDS
+        short_cds2 = sum(cds2_times) < MIN_SIDE_SECONDS
+        if rounds >= max(baseline_repeats, cds2_repeats) and not short_baseline and not short_cds2:
+            break
+        if rounds >= MAX_ROUNDS:
+            break
+        if rounds < baseline_repeats or short_baseline:
+            baseline_times.append(_time_once(baseline))
+        if rounds < cds2_repeats or short_cds2:
+            cds2_times.append(_time_once(contender))
+        rounds += 1
     return BenchResult(
         name=name,
         baseline_library=baseline_library,
-        baseline_seconds=_best_of(baseline, baseline_repeats),
-        cds2_seconds=_best_of(contender, cds2_repeats),
+        baseline_seconds=_median(baseline_times),
+        cds2_seconds=_median(cds2_times),
     )
 
 
