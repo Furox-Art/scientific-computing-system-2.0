@@ -137,25 +137,9 @@ jobs:
 
       - name: Benchmark regression gate
         run: |
-          python benchmarks/run_benchmarks.py --quick
-          python - <<'PY'
-          from benchmarks.run_benchmarks import run_all
-          from cds2.prof import BenchHistory
-          from cds2.prof.history import BenchEntry
-
-          results = run_all(quick=True)
-          entries = [
-              BenchEntry(
-                  name=r.name,
-                  baseline_library=r.baseline_library,
-                  baseline_seconds=r.baseline_seconds,
-                  cds2_seconds=r.cds2_seconds,
-              )
-              for r in results
-          ]
-          path = BenchHistory().append(entries)
-          print(f"Recorded {len(entries)} benchmark results to {path}")
-          PY
+          # One invocation, not two: the suite used to run once for its table and
+          # again to be recorded, so the release paid for it twice.
+          python benchmarks/run_benchmarks.py --quick --record
           python -m cds2.bench.regression --tolerance 0.10
           python - <<'PY'
           from cds2.prof import BenchHistory

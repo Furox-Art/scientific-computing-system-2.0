@@ -55,25 +55,7 @@ jobs:
             bench-history-
 
       - name: Record the quick suite
-        run: |
-          python - <<'PY'
-          from benchmarks.run_benchmarks import run_all
-          from cds2.prof import BenchHistory
-          from cds2.prof.history import BenchEntry
-
-          results = run_all(quick=True)
-          entries = [
-              BenchEntry(
-                  name=result.name,
-                  baseline_library=result.baseline_library,
-                  baseline_seconds=result.baseline_seconds,
-                  cds2_seconds=result.cds2_seconds,
-              )
-              for result in results
-          ]
-          path = BenchHistory().append(entries)
-          print(f"Recorded {len(entries)} benchmark results to {path}")
-          PY
+        run: python benchmarks/run_benchmarks.py --quick --record
 
       # Informational only: a scheduled run must not fail because one benchmark
       # drifted past the band, that verdict belongs to the release workflow. The

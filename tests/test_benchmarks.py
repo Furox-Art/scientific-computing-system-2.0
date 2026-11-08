@@ -146,3 +146,36 @@ class TestInterleavedRace:
             "baseline",
         ]
         assert result.ratio == 1.0
+
+
+class TestRecordFlag:
+    """CI records the run it just measured, from the same invocation.
+
+    The release workflow used to run the quick suite twice -- once for its table
+    and once through an inline copy of the recording logic -- so the release paid
+    double and two copies of the logic could drift apart.
+    """
+
+    def test_record_appends_one_run_to_the_given_history_dir(self, tmp_path, capsys) -> None:  # type: ignore[no-untyped-def]
+        code = run_benchmarks.main(
+            [
+                "--quick",
+                "--core-only",
+                "--only",
+                "solve_small",
+                "--record",
+                "--history-dir",
+                str(tmp_path),
+            ]
+        )
+        assert code == 0
+        runs = sorted(tmp_path.glob("*.jsonl"))
+        assert len(runs) == 1
+        assert "recorded 1 results" in capsys.readouterr().out
+
+    def test_without_the_flag_nothing_is_recorded(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        code = run_benchmarks.main(
+            ["--quick", "--core-only", "--only", "solve_small", "--history-dir", str(tmp_path)]
+        )
+        assert code == 0
+        assert not list(tmp_path.glob("*.jsonl"))

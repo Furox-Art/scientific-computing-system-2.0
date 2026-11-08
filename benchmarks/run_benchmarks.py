@@ -54,8 +54,10 @@ class BenchResult:
 
 
 #: Each side of a race is measured until it has accumulated at least this much
-#: work. Below it the clock and the scheduler dominate the ratio.
-MIN_SIDE_SECONDS = 0.10
+#: work. Below it the clock and the scheduler dominate the ratio: at 0.10 s two
+#: consecutive runs of the quick suite still put 4/16 benchmarks outside the
+#: +-10% band, at 0.30 s it is 1/16 and the median spread falls to 3.8%.
+MIN_SIDE_SECONDS = 0.30
 
 #: Safety bound: a pathological million-round benchmark cannot hang the suite.
 MAX_ROUNDS = 2000
@@ -507,6 +509,31 @@ def run_all(
     return results
 
 
+def record_results(results: list[BenchResult], history_dir: str | Path | None = None) -> int:
+    """Append ``results`` to the benchmark history; return how many were written.
+
+    Both CI entry points record through this one function. They used to carry
+    their own inline copies, and the release workflow called the quick suite
+    twice -- once for its table, once to record it -- so the run cost double and
+    the two copies of the logic could drift apart.
+    """
+    from cds2.prof import BenchHistory
+    from cds2.prof.history import BenchEntry
+
+    entries = [
+        BenchEntry(
+            name=result.name,
+            baseline_library=result.baseline_library,
+            baseline_seconds=result.baseline_seconds,
+            cds2_seconds=result.cds2_seconds,
+        )
+        for result in results
+    ]
+    history = BenchHistory(history_dir=history_dir) if history_dir else BenchHistory()
+    history.append(entries)
+    return len(entries)
+
+
 def format_table(results: list[BenchResult]) -> str:
     """Render results as an aligned ASCII table."""
     header = f"{'benchmark':<28}{'vs':<11}{'baseline (s)':>14}{'cds2 (s)':>12}{'cds2/base':>11}"
@@ -562,6 +589,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--only", nargs="*", choices=sorted(CORE_BENCHMARKS) + sorted(OPTIONAL_BENCHMARKS)
     )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="append this run to the benchmark history the regression gate reads",
+    )
+    parser.add_argument(
+        "--history-dir",
+        metavar="DIR",
+        default=None,
+        help="history directory for --record (defaults to the checkout's benchmarks/history)",
+    )
     args = parser.parse_args(argv)
 
     results = run_all(
@@ -575,6 +613,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.markdown:
         write_markdown_report(results, Path(args.markdown))
         print(f"markdown report written to {args.markdown}")
+    if args.record:
+        print(f"recorded {record_results(results, history_dir=args.history_dir)} results")
     return 0
 
 
