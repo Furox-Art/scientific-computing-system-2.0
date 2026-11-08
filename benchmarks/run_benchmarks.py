@@ -20,7 +20,7 @@ import subprocess
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -399,7 +399,7 @@ def environment_info() -> dict[str, object]:
         except ImportError:
             continue
     return {
-        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "timestamp_utc": datetime.now(UTC).isoformat(),
         "git_commit": commit or "unknown",
         "python": platform.python_version(),
         "platform": platform.platform(),
@@ -466,7 +466,7 @@ def write_markdown_report(results: list[BenchResult], path: Path) -> None:
     lines = [
         "# CDS v2 benchmarks",
         "",
-        f"Generated {datetime.now(timezone.utc).date().isoformat()} by "
+        f"Generated {datetime.now(UTC).date().isoformat()} by "
         "`benchmarks/run_benchmarks.py`. Ratio is cds2 time divided by baseline "
         "time: 1.00x means parity with the underlying library.",
         "",

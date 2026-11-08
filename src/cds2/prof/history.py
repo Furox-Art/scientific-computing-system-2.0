@@ -15,7 +15,7 @@ import platform
 import subprocess
 import sys
 from collections.abc import Iterable, Mapping
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -136,7 +136,7 @@ class BenchHistory:
         ``baseline_library``, ``baseline_seconds``, ``cds2_seconds`` and
         ``ratio``.
         """
-        run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        run_id = run_id or datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         self.history_dir.mkdir(parents=True, exist_ok=True)
         path = self._run_path(run_id)
         env = {
@@ -145,7 +145,7 @@ class BenchHistory:
             "machine": platform.machine(),
         }
         record = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "commit": _git_commit(),
             "env": env,
             "entries": [
