@@ -1,0 +1,102 @@
+name: Benchmark baseline
+
+# The release gate fits its tolerance band on the runs that *precede* the latest
+# one, and those runs live only in the Actions cache (`bench-history-`). Caches
+# expire after seven days without access, so a release cadence longer than that
+# hands the gate a single run — not a baseline, and not enough to tell a
+# regression apart from run-to-run noise. Release run 42435498797 is the
+# example: it compared against the one run recorded by an earlier, failed
+# attempt on a different runner and reported eight "regressions" that were
+# noise.
+#
+# This job keeps that history alive and deep by recording the quick suite on a
+# schedule. It never publishes and never gates anything: the release workflow
+# stays the only place where the band is enforced.
+on:
+  schedule:
+    # Daily, off the top of the hour so it does not race the other schedules.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmark-baseline
+  cancel-in-progress: false
+
+jobs:
+  record:
+    name: Record a baseline run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.12"
+          cache: 'pip'
+          cache-dependency-path: pyproject.toml
+
+      - name: Install the package with its test extras
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -c constraints/ci-tools.txt -e ".[dev,test]"
+
+      # Same cache namespace as the release workflow on purpose: this job exists
+      # to feed the baseline that the release gate restores.
+      - name: Restore benchmark history
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: benchmarks/history
+          key: bench-history-${{ github.run_id }}
+          restore-keys: |
+            bench-history-
+
+      - name: Record the quick suite
+        run: |
+          python - <<'PY'
+          from benchmarks.run_benchmarks import run_all
+          from cds2.prof import BenchHistory
+          from cds2.prof.history import BenchEntry
+
+          results = run_all(quick=True)
+          entries = [
+              BenchEntry(
+                  name=result.name,
+                  baseline_library=result.baseline_library,
+                  baseline_seconds=result.baseline_seconds,
+                  cds2_seconds=result.cds2_seconds,
+              )
+              for result in results
+          ]
+          path = BenchHistory().append(entries)
+          print(f"Recorded {len(entries)} benchmark results to {path}")
+          PY
+
+      # Informational only: a scheduled run must not fail because one benchmark
+      # drifted past the band, that verdict belongs to the release workflow. The
+      # table is printed so the drift is visible in the run log.
+      - name: Report the band informationally
+        run: |
+          python - <<'PY'
+          from cds2.prof import BenchHistory
+
+          frame = BenchHistory().load_range()
+          if frame.empty:
+              raise SystemExit("ERROR: benchmark history is empty after recording a run")
+          runs = frame["timestamp"].nunique()
+          print(
+              f"Benchmark history holds {len(frame)} rows across "
+              f"{frame['name'].nunique()} benchmarks in {runs} run(s)"
+          )
+          PY
+          python -m cds2.bench.regression --tolerance 0.10 || true
+
+      - name: Save benchmark history
+        if: success()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: benchmarks/history
+          key: bench-history-${{ github.run_id }}

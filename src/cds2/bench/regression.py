@@ -26,8 +26,7 @@ class RegressionReport:
         lines = ["name                      latest    limit   status"]
         lines += ["-" * 52]
         for r in self.results:
-            status = "PASS" if r.passed else "FAIL"
-            lines.append(f"{r.name:26s} {r.latest:7.3f} {r.limit:7.3f}   {status}")
+            lines.append(f"{r.name:26s} {r.latest:7.3f} {r.limit:7.3f}   {_status(r)}")
         lines += ["-" * 52]
         verdict = "ALL PASS" if self.passed else "FAILURES DETECTED"
         lines.append(verdict)
@@ -40,6 +39,18 @@ class GateLine:
     latest: float
     limit: float
     passed: bool
+    #: True when the history held no prior run, so ``limit`` was never applied.
+    #: Such a row establishes the baseline and is labelled ``baseline`` rather
+    #: than ``PASS``: printing PASS next to a limit that was not used is how a
+    #: vacuous first run reads as a passing comparison.
+    baseline: bool = False
+
+
+def _status(line: GateLine) -> str:
+    """Status column: a failed comparison, a passed one, or a baseline row."""
+    if not line.passed:
+        return "FAIL"
+    return "baseline" if line.baseline else "PASS"
 
 
 def run_regression_check(
@@ -51,7 +62,14 @@ def run_regression_check(
     gate = RegressionGate(tolerance=tolerance, lookback=lookback, history=history)
     raw = gate.check_latest()
     lines = [
-        GateLine(name=r.name, latest=r.latest_ratio, limit=r.limit, passed=r.passed) for r in raw
+        GateLine(
+            name=r.name,
+            latest=r.latest_ratio,
+            limit=r.limit,
+            passed=r.passed,
+            baseline=r.lower_limit is None,
+        )
+        for r in raw
     ]
     return RegressionReport(results=lines, passed=all(r.passed for r in lines))
 
