@@ -1,5 +1,7 @@
 """Tests for cds2.bench.regression report generation."""
 
+import pytest
+
 from cds2.bench.regression import RegressionReport, run_regression_check
 from cds2.prof.history import BenchEntry, BenchHistory
 
@@ -92,3 +94,22 @@ class TestRunRegressionCheck:
     def test_report_table_lists_each_result(self) -> None:
         report = RegressionReport(results=[], passed=True)
         assert "ALL PASS" in report.to_table()
+
+    def test_the_table_reports_the_measured_noise(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        hist = BenchHistory(history_dir=tmp_path)
+        for run_id, noise in (("run-1", 0.0), ("run-2", 0.12)):
+            hist.append(
+                [
+                    BenchEntry(
+                        name="solve",
+                        baseline_library="s",
+                        baseline_seconds=1.0,
+                        cds2_seconds=1.0,
+                        noise=noise,
+                    )
+                ],
+                run_id=run_id,
+            )
+        report = run_regression_check(history=hist)
+        assert report.results[0].noise == pytest.approx(0.12)
+        assert "noise" in report.to_table()

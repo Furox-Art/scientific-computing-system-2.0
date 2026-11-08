@@ -35,6 +35,8 @@ class GateResult:
     limit: float
     passed: bool
     lower_limit: float | None = None
+    #: The latest run's own relative measurement uncertainty, if it recorded one.
+    noise: float = 0.0
 
     def __str__(self) -> str:
         status = "PASS" if self.passed else "FAIL"
@@ -62,6 +64,15 @@ class RegressionGate:
             ``baseline / (1 + tolerance)``. A suspiciously fast result -- a
             no-op measurement rather than a real speedup -- therefore fails too.
         lookback: number of prior runs used when fitting the band.
+        dispersion_multiplier: how many multiples of the latest run's *own*
+            measurement uncertainty the band must also cover. The band is never
+            narrower than ``tolerance`` and never wider than ``max_tolerance``.
+            The widening comes from the within-run uncertainty, not from the
+            spread of the history: a gradual regression does not inflate the
+            uncertainty of one run, so it cannot hide behind a band that grew
+            because it drifted.
+        max_tolerance: upper bound for that widening, so a regression larger
+            than this still fails.
         history: a ``BenchHistory`` instance; defaults to the repo's own.
     """
 
@@ -69,27 +80,46 @@ class RegressionGate:
         self,
         tolerance: float = 0.10,
         lookback: int = 10,
+        dispersion_multiplier: float = 2.0,
+        max_tolerance: float = 0.30,
         history: BenchHistory | None = None,
     ) -> None:
         if tolerance < 0:
             raise ValueError("tolerance must be >= 0")
         if lookback < 1:
             raise ValueError("lookback must be >= 1")
+        if dispersion_multiplier < 0:
+            raise ValueError("dispersion_multiplier must be >= 0")
+        if max_tolerance < tolerance:
+            raise ValueError("max_tolerance must be >= tolerance")
         self.tolerance = tolerance
         self.lookback = lookback
+        self.dispersion_multiplier = dispersion_multiplier
+        self.max_tolerance = max_tolerance
         self.history = history or BenchHistory()
 
-    def _band(self, ratios: pd.Series) -> float:
+    def _width(self, noise: float) -> float:
+        """Fractional band half-width: the tolerance floor, widened by noise.
+
+        ``noise`` is the run's own measurement uncertainty: how far the two
+        halves of its rounds disagreed. It is capped by ``max_tolerance`` so a
+        broken measurement cannot buy itself an arbitrarily wide band.
+        """
+        if noise <= 0 or not np.isfinite(noise):
+            return self.tolerance
+        return min(max(self.tolerance, self.dispersion_multiplier * noise), self.max_tolerance)
+
+    def _band(self, ratios: pd.Series, noise: float = 0.0) -> float:
         """Upper limit of the band for a baseline ratio series."""
         if ratios.empty:
-            return 1.0 + self.tolerance
-        return float(ratios.median()) * (1.0 + self.tolerance)
+            return 1.0 + self._width(noise)
+        return float(ratios.median()) * (1.0 + self._width(noise))
 
-    def _lower_band(self, ratios: pd.Series) -> float:
+    def _lower_band(self, ratios: pd.Series, noise: float = 0.0) -> float:
         """Lower limit of the band for a baseline ratio series."""
         if ratios.empty:
-            return 1.0 / (1.0 + self.tolerance)
-        return float(ratios.median()) / (1.0 + self.tolerance)
+            return 1.0 / (1.0 + self._width(noise))
+        return float(ratios.median()) / (1.0 + self._width(noise))
 
     def check_latest(
         self, df: pd.DataFrame | None = None, name: str | None = None
@@ -112,8 +142,14 @@ class RegressionGate:
         for bench, group in df.groupby("name"):
             if name and bench != name:
                 continue
-            ratios = group.sort_values(["timestamp", "ratio"], kind="stable")["ratio"]
+            ordered = group.sort_values(["timestamp", "ratio"], kind="stable")
+            ratios = ordered["ratio"]
             latest = float(ratios.iloc[-1])
+            noise = 0.0
+            if "noise" in ordered.columns:
+                raw_noise = ordered["noise"].iloc[-1]
+                if isinstance(raw_noise, (int, float)) and np.isfinite(raw_noise):
+                    noise = float(raw_noise)
             # Drop the latest row *before* trimming to `lookback`, so the band
             # is always fitted on prior runs only.
             baseline = ratios.iloc[:-1].tail(self.lookback)
@@ -131,11 +167,12 @@ class RegressionGate:
                         limit=self._band(baseline),
                         passed=bool(np.isfinite(latest)),
                         lower_limit=None,
+                        noise=noise,
                     )
                 )
                 continue
-            lower = self._lower_band(baseline)
-            limit = self._band(baseline)
+            lower = self._lower_band(baseline, noise)
+            limit = self._band(baseline, noise)
             results.append(
                 GateResult(
                     name=str(bench),
@@ -143,6 +180,7 @@ class RegressionGate:
                     limit=limit,
                     passed=lower <= latest <= limit,
                     lower_limit=lower,
+                    noise=noise,
                 )
             )
         return results

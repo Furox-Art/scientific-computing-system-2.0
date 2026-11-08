@@ -23,11 +23,13 @@ class RegressionReport:
     passed: bool
 
     def to_table(self) -> str:
-        lines = ["name                      latest    limit   status"]
-        lines += ["-" * 52]
+        lines = ["name                      latest    limit   noise   status"]
+        lines += ["-" * 60]
         for r in self.results:
-            lines.append(f"{r.name:26s} {r.latest:7.3f} {r.limit:7.3f}   {_status(r)}")
-        lines += ["-" * 52]
+            lines.append(
+                f"{r.name:26s} {r.latest:7.3f} {r.limit:7.3f} {r.noise:7.3f}   {_status(r)}"
+            )
+        lines += ["-" * 60]
         verdict = "ALL PASS" if self.passed else "FAILURES DETECTED"
         lines.append(verdict)
         return "\n".join(lines)
@@ -44,6 +46,8 @@ class GateLine:
     #: than ``PASS``: printing PASS next to a limit that was not used is how a
     #: vacuous first run reads as a passing comparison.
     baseline: bool = False
+    #: The latest run's own relative measurement uncertainty; it widened the band.
+    noise: float = 0.0
 
 
 def _status(line: GateLine) -> str:
@@ -68,6 +72,7 @@ def run_regression_check(
             limit=r.limit,
             passed=r.passed,
             baseline=r.lower_limit is None,
+            noise=r.noise,
         )
         for r in raw
     ]

@@ -40,12 +40,20 @@ import cds2  # noqa: E402
 
 @dataclass(frozen=True)
 class BenchResult:
-    """Timing record for one head-to-head race."""
+    """Timing record for one head-to-head race.
+
+    ``noise`` is this run's own relative measurement uncertainty: the gap
+    between the ratio measured on the first half of the rounds and the ratio
+    measured on the second half. It travels into the history so the regression
+    gate can widen its band by the uncertainty the machine actually showed
+    instead of assuming one fixed tolerance for every benchmark and every host.
+    """
 
     name: str
     baseline_library: str
     baseline_seconds: float
     cds2_seconds: float
+    noise: float = 0.0
 
     @property
     def ratio(self) -> float:
@@ -75,6 +83,34 @@ def _median(times: list[float]) -> float:
     if len(ordered) % 2:
         return ordered[middle]
     return (ordered[middle - 1] + ordered[middle]) / 2.0
+
+
+def _half_split_noise(baseline_times: list[float], cds2_times: list[float]) -> float:
+    """Relative disagreement between the two halves of the measured rounds.
+
+    The rounds are paired, so every round yields one ratio. Splitting those
+    ratios in half and comparing the two medians estimates how much this run's
+    own numbers wobble; a run that cannot reproduce itself to better than 5%
+    has no business failing a peer run for a 7% difference.
+
+    Returns 0.0 when there are too few rounds to split, which keeps the gate on
+    its plain tolerance rather than inventing a number.
+    """
+    paired = min(len(baseline_times), len(cds2_times))
+    ratios = [
+        cds2_times[index] / baseline_times[index]
+        for index in range(paired)
+        if baseline_times[index]
+    ]
+    if len(ratios) < 4:
+        return 0.0
+    middle = len(ratios) // 2
+    centre = _median(ratios)
+    if not centre:
+        return 0.0
+    first = _median(ratios[:middle])
+    second = _median(ratios[middle:])
+    return abs(second - first) / centre
 
 
 def _race(
@@ -136,6 +172,7 @@ def _race(
         baseline_library=baseline_library,
         baseline_seconds=_median(baseline_times),
         cds2_seconds=_median(cds2_times),
+        noise=_half_split_noise(baseline_times, cds2_times),
     )
 
 
@@ -526,6 +563,7 @@ def record_results(results: list[BenchResult], history_dir: str | Path | None = 
             baseline_library=result.baseline_library,
             baseline_seconds=result.baseline_seconds,
             cds2_seconds=result.cds2_seconds,
+            noise=result.noise,
         )
         for result in results
     ]

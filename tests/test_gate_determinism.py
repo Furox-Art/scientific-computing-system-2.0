@@ -132,3 +132,63 @@ def test_timed_is_reproducible_in_shape() -> None:
     first = (wrapped(), wrapped.last_profile.wall_median is not None)
     again = (wrapped(), wrapped.last_profile.wall_median is not None)
     assert first == again
+
+
+def _frame_with_noise(ratios, noise):
+    """A history frame that carries the per-run measurement uncertainty."""
+    return pd.DataFrame(
+        {
+            "name": ["bench"] * len(ratios),
+            "timestamp": [float(i + 1) for i in range(len(ratios))],
+            "ratio": ratios,
+            "noise": noise,
+        }
+    )
+
+
+def test_a_noisy_run_widens_the_band_by_its_own_uncertainty() -> None:
+    """A run that cannot reproduce itself is not failed for a small difference.
+
+    Measured on the shared CI runners, benchmarks disagree with themselves by
+    10-20% between the two halves of one set of rounds. The gate widens by that
+    much instead of using one fixed tolerance for every benchmark and host.
+    """
+    tight = RegressionGate().check_latest(_frame_with_noise([1.0, 1.0, 1.15], [0.0, 0.0, 0.0]))[0]
+    noisy = RegressionGate().check_latest(_frame_with_noise([1.0, 1.0, 1.15], [0.0, 0.0, 0.10]))[0]
+    assert tight.passed is False
+    assert noisy.passed is True
+    # width = max(tolerance 0.10, 2 * noise 0.10) = 0.20 around a median of 1.0
+    assert noisy.limit == pytest.approx(1.20)
+    assert noisy.lower_limit == pytest.approx(1.0 / 1.20)
+    assert noisy.noise == pytest.approx(0.10)
+
+
+def test_the_widening_is_capped_so_a_broken_measurement_cannot_hide_a_regression() -> None:
+    result = RegressionGate().check_latest(_frame_with_noise([1.0, 1.0, 5.0], [0.0, 0.0, 9.0]))[0]
+    assert result.passed is False
+    # width capped at max_tolerance 0.30 around a median of 1.0
+    assert result.limit == pytest.approx(1.30)
+
+
+def test_history_without_noise_keeps_the_plain_tolerance() -> None:
+    frame = _frame([1.0, 1.0, 1.15])
+    result = RegressionGate().check_latest(frame)[0]
+    assert result.passed is False
+    assert result.noise == 0.0
+    assert result.limit == pytest.approx(1.10)
+
+
+def test_invalid_widening_configuration_is_rejected() -> None:
+    with pytest.raises(ValueError):
+        RegressionGate(dispersion_multiplier=-1.0)
+    with pytest.raises(ValueError):
+        RegressionGate(tolerance=0.2, max_tolerance=0.1)
+
+
+def test_a_non_numeric_noise_value_is_ignored() -> None:
+    """Old or damaged rows must not widen or crash the gate."""
+    frame = _frame_with_noise([1.0, 1.0, 1.15], [0.0, 0.0, float("nan")])
+    result = RegressionGate().check_latest(frame)[0]
+    assert result.noise == 0.0
+    assert result.passed is False
+    assert result.limit == pytest.approx(1.10)

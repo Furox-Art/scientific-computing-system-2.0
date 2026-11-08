@@ -78,12 +78,20 @@ def _git_commit() -> str:
 
 @dataclasses.dataclass(frozen=True)
 class BenchEntry:
-    """One benchmark result within a run."""
+    """One benchmark result within a run.
+
+    ``noise`` is the run's own relative measurement uncertainty for this
+    benchmark: how far the two halves of its measured rounds disagreed. The
+    regression gate widens its band by this much instead of guessing a
+    tolerance wide enough for every machine. It defaults to zero so entries
+    recorded before the field existed still load.
+    """
 
     name: str
     baseline_library: str
     baseline_seconds: float
     cds2_seconds: float
+    noise: float = 0.0
 
     @property
     def ratio(self) -> float:
@@ -208,10 +216,15 @@ class BenchHistory:
                     "baseline_seconds",
                     "cds2_seconds",
                     "ratio",
+                    "noise",
                 ]
             )
             return empty
         df: pd.DataFrame = pd.DataFrame(rows)
         if "ratio" not in df.columns:
             df["ratio"] = df["cds2_seconds"] / df["baseline_seconds"]
+        if "noise" in df.columns:
+            df["noise"] = df["noise"].fillna(0.0)
+        else:
+            df["noise"] = 0.0
         return df

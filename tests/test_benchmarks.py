@@ -179,3 +179,25 @@ class TestRecordFlag:
         )
         assert code == 0
         assert not list(tmp_path.glob("*.jsonl"))
+
+
+class TestHalfSplitNoise:
+    """The run estimates its own uncertainty from its own rounds."""
+
+    def test_steady_rounds_report_no_noise(self) -> None:
+        baseline = [1.0] * 6
+        contender = [2.0] * 6
+        assert run_benchmarks._half_split_noise(baseline, contender) == 0.0
+
+    def test_a_shift_between_the_halves_is_reported(self) -> None:
+        # First half ratio 1.00, second half ratio 1.50 → 0.50 relative gap
+        # against a centre of 1.25.
+        baseline = [1.0] * 6
+        contender = [1.0, 1.0, 1.0, 1.5, 1.5, 1.5]
+        assert run_benchmarks._half_split_noise(baseline, contender) == 0.5 / 1.25
+
+    def test_too_few_rounds_report_no_noise(self) -> None:
+        assert run_benchmarks._half_split_noise([1.0, 1.0], [1.0, 1.0]) == 0.0
+
+    def test_a_zero_baseline_round_is_ignored(self) -> None:
+        assert run_benchmarks._half_split_noise([0.0, 1.0], [1.0, 1.0]) == 0.0
