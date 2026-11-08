@@ -444,13 +444,44 @@ jobs:
           name: wheel-${{ matrix.os }}-312
           path: dist
 
+      - name: Install the artifact's declared dependencies from PyPI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          # The artifact itself must come from `dist`, but its dependencies never
+          # ship with it. Reading them out of the wheel's own METADATA keeps this
+          # list from drifting from pyproject.toml. Without this step the
+          # --no-index install below fails the moment a runner image stops
+          # preinstalling numpy (that is how 5.4.6's verify job went red on all
+          # three platforms while the publish itself had succeeded).
+          python - <<'PY' > runtime-requirements.txt
+          import glob
+          import zipfile
+
+          wheel = sorted(glob.glob("dist/*.whl"))[0]
+          with zipfile.ZipFile(wheel) as archive:
+              metadata = [
+                  name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+              ][0]
+              text = archive.read(metadata).decode("utf-8")
+          for line in text.splitlines():
+              if not line.startswith("Requires-Dist: "):
+                  continue
+              requirement = line.split(": ", 1)[1]
+              if "extra ==" in requirement:
+                  continue
+              print(requirement)
+          PY
+          cat runtime-requirements.txt
+          python -m pip install --no-cache-dir -r runtime-requirements.txt
+
       - name: Install release artifact without registry downloads
         shell: bash
         run: |
           set -euo pipefail
           PACKAGE="${{ needs.publish.outputs.package_name }}"
           VERSION="${{ needs.publish.outputs.version }}"
-          python -m pip install --upgrade pip
 
           # Linux artifacts carry both the manylinux and musllinux wheel for the
           # same interpreter, so a single architecture match is ambiguous. Let
