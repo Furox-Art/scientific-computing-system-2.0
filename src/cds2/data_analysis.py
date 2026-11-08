@@ -126,11 +126,11 @@ class DataSet:
 
     def head(self, n: int = 5) -> DataSet:
         """Return the first ``n`` rows."""
-        return DataSet(cast(pd.DataFrame, self._df.head(n)))
+        return DataSet(self._df.head(n))
 
     def tail(self, n: int = 5) -> DataSet:
         """Return the last ``n`` rows."""
-        return DataSet(cast(pd.DataFrame, self._df.tail(n)))
+        return DataSet(self._df.tail(n))
 
     def select(self, *names: str) -> DataSet:
         """Select a subset of columns by name, preserving order."""
@@ -155,7 +155,7 @@ class DataSet:
 
     def to_dataframe(self) -> pd.DataFrame:
         """Return a copy of the underlying :class:`pandas.DataFrame`."""
-        return cast(pd.DataFrame, self._df.copy())
+        return self._df.copy()
 
     @classmethod
     def from_dataframe(cls, df: pd.DataFrame) -> DataSet:
@@ -170,8 +170,7 @@ class DataSet:
         """
         if self._df.empty:  # pragma: no cover
             return pd.DataFrame()  # type: ignore[no-any-return, unused-ignore]  # pragma: no cover
-        result = cast(pd.DataFrame, self._df.describe(include="all"))
-        return result
+        return self._df.describe(include="all")
 
     def summarize(self) -> pd.DataFrame:
         """Column-level summary: dtypes, nulls, uniques and numeric moments.
@@ -202,9 +201,7 @@ class DataSet:
         numeric = df.select_dtypes(include=[np.number])
         moments: pd.DataFrame
         if len(numeric.columns):  # pragma: no cover
-            moments = cast(
-                pd.DataFrame, numeric.agg(["mean", "std", "min", "max"])
-            )  # pragma: no cover
+            moments = numeric.agg(["mean", "std", "min", "max"])  # pragma: no cover
         else:  # pragma: no cover
             moments = pd.DataFrame(index=["mean", "std", "min", "max"])  # pragma: no cover
         rows: list[dict[str, object]] = []
