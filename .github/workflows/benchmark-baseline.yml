@@ -55,6 +55,13 @@ jobs:
             bench-history-
 
       - name: Record the quick suite
+        # Same single-thread pinning as the release gate, so a baseline recorded
+        # here is comparable with the run that is checked against it.
+        env:
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          NUMEXPR_NUM_THREADS: "1"
         run: python benchmarks/run_benchmarks.py --quick --record
 
       # Informational only: a scheduled run must not fail because one benchmark

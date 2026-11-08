@@ -136,6 +136,16 @@ jobs:
             bench-history-
 
       - name: Benchmark regression gate
+        # Both sides of every race run on one thread. The gate compares a ratio,
+        # and a BLAS thread pool that resizes between runs moves it by large
+        # factors: release run 42490976634 recorded linreg at 3.56 against
+        # scikit-learn where the same suite measures 0.29 with a fixed thread
+        # count. Pinning is what makes the ratio a property of the code.
+        env:
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          NUMEXPR_NUM_THREADS: "1"
         run: |
           # One invocation, not two: the suite used to run once for its table and
           # again to be recorded, so the release paid for it twice.
