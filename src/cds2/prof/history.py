@@ -48,6 +48,29 @@ def _default_user_history_dir() -> Path:
     return _user_history_dir_for(os.name, sys.platform, os.environ, Path.home())
 
 
+def cpu_model(cpuinfo: Path | None = None) -> str:
+    """Best-effort identifier of the CPU this run was measured on.
+
+    Benchmark ratios are only comparable within one hardware class: the same
+    commit measured on two different GitHub runner models disagrees by 12-17%
+    on the sub-second benchmarks, which is more than the gate's tolerance. The
+    gate therefore compares a run only against runs from the same CPU, and calls
+    a run that has no peer on this hardware a baseline instead of failing it.
+
+    Returns an empty string when the model cannot be read, which makes the gate
+    fall back to comparing everything.
+    """
+    path = cpuinfo if cpuinfo is not None else Path("/proc/cpuinfo")
+    try:
+        if path.is_file():
+            for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.lower().startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    return platform.processor() or platform.machine()
+
+
 def _repo_root() -> Path:
     """Walk up until we find the directory containing ``src/cds2``.
 
@@ -151,6 +174,7 @@ class BenchHistory:
             "python": platform.python_version(),
             "platform": platform.platform(),
             "machine": platform.machine(),
+            "cpu": cpu_model(),
         }
         record = {
             "timestamp": datetime.now(UTC).isoformat(),
@@ -196,12 +220,14 @@ class BenchHistory:
                         continue
                     if end and ts > end:
                         continue
+                    env = record.get("env", {})
                     for entry in record.get("entries", []):
                         rows.append(
                             {
                                 "timestamp": ts,
                                 "commit": record.get("commit", ""),
-                                "env": record.get("env", {}),
+                                "env": env,
+                                "cpu": env.get("cpu", ""),
                                 **entry,
                             }
                         )
@@ -217,6 +243,7 @@ class BenchHistory:
                     "cds2_seconds",
                     "ratio",
                     "noise",
+                    "cpu",
                 ]
             )
             return empty

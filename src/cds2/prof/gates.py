@@ -145,6 +145,15 @@ class RegressionGate:
             ordered = group.sort_values(["timestamp", "ratio"], kind="stable")
             ratios = ordered["ratio"]
             latest = float(ratios.iloc[-1])
+            # Ratios are comparable within one hardware class only. Comparing a
+            # run against a run from a different CPU is how a healthy release
+            # got eight "regressions": the same commit measured on two runner
+            # models differs by 12-17% on the sub-second benchmarks.
+            if "cpu" in ordered.columns:
+                latest_cpu = ordered["cpu"].iloc[-1]
+                if isinstance(latest_cpu, str) and latest_cpu:
+                    ordered = ordered[ordered["cpu"] == latest_cpu]
+                    ratios = ordered["ratio"]
             noise = 0.0
             if "noise" in ordered.columns:
                 raw_noise = ordered["noise"].iloc[-1]

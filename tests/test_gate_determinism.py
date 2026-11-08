@@ -192,3 +192,41 @@ def test_a_non_numeric_noise_value_is_ignored() -> None:
     assert result.noise == 0.0
     assert result.passed is False
     assert result.limit == pytest.approx(1.10)
+
+
+def _frame_with_cpu(ratios, cpus):
+    return pd.DataFrame(
+        {
+            "name": ["bench"] * len(ratios),
+            "timestamp": [float(i + 1) for i in range(len(ratios))],
+            "ratio": ratios,
+            "cpu": cpus,
+        }
+    )
+
+
+def test_a_run_from_another_cpu_is_a_baseline_not_a_failure() -> None:
+    """Hardware is not a regression.
+
+    Two runner models disagree by 12-17% on the sub-second benchmarks even for
+    the same commit, which is more than the band. A run with no peer on its own
+    CPU establishes the baseline instead of failing.
+    """
+    frame = _frame_with_cpu([1.0, 1.0, 1.4], ["Xeon 8272", "Xeon 8272", "EPYC 7763"])
+    result = RegressionGate().check_latest(frame)[0]
+    assert result.passed is True
+    assert result.lower_limit is None
+    assert result.latest_ratio == pytest.approx(1.4)
+
+
+def test_runs_on_the_same_cpu_are_compared() -> None:
+    frame = _frame_with_cpu([1.0, 1.0, 1.4], ["Xeon 8272", "Xeon 8272", "Xeon 8272"])
+    result = RegressionGate().check_latest(frame)[0]
+    assert result.passed is False
+    assert result.lower_limit == pytest.approx(1.0 / 1.1)
+
+
+def test_an_unknown_cpu_falls_back_to_comparing_everything() -> None:
+    frame = _frame_with_cpu([1.0, 1.0, 1.4], ["", "", ""])
+    result = RegressionGate().check_latest(frame)[0]
+    assert result.passed is False

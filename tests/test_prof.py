@@ -1,5 +1,6 @@
 """Tests for cds2.prof profiling, benchmark history and regression gates."""
 
+import platform
 import sys
 from datetime import date
 from pathlib import Path
@@ -10,7 +11,7 @@ import pytest
 from cds2 import prof
 from cds2.prof import gates
 from cds2.prof.gates import GateResult, RegressionGate
-from cds2.prof.history import BenchEntry, BenchHistory
+from cds2.prof.history import BenchEntry, BenchHistory, cpu_model
 
 
 def _work() -> int:
@@ -535,3 +536,36 @@ class TestBenchHistoryPathBoundary:
         assert current.name == "history"
         assert current.parent.name == "cds2"
         assert Path(sys.prefix) not in current.parents
+
+
+class TestCpuModel:
+    """The run records which CPU class it belongs to."""
+
+    @staticmethod
+    def _fallback() -> str:
+        return platform.processor() or platform.machine()
+
+    def test_the_linux_cpuinfo_model_name_is_read(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        cpuinfo = tmp_path / "cpuinfo"
+        cpuinfo.write_text(
+            "processor: 0\nmodel name: Example Runner CPU @ 2.90GHz\n", encoding="utf-8"
+        )
+        assert cpu_model(cpuinfo) == "Example Runner CPU @ 2.90GHz"
+
+    def test_an_unreadable_cpuinfo_falls_back_to_platform(self, tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        cpuinfo = tmp_path / "cpuinfo"
+        cpuinfo.write_text("model name: Example CPU\n", encoding="utf-8")
+
+        def denied(self, **kwargs):  # type: ignore[no-untyped-def]
+            raise OSError("permission denied")
+
+        monkeypatch.setattr(Path, "read_text", denied)
+        assert cpu_model(cpuinfo) == self._fallback()
+
+    def test_a_missing_cpuinfo_falls_back_to_platform(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        assert cpu_model(tmp_path / "absent") == self._fallback()
+
+    def test_a_cpuinfo_without_a_model_name_falls_back(self, tmp_path) -> None:  # type: ignore[no-untyped-def]
+        cpuinfo = tmp_path / "cpuinfo"
+        cpuinfo.write_text("processor: 0\n", encoding="utf-8")
+        assert cpu_model(cpuinfo) == self._fallback()
