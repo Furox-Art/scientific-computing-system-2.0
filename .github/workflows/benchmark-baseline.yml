@@ -80,6 +80,19 @@ jobs:
               f"Benchmark history holds {len(frame)} rows across "
               f"{frame['name'].nunique()} benchmarks in {runs} run(s)"
           )
+          # The gate compares within one CPU class, so the class this run landed
+          # in decides whether anything was compared at all. Printing it here is
+          # how a reader tells "nothing to compare" apart from "compared, passed".
+          latest = frame.sort_values("timestamp").iloc[-1]
+          cpu = latest.get("cpu", "") or "(unknown)"
+          peers = frame[frame["cpu"] == latest.get("cpu", "")]["timestamp"].nunique()
+          print(f"this run's CPU class: {cpu}")
+          print(f"runs recorded on that CPU class: {peers}")
+          if peers < 2:
+              print(
+                  "::warning::no earlier run on this CPU class, so nothing was compared; "
+                  "this run establishes the baseline for this hardware."
+              )
           PY
           python -m cds2.bench.regression --tolerance 0.10 || true
 
