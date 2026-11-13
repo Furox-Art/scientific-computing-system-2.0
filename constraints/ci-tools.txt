@@ -4,4 +4,4 @@
 # build repeatedly). ruff matches the .pre-commit-config.yaml hook rev
 # (v0.17.1); both must be bumped together.
 ruff==0.17.1
-mypy==2.4.0
+mypy==2.4.1
