@@ -1,4 +1,4 @@
-﻿# scientific-computing-system-2.0
+# scientific-computing-system-2.0
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/Furox-Art/scientific-computing-system-2.0/main/docs/assets/promo_hero.png" alt="scientific-computing-system-2.0 scientific computing platform" width="100%">
@@ -14,7 +14,7 @@ This is the **NumPy build** of [scientific-computing-system](https://github.com/
 ## Name and version
 
 `2.0` names the NumPy generation of the project, not the release number. The
-current release is **5.4.5**, and PyPI has never published a 2.x version.
+current release is **5.4.6**, and PyPI has never published a 2.x version.
 
 | Surface | Name |
 | --- | --- |
@@ -22,7 +22,7 @@ current release is **5.4.5**, and PyPI has never published a 2.x version.
 | PyPI / npm project | `scientific-computing-system-2.0` |
 | Python import | `cds2` |
 | Console script | `cds2` |
-| Current version | 5.4.5 |
+| Current version | 5.4.6 |
 
 PyPI and npm project names are fixed after publication, so the `-2.0` suffix stays
 even though the version has moved past it.
