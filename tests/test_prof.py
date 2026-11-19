@@ -295,6 +295,43 @@ class TestRegressionGate:
         monkeypatch.setattr(subprocess, "run", _boom)
         assert history_mod._git_commit() == "unknown"
 
+    def test_git_commit_unknown_when_spawn_denied(self, tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        # Windows sandboxes can deny process creation (WinError 5) even though
+        # git exists; history recording must fail soft instead of crashing.
+        import subprocess
+
+        from cds2.prof import history as history_mod
+
+        def _denied(*args, **kwargs):  # type: ignore[no-untyped-def]
+            raise PermissionError(5, "Access is denied")
+
+        monkeypatch.setattr(subprocess, "run", _denied)
+        assert history_mod._git_commit() == "unknown"
+
+    def test_git_commit_unknown_on_oserror(self, tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        import subprocess
+
+        from cds2.prof import history as history_mod
+
+        def _boom(*args, **kwargs):  # type: ignore[no-untyped-def]
+            raise OSError("spawn failed")
+
+        monkeypatch.setattr(subprocess, "run", _boom)
+        assert history_mod._git_commit() == "unknown"
+
+    def test_git_commit_returns_stripped_short_head(self, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+        import subprocess
+
+        from cds2.prof import history as history_mod
+
+        def _ok(*args, **kwargs):  # type: ignore[no-untyped-def]
+            return subprocess.CompletedProcess(
+                args=args, returncode=0, stdout="abc1234\n", stderr=""
+            )
+
+        monkeypatch.setattr(subprocess, "run", _ok)
+        assert history_mod._git_commit() == "abc1234"
+
     def test_invalid_parameters_rejected(self) -> None:
         with pytest.raises(ValueError):
             RegressionGate(tolerance=-0.1)

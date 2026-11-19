@@ -95,7 +95,10 @@ def _git_commit() -> str:
             check=True,
         )
         return out.stdout.strip()
-    except (FileNotFoundError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError):
+        # OSError covers FileNotFoundError (no git), PermissionError (sandboxed
+        # spawn denial, e.g. WinError 5) and any other spawn/pipe failure:
+        # recording history must never crash because the commit is unreadable.
         return "unknown"
 
 
