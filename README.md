@@ -14,7 +14,7 @@ This is the **NumPy build** of [scientific-computing-system](https://github.com/
 ## Name and version
 
 `2.0` names the NumPy generation of the project, not the release number. The
-current release is **5.4.5**, and PyPI has never published a 2.x version.
+current release is **5.5.0**, and PyPI has never published a 2.x version.
 
 | Surface | Name |
 | --- | --- |
@@ -22,12 +22,12 @@ current release is **5.4.5**, and PyPI has never published a 2.x version.
 | PyPI / npm project | `scientific-computing-system-2.0` |
 | Python import | `cds2` |
 | Console script | `cds2` |
-| Current version | 5.4.5 |
+| Current version | 5.5.0 |
 
 PyPI and npm project names are fixed after publication, so the `-2.0` suffix stays
 even though the version has moved past it.
 
-**53 importable names, 535 public exports, 1,952 tests, 100% branch coverage, MIT.** Every count here is measured from the tree by `scripts/make_promo.py`; CI re-measures and rejects drift.
+**53 importable names, 508 public exports, 2,064 tests, 100% branch coverage, MIT.** Every count here is measured from the tree by `scripts/make_promo.py`; CI re-measures and rejects drift.
 
 ## Reproducibility drift is a result, not hidden state
 
@@ -47,7 +47,7 @@ The placeholders above are documentation only; an actual rerun prints the measur
 
 ## Installation
 
-Python 3.10+. [PyPI is the install path](https://pypi.org/project/scientific-computing-system-2.0/):
+Python 3.11+. [PyPI is the install path](https://pypi.org/project/scientific-computing-system-2.0/):
 
 ```bash
 pip install scientific-computing-system-2.0
@@ -147,7 +147,7 @@ python -m cds2 info
 | Module | What it does | Entry points |
 |---|---|---|
 | [`cds2.linalg`](https://furox-art.github.io/scientific-computing-system-2.0/api/linalg/) | Dense linear algebra, typed results | `solve`, `det`, `svd`, `eigh`, `lstsq`, `expm` |
-| [`cds2.stats`](https://furox-art.github.io/scientific-computing-system-2.0/api/stats/) | Tests, summaries, effect sizes | `independent_t_test`, `permutation_test`, `describe`, `bootstrap_ci` |
+| [`cds2.stats`](https://furox-art.github.io/scientific-computing-system-2.0/api/stats/) | Tests, summaries, effect sizes | `independent_t_test`, `permutation_test`, `describe`, `bootstrap_ci`, `bonferroni_correction`, `holm_correction`, `benjamini_hochberg_correction` |
 | [`cds2.optimize`](https://furox-art.github.io/scientific-computing-system-2.0/api/optimize/) | Optimizers and root finding | `minimize`, `curve_fit`, `find_root_scalar`, `linprog` |
 | [`cds2.integrate`](https://furox-art.github.io/scientific-computing-system-2.0/api/integrate/) | Quadrature and ODEs | `quad`, `integrate_2d`, `solve_ivp`, `solve_bvp`, `simpson` |
 | [`cds2.interpolate`](https://furox-art.github.io/scientific-computing-system-2.0/api/interpolate/) | Interpolation | `linear_interp`, `cubic_spline`, `pchip_interpolator`, `rbf_interp` |
@@ -157,7 +157,7 @@ python -m cds2 info
 | [`cds2.calculus`](https://furox-art.github.io/scientific-computing-system-2.0/api/calculus/) | Derivatives, Jacobians, Hessians | `derivative`, `jacobian`, `hessian`, `propagate_error` |
 | [`cds2.ml`](https://furox-art.github.io/scientific-computing-system-2.0/api/ml/) | Classical ML and metrics | `LinearRegression`, `KMeans`, `PCA`, `KNeighborsClassifier`, `r2_score` |
 | [`cds2.timeseries`](https://furox-art.github.io/scientific-computing-system-2.0/api/timeseries/) | pandas-backed series analysis | `seasonal_decompose`, `exponential_smoothing`, `acf`, `ljung_box` |
-| [`cds2.montecarlo`](https://furox-art.github.io/scientific-computing-system-2.0/api/montecarlo/) | Seeded estimation | `pi_estimate`, `mc_integrate`, `metropolis_hastings`, `parallel_mc_integrate` |
+| [`cds2.montecarlo`](https://furox-art.github.io/scientific-computing-system-2.0/api/montecarlo/) | Seeded estimation | `pi_estimate`, `mc_integrate`, `metropolis_hastings`, `parallel_mc_integrate`, `split_rhat`, `effective_sample_size` |
 | [`cds2.graph`](https://furox-art.github.io/scientific-computing-system-2.0/api/graph/) | Graphs and PageRank | `from_edges`, `pagerank`, `connected_components`, `modularity` |
 | [`cds2.io`](https://furox-art.github.io/scientific-computing-system-2.0/api/io/) | pandas I/O and summaries | `read_csv`, `write_csv`, `summarize`, `iter_csv` |
 | [`cds2.viz`](https://furox-art.github.io/scientific-computing-system-2.0/api/viz/) | Matplotlib helpers | `plot_series`, `plot_heatmap`, `plot_regression`, `plot_confusion_matrix` |
@@ -174,7 +174,7 @@ python -m cds2 info
 | [`cds2.reliability`](https://furox-art.github.io/scientific-computing-system-2.0/api/reliability/) | Survival analysis | `kaplan_meier`, `weibull_fit`, `mtbf`, `availability` |
 | [`cds2.modeling`](https://furox-art.github.io/scientific-computing-system-2.0/api/modeling/) | Symbolic maths, pure Python | `Expression`, `diff`, `integrate`, `solve_polynomial`, `to_latex` |
 | [`cds2.hypothesis`](https://furox-art.github.io/scientific-computing-system-2.0/api/hypothesis/) | Heuristic hypothesis generation | `HypothesisEngine`, `Hypothesis`, `Domain` |
-| [`cds2.knowledge`](https://furox-art.github.io/scientific-computing-system-2.0/api/knowledge/) | Concept graphs and retrieval | no public names yet |
+| [`cds2.knowledge`](https://furox-art.github.io/scientific-computing-system-2.0/api/knowledge/) | Concept graphs and retrieval | `Concept`, `Relation`, `Note`, `KnowledgeGraph`, `Notebook`, `search` |
 | [`cds2.scientific`](https://furox-art.github.io/scientific-computing-system-2.0/api/scientific/) | CODATA constants and formulas, CDS-native | `CONSTANTS`, `speed_of_light`, `photon_energy`, `convert_units` |
 | [`cds2.quantum`](https://furox-art.github.io/scientific-computing-system-2.0/api/quantum/) | Dense statevector circuits | `QuantumCircuit`, `GATES` |
 | [`cds2.genetics`](https://furox-art.github.io/scientific-computing-system-2.0/api/genetics/) | DNA composition and alignment | `gc_content`, `kmer_counts`, `global_align`, `find_orfs` |
@@ -188,7 +188,7 @@ python -m cds2 info
 | [`cds2.wavelets`](https://furox-art.github.io/scientific-computing-system-2.0/api/wavelets/) | Haar decomposition | `haar_dwt`, `haar_idwt`, `dwt_levels`, `wavelet_denoise` |
 | [`cds2.pde`](https://furox-art.github.io/scientific-computing-system-2.0/api/pde/) | Vectorised FTCS and leapfrog | `heat_equation_1d`, `wave_equation_1d`, `solve_heat` |
 | [`cds2.sde`](https://furox-art.github.io/scientific-computing-system-2.0/api/sde/) | Stochastic differential equations | `sde_euler_maruyama`, `sde_milstein`, `ensemble_stats` |
-| [`cds2.guided_fit`](https://furox-art.github.io/scientific-computing-system-2.0/api/guided_fit/) | Guided reproducible fitting | `run_guided_fit`, `recommend_model`, `save_manifest`, `rerun_manifest` |
+| [`cds2.guided_fit`](https://furox-art.github.io/scientific-computing-system-2.0/api/guided_fit/) | Guided reproducible fitting | `run_guided_fit`, `recommend_model`, `compare_models`, `save_manifest`, `rerun_manifest` |
 | [`cds2.cli`](https://furox-art.github.io/scientific-computing-system-2.0/api/cli/) | argparse front end | `main`, the `cds2` console script |
 | [`cds2.special`](https://furox-art.github.io/scientific-computing-system-2.0/api/special/)* | scipy.special wrapper | 41 aliases; use scipy directly |
 | [`cds2.distributions`](https://furox-art.github.io/scientific-computing-system-2.0/api/distributions/)* | scipy.stats wrapper | 56 pdf/cdf/ppf aliases; use scipy directly |
@@ -205,7 +205,7 @@ python -m cds2 info
 
 ## Performance, measured honestly
 
-`benchmarks/results.json` and [docs/benchmarks.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmarks/) are a real run, but a **stale one: cds2 3.0.0, commit `6ea5a02`, 2026-08-22**, while the release is 5.4.5. Read them as "3.0.0 versus the baseline libraries on one machine", not as a claim about today.
+`benchmarks/results.json` and [docs/benchmarks.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmarks/) are a real run, but a **stale one: cds2 3.0.0, commit `6ea5a02`, 2026-08-22**, while the release is 5.5.0. Read them as "3.0.0 versus the baseline libraries on one machine", not as a claim about today.
 
 Of the 13 measured cases, **CDS v2 was slower in 4**: `dataframe summary` 1.82x, `solve 800x800` 1.22x, `solve 8x8 x300` 1.17x and `welch` 1.03x. The pandas row returns strictly more information (per-column nulls and uniques), so part of that premium is extra work. The clearest win is PageRank at 0.15x versus NetworkX. There is **no blanket speedup claim**, and [benchmark-methodology.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmark-methodology/) sets out the limits.
 
@@ -237,9 +237,11 @@ Coverage below 100% fails CI, so new code needs tests on success *and* error pat
 
 ## Deprecated modules
 
-`cds2.special` and `cds2.distributions` are deprecated since 4.3.0. Because
-`__init__.py` imports both eagerly, a bare `import cds2` emits **both**
-`DeprecationWarning`s even if you never touch them:
+`cds2.special` and `cds2.distributions` are deprecated since 4.3.0. Since
+5.5.0 they are resolved **lazily**: a bare `import cds2` no longer imports
+them and emits no warning. The `DeprecationWarning` fires on first actual
+use — touching `cds2.special`, `cds2.distributions` or any of their aliases
+(e.g. `cds2.erf`, `cds2.gamma_pdf`):
 
 ```text
 DeprecationWarning: cds2.special is deprecated since 4.3.0 ...

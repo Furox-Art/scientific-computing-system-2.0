@@ -1,5 +1,5 @@
 {% set name = "scientific-computing-system-2.0" %}
-{% set version = "5.4.6" %}
+{% set version = "5.5.0" %}
 
 package:
   name: {{ name|lower }}
@@ -13,9 +13,9 @@ source:
   # closed if the digest does not match the downloaded artifact, so a stale value
   # is a release-train blocker rather than a silent drift.
   #
-  # NOT YET REFRESHED for 5.4.6: the digest below is the published
+  # NOT YET REFRESHED for 5.5.0: the digest below is the published
   # scientific_computing_system_2_0-5.4.5.tar.gz sdist. It must be replaced with
-  # the 5.4.6 digest once PyPI publishes that sdist; until then the conda build
+  # the 5.5.0 digest once PyPI publishes that sdist; until then the conda build
   # fails closed, which is the intended behaviour of this recipe.
   sha256: ca21009208debb4e576ad06cac80ba0dd716389563c907e96e56e04e60f34c81
 
@@ -28,12 +28,12 @@ build:
 
 requirements:
   host:
-    - python >=3.10
+    - python >=3.11
     - pip
     - setuptools >=77
     - wheel
   run:
-    - python >=3.10
+    - python >=3.11
     - numpy >=1.26
     - scipy >=1.11
     - pandas >=2.2

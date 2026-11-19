@@ -1,3 +1,63 @@
+## [v5.5.0] - 2026-11-19
+
+### Added
+
+- MCMC convergence diagnostics in `cds2.montecarlo`: `split_rhat` (split
+  R-hat, Gelman et al. BDA3 ch. 11) and `effective_sample_size` (bulk ESS
+  from Geyer's initial monotone positive sequence of paired
+  autocorrelations, FFT autocovariance, capped at the draw count). Both
+  validate chain shape/finiteness and fail closed on constant chains.
+  Reference-value tests pin a hand-computed two-chain R-hat, a naive loop
+  ESS implementation, iid chains near 1, and the AR(1) theoretical ESS
+  `m*n*(1-rho)/(1+rho)`.
+- Multiple-comparison corrections in `cds2.stats`: `bonferroni_correction`,
+  `holm_correction` (step-down FWER) and `benjamini_hochberg_correction`
+  (step-up BH-FDR), all returning adjusted p-values in input order.
+  Cross-checked against `scipy.stats.false_discovery_control` and a naive
+  Holm reference; the BH <= Holm <= Bonferroni ordering is pinned.
+- `hypothesis.HypothesisEngine.from_pairs`: batch correlation scanning with
+  a multiple-comparison correction (BH by default, Holm/Bonferroni
+  optional) to reduce p-hacking risk when mining many series pairs; only
+  pairs surviving both the strength gate and the corrected significance
+  level are emitted. `from_pair` is unchanged but now documents that it is
+  an uncorrected single scan.
+- `guided_fit.compare_models` and `ModelComparison`: AIC/BIC ranking of the
+  five model families under a Gaussian error model (sigma-weighted
+  likelihood when uncertainties are given), with parameter counting that
+  includes the estimated error variance, deltas and normalised Akaike
+  weights. Perfect fits and unfittable candidates are skipped explicitly.
+
+### Fixed
+
+- `prof.history._git_commit` now catches `OSError` (which includes
+  `PermissionError` from sandboxed spawn denial, e.g. Windows WinError 5)
+  in addition to `FileNotFoundError`/`CalledProcessError`, so benchmark
+  history recording fails soft to `"unknown"` instead of crashing. This
+  turns the 14 environment-induced suite failures green.
+- The benchmark-snapshot git-ignore test skips when git cannot be spawned
+  (sandboxed hosts) instead of failing; CI still asserts the ignore rule.
+
+### Changed
+
+- `cds2.special` and `cds2.distributions` are resolved lazily via module
+  `__getattr__` (PEP 562): a bare `import cds2` no longer imports the
+  deprecated wrappers or emits their `DeprecationWarning`s; the warning
+  fires on first actual use. The public API is unchanged (modules, all 97
+  aliases and `from cds2 import *` keep working). `ml`/`graph` now import
+  the optional C kernels as direct submodules so a missing kernel remains
+  an `ImportError` under the lazy root.
+- `cds2.__all__` deduplicated: 34 module names were listed twice (535
+  entries for 501 unique names). With the seven new public APIs the honest
+  count is 508; README and SKILL.md metrics are regenerated to match
+  (53 importable names, 508 public exports, 2,064 tests).
+- README: current-version references name 5.5.0, the install floor is
+  corrected to Python 3.11+ (matching `requires-python` since 5.4.6), the
+  knowledge row lists its six public names (`Concept`, `Relation`, `Note`,
+  `KnowledgeGraph`, `Notebook`, `search`), and the deprecated-modules
+  section describes the lazy warning behaviour.
+- conda recipe: python floor aligned to `>=3.11`; version bumped with the
+  usual fail-closed sha256 refresh note.
+
 ## [v5.4.6] - 2026-11-07
 
 ### Changed
