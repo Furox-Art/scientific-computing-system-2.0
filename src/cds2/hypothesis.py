@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 import numpy as np
 
-from .stats import pearson_correlation
+from .stats import (
+    benjamini_hochberg_correction,
+    bonferroni_correction,
+    holm_correction,
+    pearson_correlation,
+)
 
 __all__ = [
     "Domain",
@@ -80,7 +86,13 @@ class HypothesisEngine:
         second_values: object,
         domain: str = Domain.GENERAL,
     ) -> list[Hypothesis]:
-        """Emit a correlation hypothesis between two aligned series."""
+        """Emit a correlation hypothesis between two aligned series.
+
+        This is a single uncorrected scan: when many pairs are tried, the
+        chance that at least one looks correlated grows with the number of
+        attempts (p-hacking). Use :meth:`from_pairs` to scan a batch with a
+        multiple-comparison correction instead.
+        """
         first_array = np.asarray(first_values, dtype=float).ravel()
         second_array = np.asarray(second_values, dtype=float).ravel()
         if first_array.size != second_array.size or first_array.size < 4:
@@ -101,6 +113,79 @@ class HypothesisEngine:
         if confidence >= self.minimum_confidence:
             self.generated.append(hypothesis)
         return [hypothesis]
+
+    def from_pairs(
+        self,
+        pairs: Sequence[tuple[str, object, str, object]],
+        domain: str = Domain.GENERAL,
+        alpha: float = 0.05,
+        method: str = "bh",
+    ) -> list[Hypothesis]:
+        """Scan many series pairs at once with multiple-comparison correction.
+
+        The anti-p-hacking counterpart of :meth:`from_pair`: every testable
+        pair contributes a Pearson p-value, the whole family of p-values is
+        corrected (Benjamini-Hochberg FDR by default, or Holm/Bonferroni
+        family-wise), and only pairs that survive both the ``|r| >= 0.5``
+        strength gate and ``adjusted p < alpha`` are emitted. Scanning the
+        same pairs one-by-one with :meth:`from_pair` would ignore how many
+        attempts were made; this method charges for all of them.
+
+        Args:
+            pairs: ``(first_name, first_values, second_name, second_values)``
+                tuples. Pairs that cannot be tested (misaligned, too short or
+                constant series) are skipped, not silently counted as passes.
+            domain: domain label for emitted hypotheses.
+            alpha: significance level for the corrected p-values, in (0, 1).
+            method: ``"bh"`` (FDR), ``"holm"`` or ``"bonferroni"`` (family-wise).
+
+        Raises:
+            ValueError: unknown method or alpha outside (0, 1).
+        """
+        corrections = {
+            "bh": benjamini_hochberg_correction,
+            "holm": holm_correction,
+            "bonferroni": bonferroni_correction,
+        }
+        if method not in corrections:
+            msg = f"method must be one of {sorted(corrections)}: {method!r}"
+            raise ValueError(msg)
+        if not 0.0 < alpha < 1.0:
+            msg = "alpha must be in (0, 1)"
+            raise ValueError(msg)
+        scanned: list[tuple[str, str, float, float]] = []
+        for first_name, first_values, second_name, second_values in pairs:
+            try:
+                correlation = pearson_correlation(first_values, second_values)
+            except ValueError:
+                continue
+            scanned.append((first_name, second_name, correlation.r, correlation.p_value))
+        if not scanned:
+            return []
+        adjusted = corrections[method]([item[3] for item in scanned])
+        kept: list[Hypothesis] = []
+        for (first_name, second_name, r_value, _p), adjusted_p in zip(
+            scanned, adjusted, strict=True
+        ):
+            strength = abs(r_value)
+            if strength < 0.5 or adjusted_p >= alpha:
+                continue
+            confidence = min(0.95, strength)
+            if confidence < self.minimum_confidence:
+                continue
+            direction = "drives" if r_value > 0 else "suppresses"
+            hypothesis = Hypothesis(
+                statement=(f"{first_name} {direction} {second_name} (pearson r={r_value:+.3f})"),
+                domain=domain,
+                confidence=confidence,
+                rationale=(
+                    f"linear correlation strength above 0.5; {method}-adjusted "
+                    f"p={adjusted_p:.3g} < {alpha:g} across {len(scanned)} scanned pairs"
+                ),
+            )
+            kept.append(hypothesis)
+        self.generated.extend(kept)
+        return kept
 
     def _trend_hypotheses(self, name: str, values: np.ndarray, domain: str) -> list[Hypothesis]:
         indices = np.arange(values.size, dtype=float)

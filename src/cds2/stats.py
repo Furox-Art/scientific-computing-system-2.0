@@ -42,6 +42,9 @@ __all__ = [
     "covariance_matrix",
     "correlation_matrix",
     "multivariate_normal_logpdf",
+    "bonferroni_correction",
+    "holm_correction",
+    "benjamini_hochberg_correction",
 ]
 
 
@@ -457,6 +460,69 @@ def multivariate_normal_logpdf(x: object, mean: object, cov: object) -> float:
 
     value = sps.multivariate_normal.logpdf(point, mean=location, cov=matrix)
     return float(value)
+
+
+def _p_value_array(p_values: object) -> np.ndarray:
+    arr = np.asarray(p_values, dtype=float)
+    if arr.ndim != 1 or arr.size == 0:
+        raise ValueError("p_values must be a non-empty 1-D sequence")
+    if not bool(np.all(np.isfinite(arr))) or np.any((arr < 0.0) | (arr > 1.0)):
+        raise ValueError("p-values must be finite and lie in [0, 1]")
+    return arr
+
+
+def bonferroni_correction(p_values: object) -> np.ndarray:
+    """Bonferroni family-wise error rate correction.
+
+    Each p-value is multiplied by the number of tests and capped at 1:
+    ``min(1, m * p)``. Controls the probability of any false positive at
+    ``alpha`` when every adjusted p-value is compared against ``alpha``.
+    The simplest and most conservative of the three corrections offered
+    here; prefer :func:`holm_correction` (uniformly more powerful, same
+    guarantee) or :func:`benjamini_hochberg_correction` (FDR control).
+    """
+    p = _p_value_array(p_values)
+    return np.asarray(np.minimum(1.0, p * p.size))
+
+
+def holm_correction(p_values: object) -> np.ndarray:
+    """Holm-Bonferroni step-down family-wise error rate correction.
+
+    Sorted p-values are scaled by ``m, m-1, ..., 1``, made non-decreasing
+    with a running maximum and capped at 1, then returned in the original
+    order. Controls the family-wise error rate like Bonferroni but is
+    uniformly at least as powerful (adjusted values never exceed
+    Bonferroni's).
+    """
+    p = _p_value_array(p_values)
+    m = p.size
+    order = np.argsort(p, kind="stable")
+    scaled = (m - np.arange(m)) * p[order]
+    adjusted = np.minimum(1.0, np.maximum.accumulate(scaled))
+    out = np.empty_like(adjusted)
+    out[order] = adjusted
+    return out
+
+
+def benjamini_hochberg_correction(p_values: object) -> np.ndarray:
+    """Benjamini-Hochberg step-up false discovery rate (FDR) correction.
+
+    Sorted p-values are scaled by ``m / rank``, made non-decreasing from
+    the largest downwards with a running minimum and capped at 1, then
+    returned in the original order. Comparing adjusted values against
+    ``alpha`` controls the expected proportion of false discoveries among
+    the rejected hypotheses at ``alpha`` (under independence or positive
+    dependence). Less conservative than family-wise corrections: the right
+    default when scanning many candidate effects, e.g. hypothesis mining.
+    """
+    p = _p_value_array(p_values)
+    m = p.size
+    order = np.argsort(p, kind="stable")
+    scaled = p[order] * m / np.arange(1, m + 1)
+    adjusted = np.minimum(1.0, np.minimum.accumulate(scaled[::-1])[::-1])
+    out = np.empty_like(adjusted)
+    out[order] = adjusted
+    return out
 
 
 class StreamingStats:
