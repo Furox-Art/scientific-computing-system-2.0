@@ -581,7 +581,7 @@ jobs:
           TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
           set -euo pipefail
-          git fetch --force origin "refs/tags/v${VERSION}:refs/tags/v${VERSION}" origin main
+          git fetch --force origin "refs/tags/v${VERSION}:refs/tags/v${VERSION}" main
           TAG_COMMIT="$(git rev-list -n 1 "v${VERSION}")"
 
           if [ "$TAG_COMMIT" != "$TARGET_SHA" ]; then

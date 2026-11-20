@@ -40,6 +40,11 @@
   instead of a hard-coded `False`, the pure reference is computed with the
   kernel branch forced off, and new monkeypatched tests exercise the pure
   dispatch branch against independent references in either environment.
+- The release workflow's GitHub-release verification fetched the tag with
+  a duplicated remote name (`git fetch origin <refspec> origin main`),
+  which git parsed as a refspec and rejected with "couldn't find remote
+  ref origin", failing `github_release` after a successful PyPI publish.
+  The fetch now names the remote once.
 - `prof.history._git_commit` now catches `OSError` (which includes
   `PermissionError` from sandboxed spawn denial, e.g. Windows WinError 5)
   in addition to `FileNotFoundError`/`CalledProcessError`, so benchmark
