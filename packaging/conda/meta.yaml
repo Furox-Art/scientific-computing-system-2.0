@@ -13,11 +13,8 @@ source:
   # closed if the digest does not match the downloaded artifact, so a stale value
   # is a release-train blocker rather than a silent drift.
   #
-  # NOT YET REFRESHED for 5.5.0: the digest below is the published
-  # scientific_computing_system_2_0-5.4.5.tar.gz sdist. It must be replaced with
-  # the 5.5.0 digest once PyPI publishes that sdist; until then the conda build
-  # fails closed, which is the intended behaviour of this recipe.
-  sha256: ca21009208debb4e576ad06cac80ba0dd716389563c907e96e56e04e60f34c81
+  # sha256 of the PyPI sdist for 5.5.0 (refreshed from pypi.org JSON at release).
+  sha256: bb7281cf66849690f759757490068f06755fa4cecdc7d0c1275c73fbd90d0109
 
 build:
   noarch: python
