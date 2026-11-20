@@ -45,6 +45,11 @@
   which git parsed as a refspec and rejected with "couldn't find remote
   ref origin", failing `github_release` after a successful PyPI publish.
   The fetch now names the remote once.
+- The release workflow's PyPI recovery gate compared rebuilt artifacts
+  byte-for-byte, which can never match for compiled wheels (toolchain link
+  UUIDs drift between runner images) and breaks after any post-publish
+  doc fix. Recovery now requires the same artifact set and byte-identical
+  code members, tolerating drift in compiled binaries, RECORD and docs.
 - `prof.history._git_commit` now catches `OSError` (which includes
   `PermissionError` from sandboxed spawn denial, e.g. Windows WinError 5)
   in addition to `FileNotFoundError`/`CalledProcessError`, so benchmark

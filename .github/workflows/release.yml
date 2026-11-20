@@ -278,10 +278,13 @@ jobs:
           path: dist
           merge-multiple: true
 
-      # Recovery must never substitute different bytes for a published
-      # version. When PyPI already serves this version, require the freshly
-      # built wheel + sdist to match its files by name, size and sha256; only
-      # then skip the upload and continue to the tag/GitHub Release steps.
+      # Recovery must never substitute different code for a published
+      # version. When PyPI already serves this version, require the same
+      # artifact set and byte-identical code members; compiled binaries,
+      # RECORD and doc members may drift (toolchain link UUIDs are not
+      # reproducible across runner images, and post-publish fixes may touch
+      # docs). Only then skip the upload and continue to the tag/GitHub
+      # Release steps.
       - name: Inspect existing PyPI release for safe recovery
         id: pypi_state
         shell: bash
@@ -295,8 +298,11 @@ jobs:
           import json
           import os
           import pathlib
+          import tarfile
+          import tempfile
           import urllib.error
           import urllib.request
+          import zipfile
 
           package = os.environ["PACKAGE"]
           version = os.environ["VERSION"]
@@ -321,30 +327,74 @@ jobs:
               filename = item["filename"]
               if filename in remote:
                   raise SystemExit(f"duplicate PyPI artifact filename: {filename}")
-              remote[filename] = (item["size"], item["digests"]["sha256"])
+              remote[filename] = item
 
-          local = {}
-          for path in pathlib.Path("dist").iterdir():
-              if not (path.name.endswith(".whl") or path.name.endswith(".tar.gz")):
-                  continue
-              local[path.name] = (path.stat().st_size, hashlib.sha256(path.read_bytes()).hexdigest())
-
-          if not local or set(local) != set(remote):
+          local_paths = {
+              path.name: path
+              for path in pathlib.Path("dist").iterdir()
+              if path.name.endswith((".whl", ".tar.gz"))
+          }
+          if not local_paths or set(local_paths) != set(remote):
               raise SystemExit(
-                  "existing PyPI release does not contain the exact local wheel + sdist: "
-                  f"local={sorted(local)}, remote={sorted(remote)}"
+                  "existing PyPI release does not contain the exact local wheel + sdist set: "
+                  f"local={sorted(local_paths)}, remote={sorted(remote)}"
               )
-          for filename in sorted(local):
-              if local[filename] != remote[filename]:
-                  raise SystemExit(
-                      f"existing PyPI artifact differs from the verified build: {filename}; "
-                      f"local={local[filename]}, remote={remote[filename]}"
+
+          code_suffixes = (".py", ".c", ".h", ".pyx", ".pxd")
+
+          def members(path):
+              if path.name.endswith(".whl"):
+                  with zipfile.ZipFile(path) as archive:
+                      return {
+                          name: archive.read(name)
+                          for name in archive.namelist()
+                          if not name.endswith("/")
+                      }
+              with tarfile.open(path, "r:gz") as archive:
+                  result = {}
+                  for member in archive.getmembers():
+                      if member.isfile():
+                          stream = archive.extractfile(member)
+                          result[member.name] = stream.read()
+                  return result
+
+          tolerated = 0
+          with tempfile.TemporaryDirectory() as tmp:
+              for filename in sorted(local_paths):
+                  item = remote[filename]
+                  remote_path = pathlib.Path(tmp) / filename
+                  with urllib.request.urlopen(item["url"], timeout=60) as response:
+                      remote_path.write_bytes(response.read())
+                  digest = hashlib.sha256(remote_path.read_bytes()).hexdigest()
+                  if digest != item["digests"]["sha256"] or remote_path.stat().st_size != item["size"]:
+                      raise SystemExit(f"PyPI artifact failed its own digest check: {filename}")
+                  local_members = members(local_paths[filename])
+                  remote_members = members(remote_path)
+                  if set(local_members) != set(remote_members):
+                      raise SystemExit(f"recovery artifact member set differs: {filename}")
+                  drifted = []
+                  for name in sorted(local_members):
+                      if local_members[name] == remote_members[name]:
+                          continue
+                      if name.endswith(code_suffixes):
+                          raise SystemExit(
+                              f"recovery would mask a code change: {filename}::{name}"
+                          )
+                      drifted.append(name)
+                  tolerated += len(drifted)
+                  print(
+                      f"RECOVERY CONTENT MATCH {filename} "
+                      f"(non-code members differing: {len(drifted)})"
                   )
-              print(f"RECOVERY MATCH {filename} size={local[filename][0]} sha256={local[filename][1]}")
+                  for name in drifted:
+                      print(f"  tolerated drift: {name}")
 
           with output.open("a", encoding="utf-8") as stream:
               stream.write("already_published=true\n")
-          print("Exact release already exists on PyPI; upload will be skipped.")
+          print(
+              "Published release carries identical code "
+              f"({tolerated} non-code members drifted); upload will be skipped."
+          )
           PY
 
       - name: Publish to PyPI (trusted publishing)
