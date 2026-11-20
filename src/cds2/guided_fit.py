@@ -575,6 +575,16 @@ def _comparison_fit(
     return fit, used
 
 
+# Relative residual floor below which a candidate counts as a perfect fit.
+# A single machine epsilon is too tight: least-squares roundoff accumulates
+# with the design-matrix conditioning and shifts between BLAS/LAPACK
+# backends (numpy 2.4 vs 2.5 moved the constant-data linear RMSE across
+# eps * y_scale), which let spuriously perfect fits into the ranking.
+# 1e-12 relative stays orders of magnitude below any measurable noise while
+# covering accumulated float64 roundoff.
+_PERFECT_FIT_RTOL = 1e-12
+
+
 def compare_models(
     dataset: FitDataset,
     *,
@@ -595,8 +605,9 @@ def compare_models(
     winner-takes-all choice.
 
     Candidates that cannot be fitted (e.g. ``power`` with ``x <= 0``) or
-    that fit perfectly (residuals at machine precision, where the Gaussian
-    likelihood is unbounded) are skipped; if none remain, a ``RuntimeError``
+    that fit perfectly (relative RMSE at or below ``_PERFECT_FIT_RTOL``,
+    where the Gaussian likelihood is effectively unbounded) are skipped;
+    if none remain, a ``RuntimeError``
     is raised. Note that with ``outlier_policy="exclude"`` different models
     may retain different point sets, so their criteria are then computed on
     slightly different data; the default ``"keep"`` compares like with like.
@@ -622,7 +633,7 @@ def compare_models(
             n = int(used.x.size)
             rmse = float(np.sqrt(np.mean(residual * residual)))
             y_scale = max(1.0, float(np.max(np.abs(used.y))))
-            if rmse <= np.finfo(float).eps * y_scale:
+            if rmse <= _PERFECT_FIT_RTOL * y_scale:
                 raise ValueError("perfect fit: information criteria are undefined")
             if used.sigma is not None:
                 z = residual / used.sigma

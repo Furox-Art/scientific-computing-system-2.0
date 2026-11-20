@@ -136,12 +136,17 @@ class TestCandidates:
         y = np.full(20, 3.0)
         results = compare_models(FitDataset("flat", x, y))
         models = {item.model for item in results}
-        # linear and logistic reproduce the constant exactly (rmse == 0):
+        # linear, quadratic and logistic reproduce the constant to within
+        # float64 roundoff (relative rmse below the perfect-fit tolerance):
         # their Gaussian likelihood is unbounded, so they are skipped rather
         # than ranked first with a spuriously perfect AIC. power needs x > 0.
+        # exponential keeps a small but genuine optimiser residual, so it
+        # survives the tolerance in every BLAS/LAPACK environment.
         assert "linear" not in models
+        assert "quadratic" not in models
         assert "logistic" not in models
         assert "power" not in models
+        assert "exponential" in models
 
 
 class TestPolicies:

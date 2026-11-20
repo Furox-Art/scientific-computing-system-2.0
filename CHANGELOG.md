@@ -29,6 +29,17 @@
 
 ### Fixed
 
+- `guided_fit.compare_models` perfect-fit detection now uses a relative
+  RMSE tolerance (`_PERFECT_FIT_RTOL = 1e-12`) instead of a single machine
+  epsilon: least-squares roundoff on exactly constant data shifts between
+  BLAS/LAPACK backends (numpy 2.4 vs 2.5 moved the linear RMSE across
+  `eps * y_scale`), which let spuriously perfect fits into the AIC/BIC
+  ranking in the release preflight.
+- The C-kernel dispatch tests now pass in both pure and compiled builds:
+  restoration is asserted against the environment's original kernel state
+  instead of a hard-coded `False`, the pure reference is computed with the
+  kernel branch forced off, and new monkeypatched tests exercise the pure
+  dispatch branch against independent references in either environment.
 - `prof.history._git_commit` now catches `OSError` (which includes
   `PermissionError` from sandboxed spawn denial, e.g. Windows WinError 5)
   in addition to `FileNotFoundError`/`CalledProcessError`, so benchmark
