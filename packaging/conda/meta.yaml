@@ -13,8 +13,8 @@ source:
   # closed if the digest does not match the downloaded artifact, so a stale value
   # is a release-train blocker rather than a silent drift.
   #
-  # sha256 of the PyPI sdist for 5.5.0 (refreshed from pypi.org JSON at release).
-  sha256: bb7281cf66849690f759757490068f06755fa4cecdc7d0c1275c73fbd90d0109
+  # sha256 of the PyPI sdist for 5.5.1 (refreshed from pypi.org JSON at release).
+  sha256: c7434d2b005948d79f6c327eff298eb6b9175ccf62b4e8907d8c667f67d6e73b
 
 build:
   noarch: python
