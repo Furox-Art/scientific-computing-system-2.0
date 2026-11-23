@@ -5,4 +5,4 @@
 # 5.4.0: packaged NumPy/SciPy version-drift case study with a materiality CI gate.
 # 5.5.0: MCMC split-R-hat/ESS diagnostics, multiple-comparison corrections,
 # guided-fit AIC/BIC model comparison, lazy deprecated imports.
-__version__ = "5.5.0"
+__version__ = "5.5.1"

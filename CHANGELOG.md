@@ -1,3 +1,7 @@
+## [v5.5.1] - 2026-11-23
+
+- Validate the public module API, including lazy deprecated modules, and refresh the measured test counts.
+
 ## [v5.5.0] - 2026-11-19
 
 ### Added

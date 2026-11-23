@@ -14,7 +14,7 @@ This is the **NumPy build** of [scientific-computing-system](https://github.com/
 ## Name and version
 
 `2.0` names the NumPy generation of the project, not the release number. The
-current release is **5.5.0**, and PyPI has never published a 2.x version.
+current release is **5.5.1**, and PyPI has never published a 2.x version.
 
 | Surface | Name |
 | --- | --- |
@@ -22,12 +22,12 @@ current release is **5.5.0**, and PyPI has never published a 2.x version.
 | PyPI / npm project | `scientific-computing-system-2.0` |
 | Python import | `cds2` |
 | Console script | `cds2` |
-| Current version | 5.5.0 |
+| Current version | 5.5.1 |
 
 PyPI and npm project names are fixed after publication, so the `-2.0` suffix stays
 even though the version has moved past it.
 
-**53 importable names, 508 public exports, 2,064 tests, 100% branch coverage, MIT.** Every count here is measured from the tree by `scripts/make_promo.py`; CI re-measures and rejects drift.
+**53 importable names, 508 public exports, 2,066 tests, 100% branch coverage, MIT.** Every count here is measured from the tree by `scripts/make_promo.py`; CI re-measures and rejects drift.
 
 ## Reproducibility drift is a result, not hidden state
 
@@ -205,7 +205,7 @@ python -m cds2 info
 
 ## Performance, measured honestly
 
-`benchmarks/results.json` and [docs/benchmarks.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmarks/) are a real run, but a **stale one: cds2 3.0.0, commit `6ea5a02`, 2026-08-22**, while the release is 5.5.0. Read them as "3.0.0 versus the baseline libraries on one machine", not as a claim about today.
+`benchmarks/results.json` and [docs/benchmarks.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmarks/) are a real run, but a **stale one: cds2 3.0.0, commit `6ea5a02`, 2026-08-22**, while the release is 5.5.1. Read them as "3.0.0 versus the baseline libraries on one machine", not as a claim about today.
 
 Of the 13 measured cases, **CDS v2 was slower in 4**: `dataframe summary` 1.82x, `solve 800x800` 1.22x, `solve 8x8 x300` 1.17x and `welch` 1.03x. The pandas row returns strictly more information (per-column nulls and uniques), so part of that premium is extra work. The clearest win is PageRank at 0.15x versus NetworkX. There is **no blanket speedup claim**, and [benchmark-methodology.md](https://furox-art.github.io/scientific-computing-system-2.0/benchmark-methodology/) sets out the limits.
 
