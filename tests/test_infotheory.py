@@ -1,5 +1,7 @@
 """Tests for cds2.infotheory."""
 
+import math
+
 import numpy as np
 import pytest
 
@@ -54,6 +56,11 @@ class TestJointAndConditional:
         joint = [[0.0, 0.0], [1.0, 0.0]]
         assert infotheory.conditional_entropy(joint, marginal=[0.0, 1.0]) == pytest.approx(0.0)
 
+    def test_marginal_must_match_row_probabilities(self) -> None:
+        joint = [[0.2, 0.3], [0.1, 0.4]]
+        with pytest.raises(ValueError, match="marginal probabilities"):
+            infotheory.conditional_entropy(joint, marginal=[0.1, 0.9])
+
 
 class TestDivergences:
     def test_kl_self_is_zero(self) -> None:
@@ -69,11 +76,23 @@ class TestDivergences:
         with pytest.raises(ValueError, match="same length"):
             infotheory.kl_divergence([1.0], [0.5, 0.5])
 
+    def test_zero_q_on_positive_p_gives_infinity(self) -> None:
+        p, q = [0.4, 0.6, 0.0], [0.0, 0.5, 0.5]
+        assert infotheory.kl_divergence(p, q) == math.inf
+        assert infotheory.cross_entropy(p, q) == math.inf
+        assert infotheory.kl_divergence([1.0, 0.0], [1.0, 0.0]) == 0.0
+        assert infotheory.cross_entropy([1.0, 0.0], [1.0, 0.0]) == 0.0
+
     def test_js_symmetric_and_bounded(self) -> None:
         a = infotheory.js_divergence([0.9, 0.1], [0.1, 0.9])
         b = infotheory.js_divergence([0.1, 0.9], [0.9, 0.1])
         assert a == pytest.approx(b)
         assert 0.0 <= a <= 1.0
+        assert infotheory.js_divergence([1.0, 0.0], [0.0, 1.0]) == pytest.approx(1.0)
+
+    def test_js_stays_finite_with_a_subnormal_probability(self) -> None:
+        tiny = math.ulp(0.0)
+        assert math.isfinite(infotheory.js_divergence([1.0, tiny], [1.0, 0.0]))
 
     def test_cross_entropy_identity(self) -> None:
         p = [0.4, 0.6]
@@ -99,6 +118,13 @@ class TestMutualInformation:
         with pytest.raises(ValueError, match="sum to 1"):
             infotheory.mutual_information([[0.7, 0.7], [0.7, 0.7]])
 
+    def test_agreement_with_rare_outcome(self) -> None:
+        tiny = 1e-200
+        joint = [[1.0, 0.0], [0.0, tiny]]
+        expected = -tiny * math.log2(tiny)
+        assert infotheory.mutual_information(joint) == pytest.approx(expected, abs=0.0)
+        assert infotheory.normalized_mutual_information(joint) == pytest.approx(1.0)
+
 
 class TestPermutationEntropy:
     def test_regular_signal_low_entropy(self) -> None:
@@ -120,8 +146,40 @@ class TestPermutationEntropy:
         with pytest.raises(ValueError, match="delay"):
             infotheory.permutation_entropy([1.0, 2.0, 3.0], delay=0)
 
+    def test_delay_uses_all_starting_indices(self) -> None:
+        spectrum = [0.0, 1.0, 3.0, 0.0, 4.0]
+        expected = infotheory.entropy([2 / 3, 1 / 3])
+        assert infotheory.permutation_entropy(spectrum, order=2, delay=2) == pytest.approx(expected)
+
+    def test_long_patterns_do_not_overflow_integer_keys(self) -> None:
+        signal = np.arange(17, dtype=float)
+        assert infotheory.permutation_entropy(signal, order=17) == 0.0
+
+    @pytest.mark.parametrize("signal", [[0.0, math.nan, 1.0], [[0.0, 1.0, 2.0]]])
+    def test_rejects_nonfinite_or_multidimensional_signal(self, signal: object) -> None:
+        with pytest.raises(ValueError, match="finite 1-D"):
+            infotheory.permutation_entropy(np.asarray(signal, dtype=float))
+
 
 class TestValidationBranches:
+    @pytest.mark.parametrize("base", [0.0, 1.0, math.inf, math.nan])
+    def test_rejects_invalid_log_bases(self, base: float) -> None:
+        with pytest.raises(ValueError, match="base"):
+            infotheory.joint_entropy([[1.0]], base=base)
+        with pytest.raises(ValueError, match="base"):
+            infotheory.cross_entropy([1.0], [1.0], base=base)
+        with pytest.raises(ValueError, match="base"):
+            infotheory.normalized_mutual_information([[1.0]], base=base)
+
+    def test_rejects_negative_joint_probabilities(self) -> None:
+        joint = [[0.7, -0.2], [0.2, 0.3]]
+        with pytest.raises(ValueError, match="non-negative"):
+            infotheory.conditional_entropy(joint)
+        with pytest.raises(ValueError, match="non-negative"):
+            infotheory.mutual_information(joint)
+        with pytest.raises(ValueError, match="non-negative"):
+            infotheory.normalized_mutual_information(joint)
+
     def test_probabilities_reject_2d(self) -> None:
         with pytest.raises(ValueError, match="1-D"):
             infotheory.entropy([[0.5, 0.5]])

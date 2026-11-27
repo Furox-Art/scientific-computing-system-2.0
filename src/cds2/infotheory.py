@@ -37,25 +37,36 @@ def _as_probabilities(values: Sequence[float] | FloatArray) -> FloatArray:
     return array
 
 
-def entropy(probabilities: Sequence[float] | FloatArray, base: float = 2.0) -> float:
-    """Shannon entropy of a discrete distribution in units of ``base``."""
-    if base <= 0 or math.isclose(base, 1.0):
-        msg = "base must be positive and different from 1"
+def _log_base(base: float) -> float:
+    if not math.isfinite(base) or base <= 0 or math.isclose(base, 1.0):
+        msg = "base must be finite, positive and different from 1"
         raise ValueError(msg)
-    probs = _as_probabilities(probabilities)
-    positive = probs[probs > 0]
-    return float(-(positive * np.log(positive)).sum() / math.log(base))
+    return math.log(base)
 
 
-def joint_entropy(joint: Sequence[Sequence[float]] | FloatArray, base: float = 2.0) -> float:
-    """Entropy of a joint distribution given as a 2-D probability table."""
+def _as_joint_distribution(joint: Sequence[Sequence[float]] | FloatArray) -> FloatArray:
     matrix = np.asarray(joint, dtype=float)
     if matrix.ndim != 2 or matrix.size == 0:
         msg = "joint distribution must be a non-empty 2-D table"
         raise ValueError(msg)
-    flat = _as_probabilities(matrix.ravel())
-    positive = flat[flat > 0]
-    return float(-(positive * np.log(positive)).sum() / math.log(base))
+    _as_probabilities(matrix.ravel())
+    return matrix
+
+
+def _entropy(probabilities: FloatArray, logarithm: float) -> float:
+    positive = probabilities[probabilities > 0]
+    return float(-(positive * np.log(positive)).sum() / logarithm)
+
+
+def entropy(probabilities: Sequence[float] | FloatArray, base: float = 2.0) -> float:
+    """Shannon entropy of a discrete distribution in units of ``base``."""
+    return _entropy(_as_probabilities(probabilities), _log_base(base))
+
+
+def joint_entropy(joint: Sequence[Sequence[float]] | FloatArray, base: float = 2.0) -> float:
+    """Entropy of a joint distribution given as a 2-D probability table."""
+    matrix = _as_joint_distribution(joint)
+    return _entropy(matrix.ravel(), _log_base(base))
 
 
 def conditional_entropy(
@@ -64,99 +75,105 @@ def conditional_entropy(
     base: float = 2.0,
 ) -> float:
     """H(Y|X) from a joint P(X, Y) table (rows indexed by X)."""
-    matrix = np.asarray(joint, dtype=float)
-    if matrix.ndim != 2 or matrix.size == 0:
-        msg = "joint distribution must be a non-empty 2-D table"
-        raise ValueError(msg)
+    matrix = _as_joint_distribution(joint)
+    logarithm = _log_base(base)
     row_sums = matrix.sum(axis=1)
-    if marginal is None:
-        marginal_values = row_sums
-    else:
+    if marginal is not None:
         marginal_values = np.asarray(marginal, dtype=float)
         if marginal_values.shape != (matrix.shape[0],):
             msg = "marginal shape does not match the joint table rows"
             raise ValueError(msg)
+        if not np.allclose(_as_probabilities(marginal_values), row_sums, rtol=1e-9, atol=1e-9):
+            msg = "marginal probabilities must match the joint table row sums"
+            raise ValueError(msg)
     total = float(row_sums.sum())
-    entropy_value = 0.0
-    for row, p_x in zip(matrix, marginal_values, strict=True):
-        if p_x <= 0:
-            continue
-        conditional = row / p_x
-        positive = conditional[conditional > 0]
-        entropy_value += p_x / total * -(positive * np.log(positive)).sum() / math.log(base)
-    return float(entropy_value)
+    return math.fsum(
+        float(p_x) / total * _entropy(row / p_x, logarithm)
+        for row, p_x in zip(matrix, row_sums, strict=True)
+        if p_x > 0
+    )
 
 
-def kl_divergence(
-    p: Sequence[float] | FloatArray, q: Sequence[float] | FloatArray, base: float = 2.0
-) -> float:
-    """Kullback-Leibler divergence D_KL(P || Q); zero terms where P is 0."""
+def _as_probability_pair(
+    p: Sequence[float] | FloatArray, q: Sequence[float] | FloatArray
+) -> tuple[FloatArray, FloatArray]:
     p_array = _as_probabilities(p)
     q_array = _as_probabilities(q)
     if p_array.shape != q_array.shape:
         msg = "p and q must have the same length"
         raise ValueError(msg)
-    support = (q_array > 0) & (p_array > 0)
+    return p_array, q_array
+
+
+def kl_divergence(
+    p: Sequence[float] | FloatArray, q: Sequence[float] | FloatArray, base: float = 2.0
+) -> float:
+    """Kullback-Leibler divergence D_KL(P || Q), with zero terms where P is 0."""
+    p_array, q_array = _as_probability_pair(p, q)
+    logarithm = _log_base(base)
+    support = p_array > 0
+    if np.any(q_array[support] == 0):
+        return math.inf / logarithm
     ratio_terms = p_array[support] * (np.log(p_array[support]) - np.log(q_array[support]))
-    return float(ratio_terms.sum() / math.log(base))
+    return float(ratio_terms.sum() / logarithm)
 
 
 def js_divergence(
     p: Sequence[float] | FloatArray, q: Sequence[float] | FloatArray, base: float = 2.0
 ) -> float:
     """Jensen-Shannon divergence between P and Q (symmetric, bounded)."""
-    p_array = _as_probabilities(p)
-    q_array = _as_probabilities(q)
-    if p_array.shape != q_array.shape:
-        msg = "p and q must have the same length"
-        raise ValueError(msg)
-    mixture = 0.5 * (p_array + q_array)
-    return 0.5 * kl_divergence(p_array, mixture, base) + 0.5 * kl_divergence(q_array, mixture, base)
+    p_array, q_array = _as_probability_pair(p, q)
+    logarithm = _log_base(base)
+    combined = p_array + q_array
+    divergence = 0.0
+    for probabilities in (p_array, q_array):
+        support = probabilities > 0
+        positive = probabilities[support]
+        # Use 2P/(P+Q) to keep the smallest positive probabilities in support.
+        divergence += float((positive * np.log(2.0 * positive / combined[support])).sum())
+    return 0.5 * divergence / logarithm
 
 
 def cross_entropy(
     p: Sequence[float] | FloatArray, q: Sequence[float] | FloatArray, base: float = 2.0
 ) -> float:
     """Cross-entropy H(P, Q) = H(P) + D_KL(P || Q)."""
-    p_array = _as_probabilities(p)
-    q_array = _as_probabilities(q)
-    if p_array.shape != q_array.shape:
-        msg = "p and q must have the same length"
-        raise ValueError(msg)
-    support = (q_array > 0) & (p_array > 0)
+    p_array, q_array = _as_probability_pair(p, q)
+    logarithm = _log_base(base)
+    support = p_array > 0
+    if np.any(q_array[support] == 0):
+        return math.inf / logarithm
     terms = -p_array[support] * np.log(q_array[support])
-    return float(terms.sum() / math.log(base))
+    return float(terms.sum() / logarithm)
+
+
+def _mutual_information(matrix: FloatArray, logarithm: float) -> float:
+    rows, cols = np.nonzero(matrix)
+    positive = matrix[rows, cols]
+    row_sums = matrix.sum(axis=1)
+    col_sums = matrix.sum(axis=0)
+    log_ratio = np.log(positive) - np.log(row_sums[rows]) - np.log(col_sums[cols])
+    return float((positive * log_ratio).sum() / logarithm)
 
 
 def mutual_information(joint: Sequence[Sequence[float]] | FloatArray, base: float = 2.0) -> float:
     """Mutual information I(X; Y) from a joint P(X, Y) table."""
-    matrix = np.asarray(joint, dtype=float)
-    if matrix.ndim != 2 or matrix.size == 0:
-        msg = "joint distribution must be a non-empty 2-D table"
-        raise ValueError(msg)
-    total = float(matrix.sum())
-    if not math.isclose(total, 1.0, abs_tol=1e-9):
-        msg = "joint probabilities must sum to 1"
-        raise ValueError(msg)
-    row_sums = matrix.sum(axis=1, keepdims=True)
-    col_sums = matrix.sum(axis=0, keepdims=True)
-    independent = row_sums @ col_sums
-    support = matrix > 0
-    terms = matrix[support] * np.log(matrix[support] / independent[support])
-    return float(terms.sum() / math.log(base))
+    return _mutual_information(_as_joint_distribution(joint), _log_base(base))
 
 
 def normalized_mutual_information(
     joint: Sequence[Sequence[float]] | FloatArray, base: float = 2.0
 ) -> float:
     """I(X; Y) scaled into [0, 1] by the square-root entropy product."""
-    matrix = np.asarray(joint, dtype=float)
-    h_x = entropy(matrix.sum(axis=1), base)
-    h_y = entropy(matrix.sum(axis=0), base)
-    denominator = math.sqrt(h_x * h_y)
+    matrix = _as_joint_distribution(joint)
+    _log_base(base)
+    # The logarithm base cancels in the normalized result.
+    h_x = _entropy(matrix.sum(axis=1), 1.0)
+    h_y = _entropy(matrix.sum(axis=0), 1.0)
+    denominator = math.sqrt(abs(h_x)) * math.sqrt(abs(h_y))
     if denominator == 0:
         return 0.0
-    return mutual_information(matrix, base) / denominator
+    return _mutual_information(matrix, 1.0) / denominator
 
 
 def permutation_entropy(
@@ -164,6 +181,9 @@ def permutation_entropy(
 ) -> float:
     """Bandt-Pompe permutation entropy of an ordinal-pattern histogram."""
     series = np.asarray(signal, dtype=float)
+    if series.ndim != 1 or not np.all(np.isfinite(series)):
+        msg = "signal must be a finite 1-D sequence"
+        raise ValueError(msg)
     if order < 2:
         msg = "order must be at least 2"
         raise ValueError(msg)
@@ -174,11 +194,9 @@ def permutation_entropy(
     if series.size < needed:
         msg = f"signal needs at least {needed} samples for order={order}, delay={delay}"
         raise ValueError(msg)
-    windows = np.lib.stride_tricks.sliding_window_view(series, needed)[::delay]
-    embedded = windows[:, ::delay][:, :order]
+    windows = np.lib.stride_tricks.sliding_window_view(series, needed)
+    embedded = windows[:, ::delay]
     codes = np.argsort(embedded, axis=1, kind="stable")
-    weights = np.array([order**i for i in range(order)], dtype=np.int64)
-    patterns = codes @ weights
-    _, counts = np.unique(patterns, return_counts=True)
+    _, counts = np.unique(codes, axis=0, return_counts=True)
     probabilities = counts / counts.sum()
     return entropy(probabilities, base)

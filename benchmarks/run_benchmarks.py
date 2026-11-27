@@ -20,7 +20,7 @@ import subprocess
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -40,12 +40,20 @@ import cds2  # noqa: E402
 
 @dataclass(frozen=True)
 class BenchResult:
-    """Timing record for one head-to-head race."""
+    """Timing record for one head-to-head race.
+
+    ``noise`` is this run's own relative measurement uncertainty: the gap
+    between the ratio measured on the first half of the rounds and the ratio
+    measured on the second half. It travels into the history so the regression
+    gate can widen its band by the uncertainty the machine actually showed
+    instead of assuming one fixed tolerance for every benchmark and every host.
+    """
 
     name: str
     baseline_library: str
     baseline_seconds: float
     cds2_seconds: float
+    noise: float = 0.0
 
     @property
     def ratio(self) -> float:
@@ -53,13 +61,56 @@ class BenchResult:
         return self.cds2_seconds / self.baseline_seconds if self.baseline_seconds else float("inf")
 
 
-def _best_of(func: Callable[[], object], repeats: int) -> float:
-    times: list[float] = []
-    for _ in range(repeats):
-        start = time.perf_counter()
-        func()
-        times.append(time.perf_counter() - start)
-    return min(times)
+#: Each side of a race is measured until it has accumulated at least this much
+#: work. Below it the clock and the scheduler dominate the ratio: at 0.10 s two
+#: consecutive runs of the quick suite still put 4/16 benchmarks outside the
+#: +-10% band, at 0.30 s it is 1/16 and the median spread falls to 3.8%.
+MIN_SIDE_SECONDS = 0.30
+
+#: Safety bound: a pathological million-round benchmark cannot hang the suite.
+MAX_ROUNDS = 2000
+
+
+def _time_once(func: Callable[[], object]) -> float:
+    start = time.perf_counter()
+    func()
+    return time.perf_counter() - start
+
+
+def _median(times: list[float]) -> float:
+    ordered = sorted(times)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[middle]
+    return (ordered[middle - 1] + ordered[middle]) / 2.0
+
+
+def _half_split_noise(baseline_times: list[float], cds2_times: list[float]) -> float:
+    """Relative disagreement between the two halves of the measured rounds.
+
+    The rounds are paired, so every round yields one ratio. Splitting those
+    ratios in half and comparing the two medians estimates how much this run's
+    own numbers wobble; a run that cannot reproduce itself to better than 5%
+    has no business failing a peer run for a 7% difference.
+
+    Returns 0.0 when there are too few rounds to split, which keeps the gate on
+    its plain tolerance rather than inventing a number.
+    """
+    paired = min(len(baseline_times), len(cds2_times))
+    ratios = [
+        cds2_times[index] / baseline_times[index]
+        for index in range(paired)
+        if baseline_times[index]
+    ]
+    if len(ratios) < 4:
+        return 0.0
+    middle = len(ratios) // 2
+    centre = _median(ratios)
+    if not centre:
+        return 0.0
+    first = _median(ratios[:middle])
+    second = _median(ratios[middle:])
+    return abs(second - first) / centre
 
 
 def _race(
@@ -70,11 +121,58 @@ def _race(
     baseline_repeats: int,
     cds2_repeats: int,
 ) -> BenchResult:
+    """Race two callables with interleaved, median-reduced timings.
+
+    The two sides used to be timed back to back -- ``min`` of N baseline calls,
+    then ``min`` of N contender calls. On a shared runner the machine drifts
+    between those two phases (frequency scaling, noisy neighbours), and the ratio
+    moves with it: two consecutive runs of this suite disagreed by 25-35% on the
+    sub-second benchmarks, which the +-10% regression band then reported as
+    regressions in both directions.
+
+    Interleaving pairs every baseline measurement with a contender measurement
+    taken under nearly the same conditions, and the median of each side ignores a
+    single disturbed round. ``min`` was also optimistic rather than typical: it
+    reports the luckiest round, which hides the run-to-run spread the band has to
+    tolerate.
+
+    Interleaving alone is not enough. Benchmarking two consecutive runs of this
+    suite on one machine still left a median run-to-run spread of 12%, and 300%
+    to 2000% on the benchmarks that finish in microseconds: at that scale the
+    clock and the OS scheduler dominate the calculation. Each side is therefore
+    measured until it has accumulated ``MIN_SIDE_SECONDS`` of work (bounded by
+    ``MAX_ROUNDS``), which normalises every benchmark to a measurable duration
+    instead of trusting a single microsecond sample.
+    """
+    # One untimed call per side. The first call of a library routine pays
+    # import, thread-pool and cache warm-up costs that say nothing about its
+    # steady-state speed: kmeans against scikit-learn swung between 0.002 and
+    # 0.166 of the baseline across two consecutive runs because only one side
+    # paid them in the measured rounds.
+    baseline()
+    contender()
+
+    baseline_times: list[float] = []
+    cds2_times: list[float] = []
+    rounds = 0
+    while True:
+        short_baseline = sum(baseline_times) < MIN_SIDE_SECONDS
+        short_cds2 = sum(cds2_times) < MIN_SIDE_SECONDS
+        if rounds >= max(baseline_repeats, cds2_repeats) and not short_baseline and not short_cds2:
+            break
+        if rounds >= MAX_ROUNDS:
+            break
+        if rounds < baseline_repeats or short_baseline:
+            baseline_times.append(_time_once(baseline))
+        if rounds < cds2_repeats or short_cds2:
+            cds2_times.append(_time_once(contender))
+        rounds += 1
     return BenchResult(
         name=name,
         baseline_library=baseline_library,
-        baseline_seconds=_best_of(baseline, baseline_repeats),
-        cds2_seconds=_best_of(contender, cds2_repeats),
+        baseline_seconds=_median(baseline_times),
+        cds2_seconds=_median(cds2_times),
+        noise=_half_split_noise(baseline_times, cds2_times),
     )
 
 
@@ -399,7 +497,7 @@ def environment_info() -> dict[str, object]:
         except ImportError:
             continue
     return {
-        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "timestamp_utc": datetime.now(UTC).isoformat(),
         "git_commit": commit or "unknown",
         "python": platform.python_version(),
         "platform": platform.platform(),
@@ -448,6 +546,32 @@ def run_all(
     return results
 
 
+def record_results(results: list[BenchResult], history_dir: str | Path | None = None) -> int:
+    """Append ``results`` to the benchmark history; return how many were written.
+
+    Both CI entry points record through this one function. They used to carry
+    their own inline copies, and the release workflow called the quick suite
+    twice -- once for its table, once to record it -- so the run cost double and
+    the two copies of the logic could drift apart.
+    """
+    from cds2.prof import BenchHistory
+    from cds2.prof.history import BenchEntry
+
+    entries = [
+        BenchEntry(
+            name=result.name,
+            baseline_library=result.baseline_library,
+            baseline_seconds=result.baseline_seconds,
+            cds2_seconds=result.cds2_seconds,
+            noise=result.noise,
+        )
+        for result in results
+    ]
+    history = BenchHistory(history_dir=history_dir) if history_dir else BenchHistory()
+    history.append(entries)
+    return len(entries)
+
+
 def format_table(results: list[BenchResult]) -> str:
     """Render results as an aligned ASCII table."""
     header = f"{'benchmark':<28}{'vs':<11}{'baseline (s)':>14}{'cds2 (s)':>12}{'cds2/base':>11}"
@@ -466,7 +590,7 @@ def write_markdown_report(results: list[BenchResult], path: Path) -> None:
     lines = [
         "# CDS v2 benchmarks",
         "",
-        f"Generated {datetime.now(timezone.utc).date().isoformat()} by "
+        f"Generated {datetime.now(UTC).date().isoformat()} by "
         "`benchmarks/run_benchmarks.py`. Ratio is cds2 time divided by baseline "
         "time: 1.00x means parity with the underlying library.",
         "",
@@ -503,6 +627,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--only", nargs="*", choices=sorted(CORE_BENCHMARKS) + sorted(OPTIONAL_BENCHMARKS)
     )
+    parser.add_argument(
+        "--record",
+        action="store_true",
+        help="append this run to the benchmark history the regression gate reads",
+    )
+    parser.add_argument(
+        "--history-dir",
+        metavar="DIR",
+        default=None,
+        help="history directory for --record (defaults to the checkout's benchmarks/history)",
+    )
     args = parser.parse_args(argv)
 
     results = run_all(
@@ -516,6 +651,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.markdown:
         write_markdown_report(results, Path(args.markdown))
         print(f"markdown report written to {args.markdown}")
+    if args.record:
+        print(f"recorded {record_results(results, history_dir=args.history_dir)} results")
     return 0
 
 

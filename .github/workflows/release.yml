@@ -136,26 +136,20 @@ jobs:
             bench-history-
 
       - name: Benchmark regression gate
+        # Both sides of every race run on one thread. The gate compares a ratio,
+        # and a BLAS thread pool that resizes between runs moves it by large
+        # factors: release run 42490976634 recorded linreg at 3.56 against
+        # scikit-learn where the same suite measures 0.29 with a fixed thread
+        # count. Pinning is what makes the ratio a property of the code.
+        env:
+          OMP_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          NUMEXPR_NUM_THREADS: "1"
         run: |
-          python benchmarks/run_benchmarks.py --quick
-          python - <<'PY'
-          from benchmarks.run_benchmarks import run_all
-          from cds2.prof import BenchHistory
-          from cds2.prof.history import BenchEntry
-
-          results = run_all(quick=True)
-          entries = [
-              BenchEntry(
-                  name=r.name,
-                  baseline_library=r.baseline_library,
-                  baseline_seconds=r.baseline_seconds,
-                  cds2_seconds=r.cds2_seconds,
-              )
-              for r in results
-          ]
-          path = BenchHistory().append(entries)
-          print(f"Recorded {len(entries)} benchmark results to {path}")
-          PY
+          # One invocation, not two: the suite used to run once for its table and
+          # again to be recorded, so the release paid for it twice.
+          python benchmarks/run_benchmarks.py --quick --record
           python -m cds2.bench.regression --tolerance 0.10
           python - <<'PY'
           from cds2.prof import BenchHistory
@@ -220,7 +214,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["310", "311", "312", "313"]
+        python: ["311", "312", "313"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -284,10 +278,9 @@ jobs:
           path: dist
           merge-multiple: true
 
-      # Recovery must never substitute different bytes for a published
-      # version. When PyPI already serves this version, require the freshly
-      # built wheel + sdist to match its files by name, size and sha256; only
-      # then skip the upload and continue to the tag/GitHub Release steps.
+      # Verify an existing release against the original workflow artifacts
+      # using only PyPI JSON metadata. If a fresh build changes archive bytes,
+      # rerun the failed jobs from the original run to reuse its artifacts.
       - name: Inspect existing PyPI release for safe recovery
         id: pypi_state
         shell: bash
@@ -327,36 +320,39 @@ jobs:
               filename = item["filename"]
               if filename in remote:
                   raise SystemExit(f"duplicate PyPI artifact filename: {filename}")
-              remote[filename] = (item["size"], item["digests"]["sha256"])
+              remote[filename] = item
 
-          local = {}
-          for path in pathlib.Path("dist").iterdir():
-              if not (path.name.endswith(".whl") or path.name.endswith(".tar.gz")):
-                  continue
-              local[path.name] = (path.stat().st_size, hashlib.sha256(path.read_bytes()).hexdigest())
-
-          if not local or set(local) != set(remote):
+          local_paths = {
+              path.name: path
+              for path in pathlib.Path("dist").iterdir()
+              if path.name.endswith((".whl", ".tar.gz"))
+          }
+          if not local_paths or set(local_paths) != set(remote):
               raise SystemExit(
-                  "existing PyPI release does not contain the exact local wheel + sdist: "
-                  f"local={sorted(local)}, remote={sorted(remote)}"
+                  "existing PyPI release does not contain the exact local wheel + sdist set: "
+                  f"local={sorted(local_paths)}, remote={sorted(remote)}"
               )
-          for filename in sorted(local):
-              if local[filename] != remote[filename]:
+
+          for filename, path in sorted(local_paths.items()):
+              item = remote[filename]
+              with path.open("rb") as artifact:
+                  digest = hashlib.file_digest(artifact, "sha256").hexdigest()
+              if digest != item["digests"]["sha256"] or path.stat().st_size != item["size"]:
                   raise SystemExit(
-                      f"existing PyPI artifact differs from the verified build: {filename}; "
-                      f"local={local[filename]}, remote={remote[filename]}"
+                      f"recovery artifact differs from PyPI metadata: {filename}. "
+                      "Rerun the failed jobs from the original publish run to reuse its artifacts."
                   )
-              print(f"RECOVERY MATCH {filename} size={local[filename][0]} sha256={local[filename][1]}")
+              print(f"RECOVERY SHA-256 MATCH {filename}")
 
           with output.open("a", encoding="utf-8") as stream:
               stream.write("already_published=true\n")
-          print("Exact release already exists on PyPI; upload will be skipped.")
+          print("Published artifact names, sizes and SHA-256 digests match; upload will be skipped.")
           PY
 
       - name: Publish to PyPI (trusted publishing)
         id: trusted_publish
         if: steps.pypi_state.outputs.already_published != 'true'
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
         continue-on-error: true
 
       - name: Publish to PyPI (API token fallback)
@@ -365,7 +361,7 @@ jobs:
           steps.pypi_state.outputs.already_published != 'true' &&
           steps.trusted_publish.outcome != 'success' &&
           steps.auth.outputs.has_token == 'true'
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # release/v1
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
         continue-on-error: true
@@ -444,13 +440,44 @@ jobs:
           name: wheel-${{ matrix.os }}-312
           path: dist
 
+      - name: Install the artifact's declared dependencies from PyPI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          # The artifact itself must come from `dist`, but its dependencies never
+          # ship with it. Reading them out of the wheel's own METADATA keeps this
+          # list from drifting from pyproject.toml. Without this step the
+          # --no-index install below fails the moment a runner image stops
+          # preinstalling numpy (that is how 5.4.6's verify job went red on all
+          # three platforms while the publish itself had succeeded).
+          python - <<'PY' > runtime-requirements.txt
+          import glob
+          import zipfile
+
+          wheel = sorted(glob.glob("dist/*.whl"))[0]
+          with zipfile.ZipFile(wheel) as archive:
+              metadata = [
+                  name for name in archive.namelist() if name.endswith(".dist-info/METADATA")
+              ][0]
+              text = archive.read(metadata).decode("utf-8")
+          for line in text.splitlines():
+              if not line.startswith("Requires-Dist: "):
+                  continue
+              requirement = line.split(": ", 1)[1]
+              if "extra ==" in requirement:
+                  continue
+              print(requirement)
+          PY
+          cat runtime-requirements.txt
+          python -m pip install --no-cache-dir -r runtime-requirements.txt
+
       - name: Install release artifact without registry downloads
         shell: bash
         run: |
           set -euo pipefail
           PACKAGE="${{ needs.publish.outputs.package_name }}"
           VERSION="${{ needs.publish.outputs.version }}"
-          python -m pip install --upgrade pip
 
           # Linux artifacts carry both the manylinux and musllinux wheel for the
           # same interpreter, so a single architecture match is ambiguous. Let
@@ -556,7 +583,7 @@ jobs:
           TARGET_SHA: ${{ steps.target.outputs.sha }}
         run: |
           set -euo pipefail
-          git fetch --force origin "refs/tags/v${VERSION}:refs/tags/v${VERSION}" origin main
+          git fetch --force origin "refs/tags/v${VERSION}:refs/tags/v${VERSION}" main
           TAG_COMMIT="$(git rev-list -n 1 "v${VERSION}")"
 
           if [ "$TAG_COMMIT" != "$TARGET_SHA" ]; then

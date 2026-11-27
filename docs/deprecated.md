@@ -1,9 +1,11 @@
 # Deprecated modules
 
 Two cds2 modules are deprecated since **4.3.0** and may be removed in a
-future major release. Both still work, but importing them emits a
-`DeprecationWarning` — including on a plain `import cds2`, because the
-package root re-exports every module:
+future major release. Both still work. Since 5.5.0 they are imported
+lazily through the package root's module `__getattr__` (PEP 562): a plain
+`import cds2` no longer imports them and emits no warning. The
+`DeprecationWarning` fires on first actual use — `cds2.special`,
+`cds2.distributions`, or any re-exported alias such as `cds2.erf`:
 
 ```text
 DeprecationWarning: cds2.distributions is deprecated since 4.3.0 ...

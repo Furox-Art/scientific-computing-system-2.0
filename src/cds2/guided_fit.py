@@ -85,6 +85,29 @@ class DatasetResult:
 
 
 @dataclass(frozen=True)
+class ModelComparison:
+    """One candidate model scored by Gaussian-error information criteria.
+
+    ``n_params`` counts the fitted curve parameters plus one for the
+    estimated error variance. ``delta_aic``/``delta_bic`` are relative to
+    the best model in the comparison (0 for the winner); ``aic_weight`` is
+    the Akaike weight ``exp(-delta_aic / 2)`` normalised over candidates,
+    i.e. the relative likelihood of each model given the data.
+    """
+
+    model: ModelName
+    n_points: int
+    n_params: int
+    rmse: float
+    log_likelihood: float
+    aic: float
+    bic: float
+    delta_aic: float
+    delta_bic: float
+    aic_weight: float
+
+
+@dataclass(frozen=True)
 class GuidedFitResult:
     model: ModelName
     datasets: tuple[DatasetResult, ...]
@@ -525,6 +548,127 @@ def _prediction_rmse(model: ModelName, dataset: FitDataset, params: FloatArray) 
     prediction = np.asarray(_MODEL_FUNCS[model](dataset.x, *params), dtype=np.float64)
     residual = dataset.y - prediction
     return float(np.sqrt(np.mean(residual * residual)))
+
+
+def _comparison_fit(
+    model: ModelName, prepared: FitDataset, outlier_policy: OutlierPolicy
+) -> tuple[FitResult, FitDataset]:
+    """Fit one candidate, honouring the outlier policy like run_guided_fit."""
+    fit = _fit_arrays(model, prepared.x, prepared.y, prepared.sigma)
+    used = prepared
+    if outlier_policy == "exclude":
+        indices = _outliers(np.asarray(fit.residuals, dtype=np.float64))
+        if indices.size:
+            keep = np.ones(prepared.x.size, dtype=bool)
+            keep[indices] = False
+            sigma = None if prepared.sigma is None else prepared.sigma[keep]
+            retained = FitDataset(
+                prepared.name,
+                prepared.x[keep],
+                prepared.y[keep],
+                sigma,
+                prepared.source_path,
+            )
+            if retained.x.size >= 4:
+                used = retained
+                fit = _fit_arrays(model, retained.x, retained.y, retained.sigma)
+    return fit, used
+
+
+# Relative residual floor below which a candidate counts as a perfect fit.
+# A single machine epsilon is too tight: least-squares roundoff accumulates
+# with the design-matrix conditioning and shifts between BLAS/LAPACK
+# backends (numpy 2.4 vs 2.5 moved the constant-data linear RMSE across
+# eps * y_scale), which let spuriously perfect fits into the ranking.
+# 1e-12 relative stays orders of magnitude below any measurable noise while
+# covering accumulated float64 roundoff.
+_PERFECT_FIT_RTOL = 1e-12
+
+
+def compare_models(
+    dataset: FitDataset,
+    *,
+    missing_policy: MissingPolicy = "interpolate",
+    outlier_policy: OutlierPolicy = "keep",
+    exclude: tuple[ModelName, ...] = (),
+) -> tuple[ModelComparison, ...]:
+    """Rank the candidate models by AIC and BIC on one dataset.
+
+    Each candidate is fitted with the same missing-data and outlier policies
+    as :func:`run_guided_fit`, then scored under a Gaussian error model:
+    ``AIC = 2k - 2 log L`` and ``BIC = k ln(n) - 2 log L`` with ``k`` the
+    number of curve parameters plus one for the estimated error variance.
+    With ``sigma`` the weighted Gaussian likelihood is used (the ``log sigma``
+    normalisation is included); ``rmse`` is always reported in data units.
+    Results are sorted by AIC and carry deltas plus normalised Akaike
+    weights, so the output supports model averaging rather than a silent
+    winner-takes-all choice.
+
+    Candidates that cannot be fitted (e.g. ``power`` with ``x <= 0``) or
+    that fit perfectly (relative RMSE at or below ``_PERFECT_FIT_RTOL``,
+    where the Gaussian likelihood is effectively unbounded) are skipped;
+    if none remain, a ``RuntimeError``
+    is raised. Note that with ``outlier_policy="exclude"`` different models
+    may retain different point sets, so their criteria are then computed on
+    slightly different data; the default ``"keep"`` compares like with like.
+
+    Raises:
+        ValueError: invalid policy, or every model excluded.
+        RuntimeError: no candidate could be fitted and scored.
+    """
+    if missing_policy not in {"drop", "interpolate"}:
+        raise ValueError("missing_policy must be 'drop' or 'interpolate'")
+    if outlier_policy not in {"keep", "exclude"}:
+        raise ValueError("outlier_policy must be 'keep' or 'exclude'")
+    candidates = tuple(model for model in MODEL_NAMES if model not in exclude)
+    if not candidates:
+        raise ValueError("at least one candidate model is required")
+    prepared = _prepare(dataset, missing_policy)
+    raw: list[tuple[ModelName, int, int, float, float, float, float]] = []
+    for model in candidates:
+        try:
+            fit, used = _comparison_fit(model, prepared, outlier_policy)
+            prediction = np.asarray(_MODEL_FUNCS[model](used.x, *fit.params), dtype=np.float64)
+            residual = used.y - prediction
+            n = int(used.x.size)
+            rmse = float(np.sqrt(np.mean(residual * residual)))
+            y_scale = max(1.0, float(np.max(np.abs(used.y))))
+            if rmse <= _PERFECT_FIT_RTOL * y_scale:
+                raise ValueError("perfect fit: information criteria are undefined")
+            if used.sigma is not None:
+                z = residual / used.sigma
+                log_likelihood = -0.5 * float(np.sum(z * z + np.log(2.0 * np.pi * used.sigma**2)))
+            else:
+                rss = float(residual @ residual)
+                log_likelihood = -0.5 * n * (float(np.log(2.0 * np.pi * rss / n)) + 1.0)
+            k = int(fit.params.size) + 1
+            aic = 2.0 * k - 2.0 * log_likelihood
+            bic = k * float(np.log(n)) - 2.0 * log_likelihood
+            raw.append((model, n, k, rmse, log_likelihood, aic, bic))
+        except (ValueError, RuntimeError, FloatingPointError, OverflowError):
+            continue
+    if not raw:
+        raise RuntimeError("no supported model could be fitted to the data")
+    best_aic = min(row[5] for row in raw)
+    best_bic = min(row[6] for row in raw)
+    weights = [float(np.exp(-0.5 * (row[5] - best_aic))) for row in raw]
+    weight_total = float(np.sum(weights))
+    comparisons = [
+        ModelComparison(
+            model=model,
+            n_points=n,
+            n_params=k,
+            rmse=rmse,
+            log_likelihood=log_likelihood,
+            aic=aic,
+            bic=bic,
+            delta_aic=aic - best_aic,
+            delta_bic=bic - best_bic,
+            aic_weight=weight / weight_total,
+        )
+        for (model, n, k, rmse, log_likelihood, aic, bic), weight in zip(raw, weights, strict=True)
+    ]
+    return tuple(sorted(comparisons, key=lambda item: item.aic))
 
 
 def run_guided_fit(
@@ -1108,7 +1252,9 @@ __all__ = [
     "FitDataset",
     "GuidedFitResult",
     "MODEL_NAMES",
+    "ModelComparison",
     "ModelRecommendation",
+    "compare_models",
     "inspect_dataset",
     "load_csv_dataset",
     "manifest_dict",
