@@ -14,7 +14,9 @@ if TYPE_CHECKING:
     pass
 
 try:
-    from cds2 import _fast_kmeans as _c_kernel  # type: ignore[attr-defined]
+    # Direct submodule import: cds2's lazy __getattr__ must not turn a missing
+    # C kernel into an AttributeError (the except below catches ImportError).
+    import cds2._fast_kmeans as _c_kernel  # type: ignore[import-not-found]
 
     _HAS_C_KERNEL = True
 except ImportError:

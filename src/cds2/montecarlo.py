@@ -17,6 +17,8 @@ __all__ = [
     "hit_or_miss",
     "metropolis_hastings",
     "parallel_mc_integrate",
+    "split_rhat",
+    "effective_sample_size",
 ]
 
 FloatArray = NDArray[np.float64]
@@ -253,3 +255,112 @@ def parallel_mc_integrate(
     except Exception:  # pragma: no cover - process/pickling fallback
         estimates = [_integrate_chunk(job) for job in jobs]
     return float(np.sum(estimates))
+
+
+def _chain_matrix(chains: object) -> FloatArray:
+    """Validate MCMC draws as an ``(m, n)`` matrix of ``m`` chains of length ``n``.
+
+    A single 1-D sequence is treated as one chain. Ragged sequences, non-finite
+    draws and chains shorter than four draws are rejected: the split-R-hat and
+    ESS estimators below need at least two draws per half chain.
+    """
+    try:
+        arr = np.asarray(chains, dtype=float)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "chains must be a 2-D array or a sequence of equal-length 1-D chains"
+        ) from exc
+    if arr.ndim == 1:
+        arr = arr[None, :]
+    if arr.ndim != 2:
+        raise ValueError("chains must be a 2-D array or a sequence of 1-D chains")
+    m, n = arr.shape
+    if m < 1 or n < 4:
+        raise ValueError("each chain needs at least four draws")
+    if not bool(np.all(np.isfinite(arr))):
+        raise ValueError("chains must contain only finite draws")
+    return arr
+
+
+def split_rhat(chains: object) -> float:
+    """Split-R-hat convergence diagnostic (Gelman et al., BDA3, ch. 11).
+
+    Each chain is split in half (an odd final draw is dropped), then the
+    potential scale reduction factor ``sqrt(var_plus / W)`` is computed from
+    the between-half-chain variance ``B`` and the mean within-half-chain
+    variance ``W``. Values near 1 indicate the chains mix to the same
+    distribution; values above ~1.01 flag non-convergence. Splitting also
+    detects non-stationarity within a single chain (e.g. a drifting mean).
+
+    Args:
+        chains: ``(m, n)`` array-like of draws, or a sequence of ``m``
+            equal-length 1-D chains. At least two chains of four draws each.
+
+    Raises:
+        ValueError: fewer than two chains, invalid shape, non-finite draws,
+            or zero within-chain variance (constant chains).
+    """
+    arr = _chain_matrix(chains)
+    m, n = arr.shape
+    if m < 2:
+        raise ValueError("split_rhat needs at least two chains")
+    if n % 2:
+        arr = arr[:, :-1]
+        n -= 1
+    half = n // 2
+    split = np.concatenate((arr[:, :half], arr[:, half:]), axis=0)
+    chain_means = split.mean(axis=1)
+    within = float(split.var(axis=1, ddof=1).mean())
+    if within == 0.0:
+        raise ValueError("split_rhat is undefined for chains with zero within-chain variance")
+    between = half * float(chain_means.var(ddof=1))
+    var_plus = (half - 1) / half * within + between / half
+    return float(np.sqrt(var_plus / within))
+
+
+def effective_sample_size(chains: object) -> float:
+    """Bulk effective sample size (ESS) of MCMC draws (Gelman et al., BDA3).
+
+    Autocorrelation inflates the variance of MCMC averages: ``n`` correlated
+    draws carry the information of fewer independent ones. This estimates
+    ``m * n / tau`` with the integrated autocorrelation time ``tau`` built
+    from the initial monotone positive sequence of paired autocorrelations
+    (Geyer's truncation), using the combined within/between-chain variance
+    so disagreeing chains are penalised. The result is capped at the total
+    draw count ``m * n`` (negatively autocorrelated chains can otherwise
+    exceed it).
+
+    Args:
+        chains: ``(m, n)`` array-like of draws, a sequence of equal-length
+            1-D chains, or a single 1-D chain. Each chain needs four draws.
+
+    Raises:
+        ValueError: invalid shape, non-finite draws, or constant chains
+            (zero within-chain variance makes autocorrelation undefined).
+    """
+    arr = _chain_matrix(chains)
+    m, n = arr.shape
+    chain_means = arr.mean(axis=1)
+    within = float(arr.var(axis=1, ddof=1).mean())
+    if within == 0.0:
+        raise ValueError("effective_sample_size is undefined for constant chains")
+    between = n * float(chain_means.var(ddof=1)) if m > 1 else 0.0
+    var_plus = (n - 1) / n * within + between / n
+    centered = arr - chain_means[:, None]
+    # Biased autocovariance per chain via zero-padded FFT (denominator n).
+    size = 1 << (2 * n - 1).bit_length()
+    freq = np.fft.rfft(centered, n=size, axis=1)
+    acov = np.fft.irfft(freq * np.conj(freq), n=size, axis=1)[:, :n] / n
+    mean_acov = acov.mean(axis=0)
+    rho = 1.0 - (within - mean_acov) / var_plus
+    rho[0] = 1.0
+    total = 0.0
+    monotone = float("inf")
+    for lag in range(n // 2):
+        pair = float(rho[2 * lag] + rho[2 * lag + 1])
+        if pair <= 0.0:
+            break
+        monotone = min(monotone, pair)
+        total += monotone
+    tau = max(1.0, 2.0 * total - 1.0)
+    return float(m * n / tau)

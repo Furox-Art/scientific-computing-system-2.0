@@ -18,11 +18,11 @@ import os
 import re
 import sys
 import time
+import tomllib
 import urllib.error
 import urllib.request
 from pathlib import Path
-
-import tomllib
+from types import ModuleType
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -49,7 +49,7 @@ def _iter_jobs(workflow_text: str):
         yield name, "\n".join(lines[index:end])
 
 
-# 1. Every public source module wired into __init__
+# 1. Every public source module is exported by its package
 #
 # Modules whose name starts with "_" are private: `__init__`, `_version`,
 # `__main__` and internal helpers. They have no public API surface, so they are
@@ -60,19 +60,16 @@ def _iter_jobs(workflow_text: str):
 src_modules = sorted(
     p.stem for p in (ROOT / "src" / "cds2").glob("*.py") if not p.stem.startswith("_")
 )
-init_text = (ROOT / "src" / "cds2" / "__init__.py").read_text(encoding="utf-8")
-block = init_text[
-    init_text.index("from . import (") : init_text.index(")", init_text.index("from . import ("))
-]
+import cds2  # noqa: E402  (path set up above)
+
 for mod in src_modules:
-    if f"    {mod}," not in block:
-        issues.append(f"module {mod} missing from __init__ from-import block")
-    if f'"{mod}",' not in init_text:
+    module = getattr(cds2, mod, None)
+    if not isinstance(module, ModuleType) or module.__name__ != f"cds2.{mod}":
+        issues.append(f"module {mod} does not resolve through cds2.{mod}")
+    if mod not in cds2.__all__:
         issues.append(f"module {mod} missing from __init__ __all__")
 
 # 2. Every __all__ entry resolves to a real attribute
-import cds2  # noqa: E402  (path set up above)
-
 missing_attrs = [name for name in cds2.__all__ if not hasattr(cds2, name)]
 if missing_attrs:
     issues.append(f"__all__ entries without attributes: {missing_attrs}")

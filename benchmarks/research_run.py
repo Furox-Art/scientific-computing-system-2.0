@@ -19,7 +19,7 @@ import os
 import platform
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -74,7 +74,7 @@ def collect_provenance(command: list[str] | None = None) -> dict[str, Any]:
     base_environment = environment_info()
     return {
         "schema_version": 1,
-        "captured_at_utc": datetime.now(timezone.utc).isoformat(),
+        "captured_at_utc": datetime.now(UTC).isoformat(),
         "command": list(command or []),
         "git": {
             "commit": _git_output("rev-parse", "HEAD")

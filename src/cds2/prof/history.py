@@ -15,7 +15,7 @@ import platform
 import subprocess
 import sys
 from collections.abc import Iterable, Mapping
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -48,6 +48,29 @@ def _default_user_history_dir() -> Path:
     return _user_history_dir_for(os.name, sys.platform, os.environ, Path.home())
 
 
+def cpu_model(cpuinfo: Path | None = None) -> str:
+    """Best-effort identifier of the CPU this run was measured on.
+
+    Benchmark ratios are only comparable within one hardware class: the same
+    commit measured on two different GitHub runner models disagrees by 12-17%
+    on the sub-second benchmarks, which is more than the gate's tolerance. The
+    gate therefore compares a run only against runs from the same CPU, and calls
+    a run that has no peer on this hardware a baseline instead of failing it.
+
+    Returns an empty string when the model cannot be read, which makes the gate
+    fall back to comparing everything.
+    """
+    path = cpuinfo if cpuinfo is not None else Path("/proc/cpuinfo")
+    try:
+        if path.is_file():
+            for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+                if line.lower().startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    return platform.processor() or platform.machine()
+
+
 def _repo_root() -> Path:
     """Walk up until we find the directory containing ``src/cds2``.
 
@@ -72,18 +95,29 @@ def _git_commit() -> str:
             check=True,
         )
         return out.stdout.strip()
-    except (FileNotFoundError, subprocess.CalledProcessError):
+    except (OSError, subprocess.CalledProcessError):
+        # OSError covers FileNotFoundError (no git), PermissionError (sandboxed
+        # spawn denial, e.g. WinError 5) and any other spawn/pipe failure:
+        # recording history must never crash because the commit is unreadable.
         return "unknown"
 
 
 @dataclasses.dataclass(frozen=True)
 class BenchEntry:
-    """One benchmark result within a run."""
+    """One benchmark result within a run.
+
+    ``noise`` is the run's own relative measurement uncertainty for this
+    benchmark: how far the two halves of its measured rounds disagreed. The
+    regression gate widens its band by this much instead of guessing a
+    tolerance wide enough for every machine. It defaults to zero so entries
+    recorded before the field existed still load.
+    """
 
     name: str
     baseline_library: str
     baseline_seconds: float
     cds2_seconds: float
+    noise: float = 0.0
 
     @property
     def ratio(self) -> float:
@@ -136,16 +170,17 @@ class BenchHistory:
         ``baseline_library``, ``baseline_seconds``, ``cds2_seconds`` and
         ``ratio``.
         """
-        run_id = run_id or datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        run_id = run_id or datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         self.history_dir.mkdir(parents=True, exist_ok=True)
         path = self._run_path(run_id)
         env = {
             "python": platform.python_version(),
             "platform": platform.platform(),
             "machine": platform.machine(),
+            "cpu": cpu_model(),
         }
         record = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "commit": _git_commit(),
             "env": env,
             "entries": [
@@ -188,12 +223,14 @@ class BenchHistory:
                         continue
                     if end and ts > end:
                         continue
+                    env = record.get("env", {})
                     for entry in record.get("entries", []):
                         rows.append(
                             {
                                 "timestamp": ts,
                                 "commit": record.get("commit", ""),
-                                "env": record.get("env", {}),
+                                "env": env,
+                                "cpu": env.get("cpu", ""),
                                 **entry,
                             }
                         )
@@ -208,10 +245,16 @@ class BenchHistory:
                     "baseline_seconds",
                     "cds2_seconds",
                     "ratio",
+                    "noise",
+                    "cpu",
                 ]
             )
             return empty
         df: pd.DataFrame = pd.DataFrame(rows)
         if "ratio" not in df.columns:
             df["ratio"] = df["cds2_seconds"] / df["baseline_seconds"]
+        if "noise" in df.columns:
+            df["noise"] = df["noise"].fillna(0.0)
+        else:
+            df["noise"] = 0.0
         return df

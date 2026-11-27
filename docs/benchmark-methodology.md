@@ -54,7 +54,9 @@ The gate is deliberately two-sided and fitted on the runs that *precede* the lat
 - the acceptance band is `[baseline / (1 + tolerance), baseline * (1 + tolerance)]`, where `baseline` is the median ratio of up to `lookback` prior runs;
 - the latest ratio must land inside that band, so a *suspiciously fast* result fails too — a sudden large speedup is far more often a no-op measurement than a real win;
 - the latest ratio is never part of the set the band is fitted on. Fitting on a window that contains it is self-referential: a one-row window compares the value against itself and passes every profile, and a gradual drift just re-centres the band on itself;
-- a benchmark with no prior run at all has nothing to regress against and passes vacuously.
+- a benchmark with no prior run at all has nothing to regress against and passes vacuously;
+- a run is compared only against runs recorded on the **same CPU model**. Benchmark ratios are not portable across hardware: the same commit measured on two GitHub runner models disagrees by 12–17% on the sub-second benchmarks, which is wider than the band, and comparing them produced eight "regressions" in one release that were pure hardware differences. A run with no peer on its own CPU establishes the baseline for that CPU instead of failing, and the report labels it `baseline`;
+- the band is widened by the run's own measured uncertainty (`noise`, the gap between the two halves of its rounds) when that is larger than `tolerance`, capped at `max_tolerance`. The widening comes from the within-run disagreement, not from the spread of the history: a band fitted to the window's dispersion would also swallow a gradual regression. In practice the recorded `noise` is well under 1% on a pinned single-thread run, so the hardware scoping above is what keeps the band honest; the column stays in the report because a run that genuinely cannot reproduce itself should say so rather than hide it.
 
 Tune the band with `python -m cds2.bench.regression --tolerance 0.10 --lookback 10`.
 
